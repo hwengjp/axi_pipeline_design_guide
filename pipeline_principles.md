@@ -217,8 +217,9 @@ Ready    : HHHHHH__HHHHHHHH
 ここまでの説明を読み込ませてAIに自動生成させたコードです。非常にシンプルで難しいところはありません。AXIバスの基本シーケンスはこのようなReadyとValidを使用したシフトレジスタ構造なのです。
 
 ```verilog
-module pipeline_4stage #(
-    parameter DATA_WIDTH = 32
+module pipeline #(
+    parameter DATA_WIDTH = 32,
+    parameter PIPELINE_STAGES = 4
 )(
     // Clock and Reset
     input  wire                     clk,
@@ -236,8 +237,8 @@ module pipeline_4stage #(
 );
 
     // Internal signals for pipeline stages
-    wire [DATA_WIDTH-1:0]   t_data [3:0]; // t_data[0]=T0, t_data[1]=T1, t_data[2]=T2, t_data[3]=T3
-    wire                    t_valid[3:0]; // t_valid[0]=T0, t_valid[1]=T1, t_valid[2]=T2, t_valid[3]=T3
+    wire [DATA_WIDTH-1:0]   t_data [PIPELINE_STAGES-1:0]; // t_data[0]=T0, t_data[1]=T1, ..., t_data[PIPELINE_STAGES-1]=T(PIPELINE_STAGES-1)
+    wire                    t_valid[PIPELINE_STAGES-1:0]; // t_valid[0]=T0, t_valid[1]=T1, ..., t_valid[PIPELINE_STAGES-1]=T(PIPELINE_STAGES-1)
     
     // Ready signal (common to all FFs)
     wire ready;
@@ -245,17 +246,17 @@ module pipeline_4stage #(
     // Assign ready signal
     assign ready = d_ready;
     
-    // Pipeline stages T0->T1->T2->T3
+    // Pipeline stages T0->T1->...->T(PIPELINE_STAGES-1)
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            for (integer i = 0; i < 4; i = i + 1) begin
+            for (integer i = 0; i < PIPELINE_STAGES; i = i + 1) begin
                 t_data[i]  <= {DATA_WIDTH{1'b0}};
                 t_valid[i] <= 1'b0;
             end
         end else if (ready) begin
             t_data[0]  <= u_data;
             t_valid[0] <= u_valid;
-            for (integer i = 1; i < 4; i = i + 1) begin
+            for (integer i = 1; i < PIPELINE_STAGES; i = i + 1) begin
                 t_data[i]  <= t_data[i-1];
                 t_valid[i] <= t_valid[i-1];
             end
@@ -263,15 +264,15 @@ module pipeline_4stage #(
     end
     
     // Output assignments
-    assign d_data  = t_data[3];
-    assign d_valid = t_valid[3];
+    assign d_data  = t_data[PIPELINE_STAGES-1];
+    assign d_valid = t_valid[PIPELINE_STAGES-1];
     assign u_ready = ready;
 
 endmodule
 ```
 ## 6. 帰納法的設計
 
-この回路はN段のパイプラインをN+1段に増やしても同じロジックが使えます。このように小さな回路でルールを考えて1つ段増やしても同じルールを使う設計手法を（私は）帰納法的設計と呼んでいます。この設計方法は例えば乗算器を設計する時に8ビットくらいでロジックを考えておいて全ケーステストをした後に16bitに拡張するとか（全ケーステストはとても時間がかかるの縮小したテストで論理の正常性を担保できる）、テストパターンを端折る場合などに応用できます。
+この回路はN段のパイプラインをN+1段に増やしても同じロジックが使えます。このように小さな回路でルールを考えて1つ段増やしても同じルールを使う設計手法を（私は）帰納法的設計と呼んでいます。この設計方法は例えば乗算器を設計する時に8ビットくらいでロジックを考えておいて全ケーステストをした後に16bitに拡張するとか（全ケーステストはとても時間がかかる場合に、縮小した回路のテストで論理の正常性を担保できる）。他の例としては、Readyのネゲートの動作を確認するときは1クロックネゲート、2クロックネゲート、Nクロックネゲートというように解析します。この方法はテストパターンを端折る場合などにも応用できます。
 
 
 ## ライセンス

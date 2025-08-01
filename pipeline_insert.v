@@ -1,34 +1,31 @@
 // Licensed under the Apache License, Version 2.0 - see LICENSE file for details.
 
 module pipeline_insert #(
-    parameter DATA_WIDTH = 64
+    parameter DATA_WIDTH = 32
 )(
     // Clock and Reset
     input  wire                     clk,
     input  wire                     rst_n,
-    
+
     // Upstream Interface (Input) - axi_ram_core側
     input  wire [DATA_WIDTH-1:0]    u_data,
     input  wire                     u_valid,
-    output wire                     u_ready,
-    
+    output reg                      u_ready,
+
     // Downstream Interface (Output) - バス側
-    output wire [DATA_WIDTH-1:0]    d_data,
-    output wire                     d_valid,
-    input  wire                     d_ready
+    output reg [DATA_WIDTH-1:0]    d_data,
+    output reg                     d_valid,
+    input  wire                    d_ready
 );
 
     // Internal signals for 1-stage pipeline
     reg [DATA_WIDTH-1:0] pipe_data;
     reg                   pipe_valid;
-    
-    // d_readyの1クロック遅延信号
-    reg                   d_ready_d;
-    
-    // State信号（State=[Ready_u,Ready_d]）
+
+    // State信号（State=[u_Ready,d_Ready]）
     wire [1:0] state;
-    assign state = {u_ready, d_ready_d};
-    
+    assign state = {u_ready, d_ready};
+
     // u_readyで制御された1段のパイプライン
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -39,19 +36,16 @@ module pipeline_insert #(
             pipe_valid <= u_valid;
         end
     end
-    
+
     // d_readyの1クロック遅延
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            d_ready_d <= 1'b0;
+            u_ready <= 1'b0;
         end else begin
-            d_ready_d <= d_ready;
+            u_ready <= d_ready;
         end
     end
-    
-    // d_ready_dをu_readyに接続
-    assign u_ready = d_ready_d;
-    
+
     // Stateに基づくd_dataとd_validの生成
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -78,4 +72,4 @@ module pipeline_insert #(
         end
     end
 
-endmodule 
+endmodule
