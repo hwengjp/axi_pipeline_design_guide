@@ -1,0 +1,1315 @@
+[1mdiff --git a/.gitignore b/.gitignore[m
+[1mindex 042b8b4..a97b61b 100644[m
+[1m--- a/.gitignore[m
+[1m+++ b/.gitignore[m
+[36m@@ -1,16 +1,16 @@[m
+[31m-# ModelSim simulation files[m
+[31m-work/[m
+[31m-transcript[m
+[31m-*.wlf[m
+[31m-*.do[m
+[31m-[m
+[31m-# Temporary files[m
+[31m-*.tmp[m
+[31m-*.log[m
+[31m-[m
+[31m-# OS generated files[m
+[31m-.DS_Store[m
+[31m-Thumbs.db[m
+[31m-[m
+[31m-# Qiita documentation[m
+[32m+[m[32m# ModelSim simulation files[m[41m[m
+[32m+[m[32mwork/[m[41m[m
+[32m+[m[32mtranscript[m[41m[m
+[32m+[m[32m*.wlf[m[41m[m
+[32m+[m[32m*.do[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m# Temporary files[m[41m[m
+[32m+[m[32m*.tmp[m[41m[m
+[32m+[m[32m*.log[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m# OS generated files[m[41m[m
+[32m+[m[32m.DS_Store[m[41m[m
+[32m+[m[32mThumbs.db[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m# Qiita documentation[m[41m[m
+ QiitaDocs/ [m
+\ No newline at end of file[m
+[1mdiff --git a/LICENSE b/LICENSE[m
+[1mindex e4a50e6..4debea8 100644[m
+[1m--- a/LICENSE[m
+[1m+++ b/LICENSE[m
+[36m@@ -1,192 +1,192 @@[m
+[31m-                                 Apache License[m
+[31m-                           Version 2.0, January 2004[m
+[31m-                        http://www.apache.org/licenses/[m
+[31m-[m
+[31m-   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION[m
+[31m-[m
+[31m-   1. Definitions.[m
+[31m-[m
+[31m-      "License" shall mean the terms and conditions for use, reproduction,[m
+[31m-      and distribution as defined by Sections 1 through 9 of this document.[m
+[31m-[m
+[31m-      "Licensor" shall mean the copyright owner or entity granting the License.[m
+[31m-[m
+[31m-      "Legal Entity" shall mean the union of the acting entity and all[m
+[31m-      other entities that control, are controlled by, or are under common[m
+[31m-      control with that entity. For the purposes of this definition,[m
+[31m-      "control" means (i) the power, direct or indirect, to cause the[m
+[31m-      direction or management of such entity, whether by contract or[m
+[31m-      otherwise, or (ii) ownership of fifty percent (50%) or more of the[m
+[31m-      outstanding shares, or (iii) beneficial ownership of such entity.[m
+[31m-[m
+[31m-      "You" (or "Your") shall mean an individual or Legal Entity[m
+[31m-      exercising permissions granted by this License.[m
+[31m-[m
+[31m-      "Source" form shall mean the preferred form for making modifications,[m
+[31m-      including but not limited to software source code, documentation[m
+[31m-      source, and configuration files.[m
+[31m-[m
+[31m-      "Object" form shall mean any form resulting from mechanical[m
+[31m-      transformation or translation of a Source form, including but[m
+[31m-      not limited to compiled object code, generated documentation,[m
+[31m-      and conversions to other media types.[m
+[31m-[m
+[31m-      "Work" shall mean the work of authorship, whether in Source or[m
+[31m-      Object form, made available under the License, as indicated by a[m
+[31m-      copyright notice that is included in or attached to the work[m
+[31m-      (which shall not include communications that are clearly marked or[m
+[31m-      otherwise designated in writing by the copyright owner as "Not a Contribution").[m
+[31m-[m
+[31m-      "Contribution" shall mean any work of authorship, including[m
+[31m-      the original version of the Work and any modifications or additions[m
+[31m-      to that Work or Derivative Works thereof, that is intentionally[m
+[31m-      submitted to Licensor for inclusion in the Work by the copyright owner[m
+[31m-      or by an individual or Legal Entity authorized to submit on behalf of[m
+[31m-      the copyright owner. For the purposes of this definition, "submitted"[m
+[31m-      means any form of electronic, verbal, or written communication sent[m
+[31m-      to the Licensor or its representatives, including but not limited to[m
+[31m-      communication on electronic mailing lists, source code control systems,[m
+[31m-      and issue tracking systems that are managed by, or on behalf of, the[m
+[31m-      Licensor for the purpose of discussing and improving the Work, but[m
+[31m-      excluding communication that is conspicuously marked or otherwise[m
+[31m-      designated in writing by the copyright owner as "Not a Contribution."[m
+[31m-[m
+[31m-      "Contributor" shall mean Licensor and any individual or Legal Entity[m
+[31m-      on behalf of whom a Contribution has been received by Licensor and[m
+[31m-      subsequently incorporated within the Work.[m
+[31m-[m
+[31m-   2. Grant of Copyright License. Subject to the terms and conditions of[m
+[31m-      this License, each Contributor hereby grants to You a perpetual,[m
+[31m-      worldwide, non-exclusive, no-charge, royalty-free, irrevocable[m
+[31m-      copyright license to use, reproduce, modify, display, perform,[m
+[31m-      sublicense, and distribute the Work and such Derivative Works in[m
+[31m-      Source or Object form.[m
+[31m-[m
+[31m-   3. Grant of Patent License. Subject to the terms and conditions of[m
+[31m-      this License, each Contributor hereby grants to You a perpetual,[m
+[31m-      worldwide, non-exclusive, no-charge, royalty-free, irrevocable[m
+[31m-      (except as stated in this section) patent license to make, have made,[m
+[31m-      use, offer to sell, sell, import, and otherwise transfer the Work,[m
+[31m-      where such license applies only to those patent claims licensable[m
+[31m-      by such Contributor that are necessarily infringed by their[m
+[31m-      Contribution(s) alone or by combination of their Contribution(s)[m
+[31m-      with the Work to which such Contribution(s) was submitted. If You[m
+[31m-      institute patent litigation against any entity (including a[m
+[31m-      cross-claim or counterclaim in a lawsuit) alleging that the Work[m
+[31m-      or a Contribution incorporated within the Work constitutes direct[m
+[31m-      or contributory patent infringement, then any patent licenses[m
+[31m-      granted to You under this License for that Work shall terminate[m
+[31m-      as of the date such litigation is filed.[m
+[31m-[m
+[31m-   4. Redistribution. You may reproduce and distribute copies of the[m
+[31m-      Work or Derivative Works thereof in any medium, with or without[m
+[31m-      modifications, and in Source or Object form, provided that You[m
+[31m-      meet the following conditions:[m
+[31m-[m
+[31m-      (a) You must give any other recipients of the Work or[m
+[31m-          Derivative Works a copy of this License; and[m
+[31m-[m
+[31m-      (b) You must cause any modified files to carry prominent notices[m
+[31m-          stating that You changed the files; and[m
+[31m-[m
+[31m-      (c) You must retain, in the Source form of any Derivative Works[m
+[31m-          that You distribute, all copyright, trademark, patent, and[m
+[31m-          attribution notices from the Source form of the Work,[m
+[31m-          excluding those notices that do not pertain to any part of[m
+[31m-          the Derivative Works; and[m
+[31m-[m
+[31m-      (d) If the Work includes a "NOTICE" file as part of its[m
+[31m-          distribution, then any Derivative Works that You distribute must[m
+[31m-          include a readable copy of the attribution notices contained[m
+[31m-          within such NOTICE file, excluding those notices that do not[m
+[31m-          pertain to any part of the Derivative Works, in at least one[m
+[31m-          of the following places: within a NOTICE file distributed[m
+[31m-          as part of the Derivative Works; within the Source form or[m
+[31m-          documentation, if provided along with the Derivative Works; or,[m
+[31m-          within a display generated by the Derivative Works, if and[m
+[31m-          wherever such third-party notices normally appear. The contents[m
+[31m-          of the NOTICE file are for informational purposes only and[m
+[31m-          do not modify the License. You may add Your own attribution[m
+[31m-          notices within Derivative Works that You distribute, alongside[m
+[31m-          or as an addendum to the NOTICE text from the Work, provided[m
+[31m-          that such additional attribution notices cannot be construed[m
+[31m-          as modifying the License.[m
+[31m-[m
+[31m-      You may add Your own copyright notice to Your modifications and[m
+[31m-      may provide additional or different license terms and conditions[m
+[31m-      for use, reproduction, or distribution of Your modifications, or[m
+[31m-      for any such Derivative Works as a whole, provided Your use,[m
+[31m-      reproduction, and distribution of the Work otherwise complies with[m
+[31m-      the conditions stated in this License.[m
+[31m-[m
+[31m-   5. Submission of Contributions. Unless You explicitly state otherwise,[m
+[31m-      any Contribution intentionally submitted for inclusion in the Work[m
+[31m-      by You to the Licensor shall be under the terms and conditions of[m
+[31m-      this License, without any additional terms or conditions.[m
+[31m-      Notwithstanding the above, nothing herein shall supersede or modify[m
+[31m-      the terms of any separate license agreement you may have executed[m
+[31m-      with Licensor regarding such Contributions.[m
+[31m-[m
+[31m-   6. Trademarks. This License does not grant permission to use the trade[m
+[31m-      names, trademarks, service marks, or product names of the Licensor,[m
+[31m-      except as required for reasonable and customary use in describing the[m
+[31m-      origin of the Work and reproducing the content of the NOTICE file.[m
+[31m-[m
+[31m-   7. Disclaimer of Warranty. Unless required by applicable law or[m
+[31m-      agreed to in writing, Licensor provides the Work (and each[m
+[31m-      Contributor provides its Contributions) on an "AS IS" BASIS,[m
+[31m-      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or[m
+[31m-      implied, including, without limitation, any warranties or conditions[m
+[31m-      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A[m
+[31m-      PARTICULAR PURPOSE. You are solely responsible for determining the[m
+[31m-      appropriateness of using or redistributing the Work and assume any[m
+[31m-      risks associated with Your exercise of permissions under this License.[m
+[31m-[m
+[31m-   8. Limitation of Liability. In no event and under no legal theory,[m
+[31m-      whether in tort (including negligence), contract, or otherwise,[m
+[31m-      unless required by applicable law (such as deliberate and grossly[m
+[31m-      negligent acts) or agreed to in writing, shall any Contributor be[m
+[31m-      liable to You for damages, including any direct, indirect, special,[m
+[31m-      incidental, or consequential damages of any character arising as a[m
+[31m-      result of this License or out of the use or inability to use the[m
+[31m-      Work (including but not limited to damages for loss of goodwill,[m
+[31m-      work stoppage, computer failure or malfunction, or any and all[m
+[31m-      other commercial damages or losses), even if such Contributor[m
+[31m-      has been advised of the possibility of such damages.[m
+[31m-[m
+[31m-   9. Accepting Warranty or Additional Support. You may choose to offer,[m
+[31m-      and to charge a fee for, warranty, support, indemnity or other[m
+[31m-      liability obligations and/or rights consistent with this License.[m
+[31m-      However, in accepting such obligations, You may act only on Your[m
+[31m-      own behalf and on Your sole responsibility, not on behalf of any[m
+[31m-      other Contributor, and only if You agree to indemnify, defend,[m
+[31m-      and hold each Contributor harmless for any liability incurred by,[m
+[31m-      or claims asserted against, such Contributor by reason of your[m
+[31m-      accepting any such warranty or additional support.[m
+[31m-[m
+[31m-   END OF TERMS AND CONDITIONS[m
+[31m-[m
+[31m-   APPENDIX: How to apply the Apache License to your work.[m
+[31m-[m
+[31m-      To apply the Apache License to your work, attach the following[m
+[31m-      boilerplate notice, with the fields enclosed by brackets "[]"[m
+[31m-      replaced with your own identifying information. (Don't include[m
+[31m-      the brackets!)  The text should be enclosed in the appropriate[m
+[31m-      comment syntax for the file format. We also recommend that a[m
+[31m-      file or class name and description of purpose be included on the[m
+[31m-      same page as the copyright notice for easier identification within[m
+[31m-      third-party archives.[m
+[31m-[m
+[31m-   Copyright [yyyy] [name of copyright owner][m
+[31m-[m
+[31m-   Licensed under the Apache License, Version 2.0 (the "License");[m
+[31m-   you may not use this file except in compliance with the License.[m
+[31m-   You may obtain a copy of the License at[m
+[31m-[m
+[31m-       http://www.apache.org/licenses/LICENSE-2.0[m
+[31m-[m
+[31m-   Unless required by applicable law or agreed to in writing, software[m
+[31m-   distributed under the License is distributed on an "AS IS" BASIS,[m
+[31m-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.[m
+[31m-   See the License for the specific language governing permissions and[m
+[31m-   limitations under the License.[m
+[32m+[m[32m                                 Apache License[m[41m[m
+[32m+[m[32m                           Version 2.0, January 2004[m[41m[m
+[32m+[m[32m                        http://www.apache.org/licenses/[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m   1. Definitions.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m      "License" shall mean the terms and conditions for use, reproduction,[m[41m[m
+[32m+[m[32m      and distribution as defined by Sections 1 through 9 of this document.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m      "Licensor" shall mean the copyright owner or entity granting the License.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m      "Legal Entity" shall mean the union of the acting entity and all[m[41m[m
+[32m+[m[32m      other entities that control, are controlled by, or are under common[m[41m[m
+[32m+[m[32m      control with that entity. For the purposes of this definition,[m[41m[m
+[32m+[m[32m      "control" means (i) the power, direct or indirect, to cause the[m[41m[m
+[32m+[m[32m      direction or management of such entity, whether by contract or[m[41m[m
+[32m+[m[32m      otherwise, or (ii) ownership of fifty percent (50%) or more of the[m[41m[m
+[32m+[m[32m      outstanding shares, or (iii) beneficial ownership of such entity.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m      "You" (or "Your") shall mean an individual or Legal Entity[m[41m[m
+[32m+[m[32m      exercising permissions granted by this License.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m      "Source" form shall mean the preferred form for making modifications,[m[41m[m
+[32m+[m[32m      including but not limited to software source code, documentation[m[41m[m
+[32m+[m[32m      source, and configuration files.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m      "Object" form shall mean any form resulting from mechanical[m[41m[m
+[32m+[m[32m      transformation or translation of a Source form, including but[m[41m[m
+[32m+[m[32m      not limited to compiled object code, generated documentation,[m[41m[m
+[32m+[m[32m      and conversions to other media types.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m      "Work" shall mean the work of authorship, whether in Source or[m[41m[m
+[32m+[m[32m      Object form, made available under the License, as indicated by a[m[41m[m
+[32m+[m[32m      copyright notice that is included in or attached to the work[m[41m[m
+[32m+[m[32m      (which shall not include communications that are clearly marked or[m[41m[m
+[32m+[m[32m      otherwise designated in writing by the copyright owner as "Not a Contribution").[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m      "Contribution" shall mean any work of authorship, including[m[41m[m
+[32m+[m[32m      the original version of the Work and any modifications or additions[m[41m[m
+[32m+[m[32m      to that Work or Derivative Works thereof, that is intentionally[m[41m[m
+[32m+[m[32m      submitted to Licensor for inclusion in the Work by the copyright owner[m[41m[m
+[32m+[m[32m      or by an individual or Legal Entity authorized to submit on behalf of[m[41m[m
+[32m+[m[32m      the copyright owner. For the purposes of this definition, "submitted"[m[41m[m
+[32m+[m[32m      means any form of electronic, verbal, or written communication sent[m[41m[m
+[32m+[m[32m      to the Licensor or its representatives, including but not limited to[m[41m[m
+[32m+[m[32m      communication on electronic mailing lists, source code control systems,[m[41m[m
+[32m+[m[32m      and issue tracking systems that are managed by, or on behalf of, the[m[41m[m
+[32m+[m[32m      Licensor for the purpose of discussing and improving the Work, but[m[41m[m
+[32m+[m[32m      excluding communication that is conspicuously marked or otherwise[m[41m[m
+[32m+[m[32m      designated in writing by the copyright owner as "Not a Contribution."[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m      "Contributor" shall mean Licensor and any individual or Legal Entity[m[41m[m
+[32m+[m[32m      on behalf of whom a Contribution has been received by Licensor and[m[41m[m
+[32m+[m[32m      subsequently incorporated within the Work.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m   2. Grant of Copyright License. Subject to the terms and conditions of[m[41m[m
+[32m+[m[32m      this License, each Contributor hereby grants to You a perpetual,[m[41m[m
+[32m+[m[32m      worldwide, non-exclusive, no-charge, royalty-free, irrevocable[m[41m[m
+[32m+[m[32m      copyright license to use, reproduce, modify, display, perform,[m[41m[m
+[32m+[m[32m      sublicense, and distribute the Work and such Derivative Works in[m[41m[m
+[32m+[m[32m      Source or Object form.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m   3. Grant of Patent License. Subject to the terms and conditions of[m[41m[m
+[32m+[m[32m      this License, each Contributor hereby grants to You a perpetual,[m[41m[m
+[32m+[m[32m      worldwide, non-exclusive, no-charge, royalty-free, irrevocable[m[41m[m
+[32m+[m[32m      (except as stated in this section) patent license to make, have made,[m[41m[m
+[32m+[m[32m      use, offer to sell, sell, import, and otherwise transfer the Work,[m[41m[m
+[32m+[m[32m      where such license applies only to those patent claims licensable[m[41m[m
+[32m+[m[32m      by such Contributor that are necessarily infringed by their[m[41m[m
+[32m+[m[32m      Contribution(s) alone or by combination of their Contribution(s)[m[41m[m
+[32m+[m[32m      with the Work to which such Contribution(s) was submitted. If You[m[41m[m
+[32m+[m[32m      institute patent litigation against any entity (including a[m[41m[m
+[32m+[m[32m      cross-claim or counterclaim in a lawsuit) alleging that the Work[m[41m[m
+[32m+[m[32m      or a Contribution incorporated within the Work constitutes direct[m[41m[m
+[32m+[m[32m      or contributory patent infringement, then any patent licenses[m[41m[m
+[32m+[m[32m      granted to You under this License for that Work shall terminate[m[41m[m
+[32m+[m[32m      as of the date such litigation is filed.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m   4. Redistribution. You may reproduce and distribute copies of the[m[41m[m
+[32m+[m[32m      Work or Derivative Works thereof in any medium, with or without[m[41m[m
+[32m+[m[32m      modifications, and in Source or Object form, provided that You[m[41m[m
+[32m+[m[32m      meet the following conditions:[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m      (a) You must give any other recipients of the Work or[m[41m[m
+[32m+[m[32m          Derivative Works a copy of this License; and[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m      (b) You must cause any modified files to carry prominent notices[m[41m[m
+[32m+[m[32m          stating that You changed the files; and[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m      (c) You must retain, in the Source form of any Derivative Works[m[41m[m
+[32m+[m[32m          that You distribute, all copyright, trademark, patent, and[m[41m[m
+[32m+[m[32m          attribution notices from the Source form of the Work,[m[41m[m
+[32m+[m[32m          excluding those notices that do not pertain to any part of[m[41m[m
+[32m+[m[32m          the Derivative Works; and[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m      (d) If the Work includes a "NOTICE" file as part of its[m[41m[m
+[32m+[m[32m          distribution, then any Derivative Works that You distribute must[m[41m[m
+[32m+[m[32m          include a readable copy of the attribution notices contained[m[41m[m
+[32m+[m[32m          within such NOTICE file, excluding those notices that do not[m[41m[m
+[32m+[m[32m          pertain to any part of the Derivative Works, in at least one[m[41m[m
+[32m+[m[32m          of the following places: within a NOTICE file distributed[m[41m[m
+[32m+[m[32m          as part of the Derivative Works; within the Source form or[m[41m[m
+[32m+[m[32m          documentation, if provided along with the Derivative Works; or,[m[41m[m
+[32m+[m[32m          within a display generated by the Derivative Works, if and[m[41m[m
+[32m+[m[32m          wherever such third-party notices normally appear. The contents[m[41m[m
+[32m+[m[32m          of the NOTICE file are for informational purposes only and[m[41m[m
+[32m+[m[32m          do not modify the License. You may add Your own attribution[m[41m[m
+[32m+[m[32m          notices within Derivative Works that You distribute, alongside[m[41m[m
+[32m+[m[32m          or as an addendum to the NOTICE text from the Work, provided[m[41m[m
+[32m+[m[32m          that such additional attribution notices cannot be construed[m[41m[m
+[32m+[m[32m          as modifying the License.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m      You may add Your own copyright notice to Your modifications and[m[41m[m
+[32m+[m[32m      may provide additional or different license terms and conditions[m[41m[m
+[32m+[m[32m      for use, reproduction, or distribution of Your modifications, or[m[41m[m
+[32m+[m[32m      for any such Derivative Works as a whole, provided Your use,[m[41m[m
+[32m+[m[32m      reproduction, and distribution of the Work otherwise complies with[m[41m[m
+[32m+[m[32m      the conditions stated in this License.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m   5. Submission of Contributions. Unless You explicitly state otherwise,[m[41m[m
+[32m+[m[32m      any Contribution intentionally submitted for inclusion in the Work[m[41m[m
+[32m+[m[32m      by You to the Licensor shall be under the terms and conditions of[m[41m[m
+[32m+[m[32m      this License, without any additional terms or conditions.[m[41m[m
+[32m+[m[32m      Notwithstanding the above, nothing herein shall supersede or modify[m[41m[m
+[32m+[m[32m      the terms of any separate license agreement you may have executed[m[41m[m
+[32m+[m[32m      with Licensor regarding such Contributions.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m   6. Trademarks. This License does not grant permission to use the trade[m[41m[m
+[32m+[m[32m      names, trademarks, service marks, or product names of the Licensor,[m[41m[m
+[32m+[m[32m      except as required for reasonable and customary use in describing the[m[41m[m
+[32m+[m[32m      origin of the Work and reproducing the content of the NOTICE file.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m   7. Disclaimer of Warranty. Unless required by applicable law or[m[41m[m
+[32m+[m[32m      agreed to in writing, Licensor provides the Work (and each[m[41m[m
+[32m+[m[32m      Contributor provides its Contributions) on an "AS IS" BASIS,[m[41m[m
+[32m+[m[32m      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or[m[41m[m
+[32m+[m[32m      implied, including, without limitation, any warranties or conditions[m[41m[m
+[32m+[m[32m      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A[m[41m[m
+[32m+[m[32m      PARTICULAR PURPOSE. You are solely responsible for determining the[m[41m[m
+[32m+[m[32m      appropriateness of using or redistributing the Work and assume any[m[41m[m
+[32m+[m[32m      risks associated with Your exercise of permissions under this License.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m   8. Limitation of Liability. In no event and under no legal theory,[m[41m[m
+[32m+[m[32m      whether in tort (including negligence), contract, or otherwise,[m[41m[m
+[32m+[m[32m      unless required by applicable law (such as deliberate and grossly[m[41m[m
+[32m+[m[32m      negligent acts) or agreed to in writing, shall any Contributor be[m[41m[m
+[32m+[m[32m      liable to You for damages, including any direct, indirect, special,[m[41m[m
+[32m+[m[32m      incidental, or consequential damages of any character arising as a[m[41m[m
+[32m+[m[32m      result of this License or out of the use or inability to use the[m[41m[m
+[32m+[m[32m      Work (including but not limited to damages for loss of goodwill,[m[41m[m
+[32m+[m[32m      work stoppage, computer failure or malfunction, or any and all[m[41m[m
+[32m+[m[32m      other commercial damages or losses), even if such Contributor[m[41m[m
+[32m+[m[32m      has been advised of the possibility of such damages.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m   9. Accepting Warranty or Additional Support. You may choose to offer,[m[41m[m
+[32m+[m[32m      and to charge a fee for, warranty, support, indemnity or other[m[41m[m
+[32m+[m[32m      liability obligations and/or rights consistent with this License.[m[41m[m
+[32m+[m[32m      However, in accepting such obligations, You may act only on Your[m[41m[m
+[32m+[m[32m      own behalf and on Your sole responsibility, not on behalf of any[m[41m[m
+[32m+[m[32m      other Contributor, and only if You agree to indemnify, defend,[m[41m[m
+[32m+[m[32m      and hold each Contributor harmless for any liability incurred by,[m[41m[m
+[32m+[m[32m      or claims asserted against, such Contributor by reason of your[m[41m[m
+[32m+[m[32m      accepting any such warranty or additional support.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m   END OF TERMS AND CONDITIONS[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m   APPENDIX: How to apply the Apache License to your work.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m      To apply the Apache License to your work, attach the following[m[41m[m
+[32m+[m[32m      boilerplate notice, with the fields enclosed by brackets "[]"[m[41m[m
+[32m+[m[32m      replaced with your own identifying information. (Don't include[m[41m[m
+[32m+[m[32m      the brackets!)  The text should be enclosed in the appropriate[m[41m[m
+[32m+[m[32m      comment syntax for the file format. We also recommend that a[m[41m[m
+[32m+[m[32m      file or class name and description of purpose be included on the[m[41m[m
+[32m+[m[32m      same page as the copyright notice for easier identification within[m[41m[m
+[32m+[m[32m      third-party archives.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m   Copyright [yyyy] [name of copyright owner][m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m   Licensed under the Apache License, Version 2.0 (the "License");[m[41m[m
+[32m+[m[32m   you may not use this file except in compliance with the License.[m[41m[m
+[32m+[m[32m   You may obtain a copy of the License at[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m       http://www.apache.org/licenses/LICENSE-2.0[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m   Unless required by applicable law or agreed to in writing, software[m[41m[m
+[32m+[m[32m   distributed under the License is distributed on an "AS IS" BASIS,[m[41m[m
+[32m+[m[32m   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.[m[41m[m
+[32m+[m[32m   See the License for the specific language governing permissions and[m[41m[m
+[32m+[m[32m   limitations under the License.[m[41m[m
+[1mdiff --git a/README.md b/README.md[m
+[1mindex 99aad1a..14fce12 100644[m
+[1m--- a/README.md[m
+[1m+++ b/README.md[m
+[36m@@ -19,8 +19,10 @@[m [mAXIバスの設計に必要なパイプライン動作の基本的な設計手[m
+ ### [第3回：パイプライン動作を確認するテストベンチ](part03_pipeline_testbench.md)[m
+  - パイプライン回路の動作を確実に検証するためのテストベンチ[m
+ [m
+[32m+[m[32m### [第4回：データがN倍に増えるパイプランAXIデータチャネルの模擬](part04_n_times_data_pipeline.md)[m
+[32m+[m[32m - データ増幅パイプランの設計と実装[m
+[32m+[m
+ ### 今後の予定[m
+[31m-- 第4回：AXIバスインターフェースの実装（準備中）[m
+ - 第5回：実用的なパイプライン設計例（準備中）[m
+ [m
+ ### ルール集[m
+[1mdiff --git a/pipeline.v b/pipeline.v[m
+[1mindex dba73e9..f3890a2 100644[m
+[1m--- a/pipeline.v[m
+[1m+++ b/pipeline.v[m
+[36m@@ -1,55 +1,55 @@[m
+[31m-// Licensed under the Apache License, Version 2.0 - see LICENSE file for details.[m
+[31m-[m
+[31m-module pipeline #([m
+[31m-    parameter DATA_WIDTH = 32,[m
+[31m-    parameter PIPELINE_STAGES = 4[m
+[31m-)([m
+[31m-    // Clock and Reset[m
+[31m-    input  wire                     clk,[m
+[31m-    input  wire                     rst_n,[m
+[31m-    [m
+[31m-    // Upstream Interface (Input)[m
+[31m-    input  wire [DATA_WIDTH-1:0]    u_data,[m
+[31m-    input  wire                     u_valid,[m
+[31m-    output wire                     u_ready,[m
+[31m-    [m
+[31m-    // Downstream Interface (Output)[m
+[31m-    output wire [DATA_WIDTH-1:0]    d_data,[m
+[31m-    output wire                     d_valid,[m
+[31m-    input  wire                     d_ready[m
+[31m-);[m
+[31m-[m
+[31m-    // Internal signals for pipeline stages[m
+[31m-    reg [DATA_WIDTH-1:0]   t_data [PIPELINE_STAGES-1:0]; // t_data[0]=T0, t_data[1]=T1, ..., t_data[PIPELINE_STAGES-1]=T(PIPELINE_STAGES-1)[m
+[31m-    reg                    t_valid[PIPELINE_STAGES-1:0]; // t_valid[0]=T0, t_valid[1]=T1, ..., t_valid[PIPELINE_STAGES-1]=T(PIPELINE_STAGES-1)[m
+[31m-    [m
+[31m-    // Ready signal (common to all FFs)[m
+[31m-    wire ready;[m
+[31m-    [m
+[31m-    // Assign ready signal[m
+[31m-    assign ready = d_ready;[m
+[31m-    [m
+[31m-    // Pipeline stages T0->T1->...->T(PIPELINE_STAGES-1)[m
+[31m-    integer i;[m
+[31m-    always @(posedge clk or negedge rst_n) begin[m
+[31m-        if (!rst_n) begin[m
+[31m-            for (i = 0; i < PIPELINE_STAGES; i = i + 1) begin[m
+[31m-                t_data[i]  <= {DATA_WIDTH{1'b0}};[m
+[31m-                t_valid[i] <= 1'b0;[m
+[31m-            end[m
+[31m-        end else if (ready) begin[m
+[31m-            t_data[0]  <= u_data;[m
+[31m-            t_valid[0] <= u_valid;[m
+[31m-            for (i = 1; i < PIPELINE_STAGES; i = i + 1) begin[m
+[31m-                t_data[i]  <= t_data[i-1];[m
+[31m-                t_valid[i] <= t_valid[i-1];[m
+[31m-            end[m
+[31m-        end[m
+[31m-    end[m
+[31m-    [m
+[31m-    // Output assignments[m
+[31m-    assign d_data  = t_data[PIPELINE_STAGES-1];[m
+[31m-    assign d_valid = t_valid[PIPELINE_STAGES-1];[m
+[31m-    assign u_ready = ready;[m
+[31m-[m
+[32m+[m[32m// Licensed under the Apache License, Version 2.0 - see LICENSE file for details.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32mmodule pipeline #([m[41m[m
+[32m+[m[32m    parameter DATA_WIDTH = 32,[m[41m[m
+[32m+[m[32m    parameter PIPELINE_STAGES = 4[m[41m[m
+[32m+[m[32m)([m[41m[m
+[32m+[m[32m    // Clock and Reset[m[41m[m
+[32m+[m[32m    input  wire                     clk,[m[41m[m
+[32m+[m[32m    input  wire                     rst_n,[m[41m[m
+[32m+[m[41m    [m
+[32m+[m[32m    // Upstream Interface (Input)[m[41m[m
+[32m+[m[32m    input  wire [DATA_WIDTH-1:0]    u_data,[m[41m[m
+[32m+[m[32m    input  wire                     u_valid,[m[41m[m
+[32m+[m[32m    output wire                     u_ready,[m[41m[m
+[32m+[m[41m    [m
+[32m+[m[32m    // Downstream Interface (Output)[m[41m[m
+[32m+[m[32m    output wire [DATA_WIDTH-1:0]    d_data,[m[41m[m
+[32m+[m[32m    output wire                     d_valid,[m[41m[m
+[32m+[m[32m    input  wire                     d_ready[m[41m[m
+[32m+[m[32m);[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m    // Internal signals for pipeline stages[m[41m[m
+[32m+[m[32m    reg [DATA_WIDTH-1:0]   t_data [PIPELINE_STAGES-1:0]; // t_data[0]=T0, t_data[1]=T1, ..., t_data[PIPELINE_STAGES-1]=T(PIPELINE_STAGES-1)[m[41m[m
+[32m+[m[32m    reg                    t_valid[PIPELINE_STAGES-1:0]; // t_valid[0]=T0, t_valid[1]=T1, ..., t_valid[PIPELINE_STAGES-1]=T(PIPELINE_STAGES-1)[m[41m[m
+[32m+[m[41m    [m
+[32m+[m[32m    // Ready signal (common to all FFs)[m[41m[m
+[32m+[m[32m    wire ready;[m[41m[m
+[32m+[m[41m    [m
+[32m+[m[32m    // Assign ready signal[m[41m[m
+[32m+[m[32m    assign ready = d_ready;[m[41m[m
+[32m+[m[41m    [m
+[32m+[m[32m    // Pipeline stages T0->T1->...->T(PIPELINE_STAGES-1)[m[41m[m
+[32m+[m[32m    integer i;[m[41m[m
+[32m+[m[32m    always @(posedge clk or negedge rst_n) begin[m[41m[m
+[32m+[m[32m        if (!rst_n) begin[m[41m[m
+[32m+[m[32m            for (i = 0; i < PIPELINE_STAGES; i = i + 1) begin[m[41m[m
+[32m+[m[32m                t_data[i]  <= {DATA_WIDTH{1'b0}};[m[41m[m
+[32m+[m[32m                t_valid[i] <= 1'b0;[m[41m[m
+[32m+[m[32m            end[m[41m[m
+[32m+[m[32m        end else if (ready) begin[m[41m[m
+[32m+[m[32m            t_data[0]  <= u_data;[m[41m[m
+[32m+[m[32m            t_valid[0] <= u_valid;[m[41m[m
+[32m+[m[32m            for (i = 1; i < PIPELINE_STAGES; i = i + 1) begin[m[41m[m
+[32m+[m[32m                t_data[i]  <= t_data[i-1];[m[41m[m
+[32m+[m[32m                t_valid[i] <= t_valid[i-1];[m[41m[m
+[32m+[m[32m            end[m[41m[m
+[32m+[m[32m        end[m[41m[m
+[32m+[m[32m    end[m[41m[m
+[32m+[m[41m    [m
+[32m+[m[32m    // Output assignments[m[41m[m
+[32m+[m[32m    assign d_data  = t_data[PIPELINE_STAGES-1];[m[41m[m
+[32m+[m[32m    assign d_valid = t_valid[PIPELINE_STAGES-1];[m[41m[m
+[32m+[m[32m    assign u_ready = ready;[m[41m[m
+[32m+[m[41m[m
+ endmodule [m
+\ No newline at end of file[m
+[1mdiff --git a/pipeline_insert.v b/pipeline_insert.v[m
+[1mindex fa73ac3..5e75a8d 100644[m
+[1m--- a/pipeline_insert.v[m
+[1m+++ b/pipeline_insert.v[m
+[36m@@ -1,75 +1,75 @@[m
+[31m-// Licensed under the Apache License, Version 2.0 - see LICENSE file for details.[m
+[31m-[m
+[31m-module pipeline_insert #([m
+[31m-    parameter DATA_WIDTH = 32[m
+[31m-)([m
+[31m-    // Clock and Reset[m
+[31m-    input  wire                     clk,[m
+[31m-    input  wire                     rst_n,[m
+[31m-[m
+[31m-    // Upstream Interface (Input) - axi_ram_core側[m
+[31m-    input  wire [DATA_WIDTH-1:0]    u_data,[m
+[31m-    input  wire                     u_valid,[m
+[31m-    output reg                      u_ready,[m
+[31m-[m
+[31m-    // Downstream Interface (Output) - バス側[m
+[31m-    output reg [DATA_WIDTH-1:0]    d_data,[m
+[31m-    output reg                     d_valid,[m
+[31m-    input  wire                    d_ready[m
+[31m-);[m
+[31m-[m
+[31m-    // Internal signals for 1-stage pipeline[m
+[31m-    reg [DATA_WIDTH-1:0] pipe_data;[m
+[31m-    reg                   pipe_valid;[m
+[31m-[m
+[31m-    // State信号（State=[u_Ready,d_Ready]）[m
+[31m-    wire [1:0] state;[m
+[31m-    assign state = {u_ready, d_ready};[m
+[31m-[m
+[31m-    // u_readyで制御された1段のパイプライン[m
+[31m-    always @(posedge clk or negedge rst_n) begin[m
+[31m-        if (!rst_n) begin[m
+[31m-            pipe_data  <= {DATA_WIDTH{1'b0}};[m
+[31m-            pipe_valid <= 1'b0;[m
+[31m-        end else if (u_ready) begin[m
+[31m-            pipe_data  <= u_data;[m
+[31m-            pipe_valid <= u_valid;[m
+[31m-        end[m
+[31m-    end[m
+[31m-[m
+[31m-    // d_readyの1クロック遅延[m
+[31m-    always @(posedge clk or negedge rst_n) begin[m
+[31m-        if (!rst_n) begin[m
+[31m-            u_ready <= 1'b0;[m
+[31m-        end else begin[m
+[31m-            u_ready <= d_ready;[m
+[31m-        end[m
+[31m-    end[m
+[31m-[m
+[31m-    // Stateに基づくd_dataとd_validの生成[m
+[31m-    always @(posedge clk or negedge rst_n) begin[m
+[31m-        if (!rst_n) begin[m
+[31m-            d_data  <= {DATA_WIDTH{1'b0}};[m
+[31m-            d_valid <= 1'b0;[m
+[31m-        end else begin[m
+[31m-            case (state)[m
+[31m-                2'b00: begin // State=0: ホールド（現在の値を保持）[m
+[31m-                    // 出力値を保持（変更なし）[m
+[31m-                end[m
+[31m-                2'b01: begin // State=1: T4（パイプラインT4の値を出力）[m
+[31m-                    d_data  <= pipe_data;[m
+[31m-                    d_valid <= pipe_valid;[m
+[31m-                end[m
+[31m-                2'b10: begin // State=2: T4（パイプラインT4の値を出力）[m
+[31m-                    d_data  <= pipe_data;[m
+[31m-                    d_valid <= pipe_valid;[m
+[31m-                end[m
+[31m-                2'b11: begin // State=3: T3（パイプラインT3の値を出力）[m
+[31m-                    d_data  <= u_data;[m
+[31m-                    d_valid <= u_valid;[m
+[31m-                end[m
+[31m-            endcase[m
+[31m-        end[m
+[31m-    end[m
+[31m-[m
+[32m+[m[32m// Licensed under the Apache License, Version 2.0 - see LICENSE file for details.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32mmodule pipeline_insert #([m[41m[m
+[32m+[m[32m    parameter DATA_WIDTH = 32[m[41m[m
+[32m+[m[32m)([m[41m[m
+[32m+[m[32m    // Clock and Reset[m[41m[m
+[32m+[m[32m    input  wire                     clk,[m[41m[m
+[32m+[m[32m    input  wire                     rst_n,[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m    // Upstream Interface (Input) - axi_ram_core側[m[41m[m
+[32m+[m[32m    input  wire [DATA_WIDTH-1:0]    u_data,[m[41m[m
+[32m+[m[32m    input  wire                     u_valid,[m[41m[m
+[32m+[m[32m    output reg                      u_ready,[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m    // Downstream Interface (Output) - バス側[m[41m[m
+[32m+[m[32m    output reg [DATA_WIDTH-1:0]    d_data,[m[41m[m
+[32m+[m[32m    output reg                     d_valid,[m[41m[m
+[32m+[m[32m    input  wire                    d_ready[m[41m[m
+[32m+[m[32m);[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m    // Internal signals for 1-stage pipeline[m[41m[m
+[32m+[m[32m    reg [DATA_WIDTH-1:0] pipe_data;[m[41m[m
+[32m+[m[32m    reg                   pipe_valid;[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m    // State信号（State=[u_Ready,d_Ready]）[m[41m[m
+[32m+[m[32m    wire [1:0] state;[m[41m[m
+[32m+[m[32m    assign state = {u_ready, d_ready};[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m    // u_readyで制御された1段のパイプライン[m[41m[m
+[32m+[m[32m    always @(posedge clk or negedge rst_n) begin[m[41m[m
+[32m+[m[32m        if (!rst_n) begin[m[41m[m
+[32m+[m[32m            pipe_data  <= {DATA_WIDTH{1'b0}};[m[41m[m
+[32m+[m[32m            pipe_valid <= 1'b0;[m[41m[m
+[32m+[m[32m        end else if (u_ready) begin[m[41m[m
+[32m+[m[32m            pipe_data  <= u_data;[m[41m[m
+[32m+[m[32m            pipe_valid <= u_valid;[m[41m[m
+[32m+[m[32m        end[m[41m[m
+[32m+[m[32m    end[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m    // d_readyの1クロック遅延[m[41m[m
+[32m+[m[32m    always @(posedge clk or negedge rst_n) begin[m[41m[m
+[32m+[m[32m        if (!rst_n) begin[m[41m[m
+[32m+[m[32m            u_ready <= 1'b0;[m[41m[m
+[32m+[m[32m        end else begin[m[41m[m
+[32m+[m[32m            u_ready <= d_ready;[m[41m[m
+[32m+[m[32m        end[m[41m[m
+[32m+[m[32m    end[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m    // Stateに基づくd_dataとd_validの生成[m[41m[m
+[32m+[m[32m    always @(posedge clk or negedge rst_n) begin[m[41m[m
+[32m+[m[32m        if (!rst_n) begin[m[41m[m
+[32m+[m[32m            d_data  <= {DATA_WIDTH{1'b0}};[m[41m[m
+[32m+[m[32m            d_valid <= 1'b0;[m[41m[m
+[32m+[m[32m        end else begin[m[41m[m
+[32m+[m[32m            case (state)[m[41m[m
+[32m+[m[32m                2'b00: begin // State=0: ホールド（現在の値を保持）[m[41m[m
+[32m+[m[32m                    // 出力値を保持（変更なし）[m[41m[m
+[32m+[m[32m                end[m[41m[m
+[32m+[m[32m                2'b01: begin // State=1: T4（パイプラインT4の値を出力）[m[41m[m
+[32m+[m[32m                    d_data  <= pipe_data;[m[41m[m
+[32m+[m[32m                    d_valid <= pipe_valid;[m[41m[m
+[32m+[m[32m                end[m[41m[m
+[32m+[m[32m                2'b10: begin // State=2: T4（パイプラインT4の値を出力）[m[41m[m
+[32m+[m[32m                    d_data  <= pipe_data;[m[41m[m
+[32m+[m[32m                    d_valid <= pipe_valid;[m[41m[m
+[32m+[m[32m                end[m[41m[m
+[32m+[m[32m                2'b11: begin // State=3: T3（パイプラインT3の値を出力）[m[41m[m
+[32m+[m[32m                    d_data  <= u_data;[m[41m[m
+[32m+[m[32m                    d_valid <= u_valid;[m[41m[m
+[32m+[m[32m                end[m[41m[m
+[32m+[m[32m            endcase[m[41m[m
+[32m+[m[32m        end[m[41m[m
+[32m+[m[32m    end[m[41m[m
+[32m+[m[41m[m
+ endmodule[m
+\ No newline at end of file[m
+[1mdiff --git a/pipeline_tb_debug.sv b/pipeline_tb_debug.sv[m
+[1mindex c523d47..3644ad9 100644[m
+[1m--- a/pipeline_tb_debug.sv[m
+[1m+++ b/pipeline_tb_debug.sv[m
+[36m@@ -1,369 +1,369 @@[m
+[31m-// Licensed under the Apache License, Version 2.0 - see LICENSE file for details.[m
+[31m-[m
+[31m-module pipeline_tb_debug #([m
+[31m-    parameter DATA_WIDTH = 32,[m
+[31m-    parameter PIPELINE_STAGES = 4,[m
+[31m-    parameter TEST_DATA_COUNT = 100,[m
+[31m-    parameter BUBBLE_N = 2,[m
+[31m-    parameter STALL_N = 2[m
+[31m-)();[m
+[31m-[m
+[31m-    // Clock and Reset[m
+[31m-    reg                     clk;[m
+[31m-    reg                     rst_n;[m
+[31m-    [m
+[31m-    // Test pattern generator signals[m
+[31m-    reg  [DATA_WIDTH-1:0]  test_data;[m
+[31m-    reg                     test_valid;[m
+[31m-    wire                    test_ready;[m
+[31m-    integer                 test_data_count;[m
+[31m-    integer                 bubble_cycles;[m
+[31m-    integer                 stall_cycles;[m
+[31m-    [m
+[31m-    // Test pattern arrays (SystemVerilog style)[m
+[31m-    reg  [DATA_WIDTH-1:0]  test_data_array [0:TEST_DATA_COUNT*4-1]; // Maximum size for data + bubbles[m
+[31m-    reg                     test_valid_array [0:TEST_DATA_COUNT*4-1];[m
+[31m-    integer                 array_index;[m
+[31m-    integer                 array_size;[m
+[31m-    [m
+[31m-    // DUT signals[m
+[31m-    wire [DATA_WIDTH-1:0]  dut_data;[m
+[31m-    wire                    dut_valid;[m
+[31m-    wire                    dut_ready;[m
+[31m-    [m
+[31m-    // Result checker signals[m
+[31m-    wire [DATA_WIDTH-1:0]  result_data;[m
+[31m-    wire                    result_valid;[m
+[31m-    wire                    result_ready;[m
+[31m-    integer                 expected_data;[m
+[31m-    integer                 error_count;[m
+[31m-    [m
+[31m-    // Final output signals[m
+[31m-    wire [DATA_WIDTH-1:0]  final_data;[m
+[31m-    wire                    final_valid;[m
+[31m-    wire                    final_ready;[m
+[31m-    [m
+[31m-    // Test control[m
+[31m-    integer                 test_count;[m
+[31m-    integer                 total_error_count;[m
+[31m-    [m
+[31m-    // Debug signals for timing analysis[m
+[31m-    reg  [DATA_WIDTH-1:0]  debug_test_data_history [0:9]; // Last 10 cycles[m
+[31m-    reg                     debug_test_valid_history [0:9];[m
+[31m-    reg                     debug_test_ready_history [0:9];[m
+[31m-    reg                     debug_prev_test_ready_history [0:9];[m
+[31m-    integer                 debug_history_index;[m
+[31m-    integer                 debug_cycle_count;[m
+[31m-    [m
+[31m-    // Sequence checker signals (moved up for debug history)[m
+[31m-    reg  [DATA_WIDTH-1:0]  prev_test_data;[m
+[31m-    reg                     prev_test_valid;[m
+[31m-    reg                     prev_test_ready;[m
+[31m-    reg  [DATA_WIDTH-1:0]  prev_result_data;[m
+[31m-    reg                     prev_result_valid;[m
+[31m-    reg                     prev_final_ready;[m
+[31m-    integer                 sequence_error_count;[m
+[31m-    [m
+[31m-    // DUT instance: pipeline_insert -> pipeline -> pipeline_insert[m
+[31m-    pipeline_insert #([m
+[31m-        .DATA_WIDTH(DATA_WIDTH)[m
+[31m-    ) dut_insert1 ([m
+[31m-        .clk(clk),[m
+[31m-        .rst_n(rst_n),[m
+[31m-        .u_data(test_data),[m
+[31m-        .u_valid(test_valid),[m
+[31m-        .u_ready(test_ready),[m
+[31m-        .d_data(dut_data),[m
+[31m-        .d_valid(dut_valid),[m
+[31m-        .d_ready(dut_ready)[m
+[31m-    );[m
+[31m-    [m
+[31m-    pipeline #([m
+[31m-        .DATA_WIDTH(DATA_WIDTH),[m
+[31m-        .PIPELINE_STAGES(PIPELINE_STAGES)[m
+[31m-    ) dut_pipeline ([m
+[31m-        .clk(clk),[m
+[31m-        .rst_n(rst_n),[m
+[31m-        .u_data(dut_data),[m
+[31m-        .u_valid(dut_valid),[m
+[31m-        .u_ready(dut_ready),[m
+[31m-        .d_data(result_data),[m
+[31m-        .d_valid(result_valid),[m
+[31m-        .d_ready(result_ready)[m
+[31m-    );[m
+[31m-    [m
+[31m-    pipeline_insert #([m
+[31m-        .DATA_WIDTH(DATA_WIDTH)[m
+[31m-    ) dut_insert2 ([m
+[31m-        .clk(clk),[m
+[31m-        .rst_n(rst_n),[m
+[31m-        .u_data(result_data),[m
+[31m-        .u_valid(result_valid),[m
+[31m-        .u_ready(result_ready),[m
+[31m-        .d_data(final_data),[m
+[31m-        .d_valid(final_valid),[m
+[31m-        .d_ready(final_ready)[m
+[31m-    );[m
+[31m-    [m
+[31m-    // Clock generation (10ns cycle, 100MHz)[m
+[31m-    initial begin[m
+[31m-        clk = 0;[m
+[31m-        forever #5 clk = ~clk;[m
+[31m-    end[m
+[31m-    [m
+[31m-    // Debug history tracking[m
+[31m-    always @(posedge clk) begin[m
+[31m-        debug_cycle_count <= debug_cycle_count + 1;[m
+[31m-        [m
+[31m-        // Update history[m
+[31m-        debug_test_data_history[debug_history_index] <= test_data;[m
+[31m-        debug_test_valid_history[debug_history_index] <= test_valid;[m
+[31m-        debug_test_ready_history[debug_history_index] <= test_ready;[m
+[31m-        debug_prev_test_ready_history[debug_history_index] <= prev_test_ready;[m
+[31m-        [m
+[31m-        // Circular buffer[m
+[31m-        if (debug_history_index == 9) begin[m
+[31m-            debug_history_index <= 0;[m
+[31m-        end else begin[m
+[31m-            debug_history_index <= debug_history_index + 1;[m
+[31m-        end[m
+[31m-    end[m
+[31m-    [m
+[31m-    // Test pattern generator[m
+[31m-    initial begin[m
+[31m-        // Initialize[m
+[31m-        test_data = {DATA_WIDTH{1'bx}};[m
+[31m-        test_valid = 0;[m
+[31m-        test_data_count = 0;[m
+[31m-        bubble_cycles = 0;[m
+[31m-        stall_cycles = 0;[m
+[31m-        expected_data = 0;[m
+[31m-        error_count = 0;[m
+[31m-        sequence_error_count = 0;[m
+[31m-        total_error_count = 0;[m
+[31m-        test_count = 0;[m
+[31m-        array_index = 0;[m
+[31m-        array_size = 0;[m
+[31m-        debug_cycle_count = 0;[m
+[31m-        debug_history_index = 0;[m
+[31m-        [m
+[31m-        // Initialize debug history[m
+[31m-        for (integer i = 0; i < 10; i = i + 1) begin[m
+[31m-            debug_test_data_history[i] = 0;[m
+[31m-            debug_test_valid_history[i] = 0;[m
+[31m-            debug_test_ready_history[i] = 0;[m
+[31m-            debug_prev_test_ready_history[i] = 0;[m
+[31m-        end[m
+[31m-        [m
+[31m-        // Generate test pattern arrays[m
+[31m-        for (integer i = 0; i < TEST_DATA_COUNT; i = i + 1) begin[m
+[31m-            // Add valid data[m
+[31m-            test_data_array[array_size] = i;[m
+[31m-            test_valid_array[array_size] = 1;[m
+[31m-            array_size = array_size + 1;[m
+[31m-            [m
+[31m-            // Generate bubble cycles[m
+[31m-            bubble_cycles = $random % (BUBBLE_N + 4) - BUBBLE_N;[m
+[31m-            if (bubble_cycles < 0) bubble_cycles = 0;[m
+[31m-            [m
+[31m-            // Add bubbles[m
+[31m-            for (integer j = 0; j < bubble_cycles; j = j + 1) begin[m
+[31m-                test_data_array[array_size] = {DATA_WIDTH{1'bx}}; // Undefined data[m
+[31m-                test_valid_array[array_size] = 0; // Invalid[m
+[31m-                array_size = array_size + 1;[m
+[31m-            end[m
+[31m-        end[m
+[31m-        [m
+[31m-        // Reset (5 cycles)[m
+[31m-        rst_n = 0;[m
+[31m-        repeat (5) @(posedge clk);[m
+[31m-        rst_n = 1;[m
+[31m-        @(posedge clk);[m
+[31m-        [m
+[31m-        // Stream data according to Ready signal[m
+[31m-        while (array_index < array_size) begin[m
+[31m-            @(posedge clk);[m
+[31m-            [m
+[31m-            if (test_ready) begin[m
+[31m-                // Ready is high, send next data[m
+[31m-                test_data = test_data_array[array_index];[m
+[31m-                test_valid = test_valid_array[array_index];[m
+[31m-                array_index = array_index + 1;[m
+[31m-            end[m
+[31m-            // If Ready is low, hold current data (no change)[m
+[31m-        end[m
+[31m-        [m
+[31m-        // Stop sending data[m
+[31m-        test_valid = 0;[m
+[31m-        [m
+[31m-        // Wait for pipeline to flush[m
+[31m-        repeat (PIPELINE_STAGES * 3 + 10) @(posedge clk);[m
+[31m-        [m
+[31m-        // Report results[m
+[31m-        $display("Test completed:");[m
+[31m-        $display("  Total tests: %0d", test_count);[m
+[31m-        $display("  Data errors: %0d", error_count);[m
+[31m-        $display("  Sequence errors: %0d", sequence_error_count);[m
+[31m-        $display("  Total errors: %0d", total_error_count);[m
+[31m-        [m
+[31m-        if (total_error_count == 0) begin[m
+[31m-            $display("PASS: All tests passed");[m
+[31m-        end else begin[m
+[31m-            $display("FAIL: %0d errors found", total_error_count);[m
+[31m-        end[m
+[31m-        [m
+[31m-        $finish;[m
+[31m-    end[m
+[31m-    [m
+[31m-    // Downstream Ready control circuit (2.3) - Most downstream ready control[m
+[31m-    reg final_ready_reg;[m
+[31m-    assign final_ready = final_ready_reg;[m
+[31m-    [m
+[31m-    initial begin[m
+[31m-        final_ready_reg = 0; // Start with 0[m
+[31m-        [m
+[31m-        // Wait for reset to complete (5 cycles after reset release)[m
+[31m-        @(posedge clk);[m
+[31m-        repeat (5) @(posedge clk);[m
+[31m-        final_ready_reg = 1; // Enable after 5 cycles[m
+[31m-        [m
+[31m-        forever begin[m
+[31m-            @(posedge clk);[m
+[31m-            [m
+[31m-            // Generate stall cycles for final_ready (most downstream)[m
+[31m-            stall_cycles = $random % (STALL_N + 4) - STALL_N;[m
+[31m-            if (stall_cycles < 0) stall_cycles = 0;[m
+[31m-            [m
+[31m-            if (stall_cycles > 0) begin[m
+[31m-                final_ready_reg = 0;[m
+[31m-                repeat (stall_cycles) @(posedge clk);[m
+[31m-                final_ready_reg = 1;[m
+[31m-            end[m
+[31m-        end[m
+[31m-    end[m
+[31m-    [m
+[31m-    // Test result checker circuit (2.4) - Check most downstream data[m
+[31m-    always @(posedge clk) begin[m
+[31m-        // Check final output data (most downstream) - Ready=H and Valid=H[m
+[31m-        if (final_valid && final_ready) begin[m
+[31m-            test_count = test_count + 1;[m
+[31m-            [m
+[31m-            // Check if upstream data matches downstream data[m
+[31m-            if (final_data !== expected_data) begin[m
+[31m-                error_count = error_count + 1;[m
+[31m-                total_error_count = total_error_count + 1;[m
+[31m-                $display("ERROR: Data mismatch at test %0d", test_count);[m
+[31m-                $display("  Time: %0t", $time);[m
+[31m-                $display("  Signal: final_data");[m
+[31m-                $display("  Expected: %0d, Got: %0d", expected_data, final_data);[m
+[31m-                [m
+[31m-                // Stop after 1 clock cycle on error[m
+[31m-                repeat (1) @(posedge clk);[m
+[31m-                $finish;[m
+[31m-            end else begin[m
+[31m-                $display("PASS: Test %0d, Data: %0d", test_count, final_data);[m
+[31m-            end[m
+[31m-            [m
+[31m-            expected_data = expected_data + 1;[m
+[31m-        end[m
+[31m-    end[m
+[31m-    [m
+[31m-    // Sequence checker circuit (2.5) - Input side (upstream pipeline_insert input)[m
+[31m-    [m
+[31m-    always @(posedge clk) begin[m
+[31m-        if (!rst_n) begin[m
+[31m-            prev_test_data <= 0;[m
+[31m-            prev_test_valid <= 0;[m
+[31m-            prev_test_ready <= 0;[m
+[31m-        end else begin[m
+[31m-            // Check if data is held when ready is low[m
+[31m-            if (!prev_test_ready && test_valid) begin[m
+[31m-                // Check if next cycle value is same as current cycle value[m
+[31m-                if (test_data !== prev_test_data || test_valid != prev_test_valid) begin[m
+[31m-                    sequence_error_count = sequence_error_count + 1;[m
+[31m-                    total_error_count = total_error_count + 1;[m
+[31m-                    $display("ERROR: Input data not held during stall");[m
+[31m-                    $display("  Time: %0t", $time);[m
+[31m-                    $display("  Signal: test_data");[m
+[31m-                    $display("  Should be held: %0d", prev_test_data);[m
+[31m-                    $display("  Actual value: %0d", test_data);[m
+[31m-                    $display("  Debug Info:");[m
+[31m-                    $display("    Cycle: %0d", debug_cycle_count);[m
+[31m-                    $display("    prev_test_ready: %0d", prev_test_ready);[m
+[31m-                    $display("    test_valid: %0d", test_valid);[m
+[31m-                    $display("    prev_test_valid: %0d", prev_test_valid);[m
+[31m-                    $display("    test_ready: %0d", test_ready);[m
+[31m-                    $display("  Signal History (last 10 cycles):");[m
+[31m-                    for (integer i = 0; i < 10; i = i + 1) begin[m
+[31m-                        $display("    Cycle-%0d: data=%0d, valid=%0d, ready=%0d, prev_ready=%0d", [m
+[31m-                                10-i, debug_test_data_history[i], debug_test_valid_history[i], [m
+[31m-                                debug_test_ready_history[i], debug_prev_test_ready_history[i]);[m
+[31m-                    end[m
+[31m-                    repeat (1) @(posedge clk);[m
+[31m-                    $finish;[m
+[31m-                end[m
+[31m-            end[m
+[31m-            [m
+[31m-            // Check for undefined values during valid periods[m
+[31m-            if (test_valid && test_ready) begin[m
+[31m-                if (test_data === {DATA_WIDTH{1'bx}}) begin[m
+[31m-                    sequence_error_count = sequence_error_count + 1;[m
+[31m-                    total_error_count = total_error_count + 1;[m
+[31m-                    $display("ERROR: Undefined value detected in input data");[m
+[31m-                    $display("  Time: %0t", $time);[m
+[31m-                    $display("  Signal: test_data");[m
+[31m-                    repeat (1) @(posedge clk);[m
+[31m-                    $finish;[m
+[31m-                end[m
+[31m-            end[m
+[31m-            [m
+[31m-            prev_test_data <= test_data;[m
+[31m-            prev_test_valid <= test_valid;[m
+[31m-            prev_test_ready <= test_ready;[m
+[31m-        end[m
+[31m-    end[m
+[31m-    [m
+[31m-    // Sequence checker circuit (2.5) - Output side (downstream pipeline_insert output)[m
+[31m-    [m
+[31m-    always @(posedge clk) begin[m
+[31m-        if (!rst_n) begin[m
+[31m-            prev_result_data <= 0;[m
+[31m-            prev_result_valid <= 0;[m
+[31m-            prev_final_ready <= 0;[m
+[31m-        end else begin[m
+[31m-            // Check if data is held when ready is low[m
+[31m-            if (!prev_final_ready && final_valid) begin[m
+[31m-                // Check if next cycle value is same as current cycle value[m
+[31m-                if (final_data !== prev_result_data || final_valid != prev_result_valid) begin[m
+[31m-                    sequence_error_count = sequence_error_count + 1;[m
+[31m-                    total_error_count = total_error_count + 1;[m
+[31m-                    $display("ERROR: Output data not held during stall");[m
+[31m-                    $display("  Time: %0t", $time);[m
+[31m-                    $display("  Signal: final_data");[m
+[31m-                    $display("  Should be held: %0d", prev_result_data);[m
+[31m-                    $display("  Actual value: %0d", final_data);[m
+[31m-                    repeat (1) @(posedge clk);[m
+[31m-                    $finish;[m
+[31m-                end[m
+[31m-            end[m
+[31m-            [m
+[31m-            // Check for undefined values during valid periods[m
+[31m-            if (final_valid && final_ready) begin[m
+[31m-                if (final_data === {DATA_WIDTH{1'bx}}) begin[m
+[31m-                    sequence_error_count = sequence_error_count + 1;[m
+[31m-                    total_error_count = total_error_count + 1;[m
+[31m-                    $display("ERROR: Undefined value detected in output data");[m
+[31m-                    $display("  Time: %0t", $time);[m
+[31m-                    $display("  Signal: final_data");[m
+[31m-                    repeat (1) @(posedge clk);[m
+[31m-                    $finish;[m
+[31m-                end[m
+[31m-            end[m
+[31m-            [m
+[31m-            prev_result_data <= final_data;[m
+[31m-            prev_result_valid <= final_valid;[m
+[31m-            prev_final_ready <= final_ready;[m
+[31m-        end[m
+[31m-    end[m
+[31m-[m
+[32m+[m[32m// Licensed under the Apache License, Version 2.0 - see LICENSE file for details.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32mmodule pipeline_tb_debug #([m[41m[m
+[32m+[m[32m    parameter DATA_WIDTH = 32,[m[41m[m
+[32m+[m[32m    parameter PIPELINE_STAGES = 4,[m[41m[m
+[32m+[m[32m    parameter TEST_DATA_COUNT = 100,[m[41m[m
+[32m+[m[32m    parameter BUBBLE_N = 2,[m[41m[m
+[32m+[m[32m    parameter STALL_N = 2[m[41m[m
+[32m+[m[32m)();[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m    // Clock and Reset[m[41m[m
+[32m+[m[32m    reg                     clk;[m[41m[m
+[32m+[m[32m    reg                     rst_n;[m[41m[m
+[32m+[m[41m    [m
+[32m+[m[32m    // Test pattern generator signals[m[41m[m
+[32m+[m[32m    reg  [DATA_WIDTH-1:0]  test_data;[m[41m[m
+[32m+[m[32m    reg                     test_valid;[m[41m[m
+[32m+[m[32m    wire                    test_ready;[m[41m[m
+[32m+[m[32m    integer                 test_data_count;[m[41m[m
+[32m+[m[32m    integer                 bubble_cycles;[m[41m[m
+[32m+[m[32m    integer                 stall_cycles;[m[41m[m
+[32m+[m[41m    [m
+[32m+[m[32m    // Test pattern arrays (SystemVerilog style)[m[41m[m
+[32m+[m[32m    reg  [DATA_WIDTH-1:0]  test_data_array [0:TEST_DATA_COUNT*4-1]; // Maximum size for data + bubbles[m[41m[m
+[32m+[m[32m    reg                     test_valid_array [0:TEST_DATA_COUNT*4-1];[m[41m[m
+[32m+[m[32m    integer                 array_index;[m[41m[m
+[32m+[m[32m    integer                 array_size;[m[41m[m
+[32m+[m[41m    [m
+[32m+[m[32m    // DUT signals[m[41m[m
+[32m+[m[32m    wire [DATA_WIDTH-1:0]  dut_data;[m[41m[m
+[32m+[m[32m    wire                    dut_valid;[m[41m[m
+[32m+[m[32m    wire                    dut_ready;[m[41m[m
+[32m+[m[41m    [m
+[32m+[m[32m    // Result checker signals[m[41m[m
+[32m+[m[32m    wire [DATA_WIDTH-1:0]  result_data;[m[41m[m
+[32m+[m[32m    wire                    result_valid;[m[41m[m
+[32m+[m[32m    wire                    result_ready;[m[41m[m
+[32m+[m[32m    integer                 expected_data;[m[41m[m
+[32m+[m[32m    integer                 error_count;[m[41m[m
+[32m+[m[41m    [m
+[32m+[m[32m    // Final output signals[m[41m[m
+[32m+[m[32m    wire [DATA_WIDTH-1:0]  final_data;[m[41m[m
+[32m+[m[32m    wire                    final_valid;[m[41m[m
+[32m+[m[32m    wire                    final_ready;[m[41m[m
+[32m+[m[41m    [m
+[32m+[m[32m    // Test control[m[41m[m
+[32m+[m[32m    integer                 test_count;[m[41m[m
+[32m+[m[32m    integer                 total_error_count;[m[41m[m
+[32m+[m[41m    [m
+[32m+[m[32m    // Debug signals for timing analysis[m[41m[m
+[32m+[m[32m    reg  [DATA_WIDTH-1:0]  debug_test_data_history [0:9]; // Last 10 cycles[m[41m[m
+[32m+[m[32m    reg                     debug_test_valid_history [0:9];[m[41m[m
+[32m+[m[32m    reg                     debug_test_ready_history [0:9];[m[41m[m
+[32m+[m[32m    reg                     debug_prev_test_ready_history [0:9];[m[41m[m
+[32m+[m[32m    integer                 debug_history_index;[m[41m[m
+[32m+[m[32m    integer                 debug_cycle_count;[m[41m[m
+[32m+[m[41m    [m
+[32m+[m[32m    // Sequence checker signals (moved up for debug history)[m[41m[m
+[32m+[m[32m    reg  [DATA_WIDTH-1:0]  prev_test_data;[m[41m[m
+[32m+[m[32m    reg                     prev_test_valid;[m[41m[m
+[32m+[m[32m    reg                     prev_test_ready;[m[41m[m
+[32m+[m[32m    reg  [DATA_WIDTH-1:0]  prev_result_data;[m[41m[m
+[32m+[m[32m    reg                     prev_result_valid;[m[41m[m
+[32m+[m[32m    reg                     prev_final_ready;[m[41m[m
+[32m+[m[32m    integer                 sequence_error_count;[m[41m[m
+[32m+[m[41m    [m
+[32m+[m[32m    // DUT instance: pipeline_insert -> pipeline -> pipeline_insert[m[41m[m
+[32m+[m[32m    pipeline_insert #([m[41m[m
+[32m+[m[32m        .DATA_WIDTH(DATA_WIDTH)[m[41m[m
+[32m+[m[32m    ) dut_insert1 ([m[41m[m
+[32m+[m[32m        .clk(clk),[m[41m[m
+[32m+[m[32m        .rst_n(rst_n),[m[41m[m
+[32m+[m[32m        .u_data(test_data),[m[41m[m
+[32m+[m[32m        .u_valid(test_valid),[m[41m[m
+[32m+[m[32m        .u_ready(test_ready),[m[41m[m
+[32m+[m[32m        .d_data(dut_data),[m[41m[m
+[32m+[m[32m        .d_valid(dut_valid),[m[41m[m
+[32m+[m[32m        .d_ready(dut_ready)[m[41m[m
+[32m+[m[32m    );[m[41m[m
+[32m+[m[41m    [m
+[32m+[m[32m    pipeline #([m[41m[m
+[32m+[m[32m        .DATA_WIDTH(DATA_WIDTH),[m[41m[m
+[32m+[m[32m        .PIPELINE_STAGES(PIPELINE_STAGES)[m[41m[m
+[32m+[m[32m    ) dut_pipeline ([m[41m[m
+[32m+[m[32m        .clk(clk),[m[41m[m
+[32m+[m[32m        .rst_n(rst_n),[m[41m[m
+[32m+[m[32m        .u_data(dut_data),[m[41m[m
+[32m+[m[32m        .u_valid(dut_valid),[m[41m[m
+[32m+[m[32m        .u_ready(dut_ready),[m[41m[m
+[32m+[m[32m        .d_data(result_data),[m[41m[m
+[32m+[m[32m        .d_valid(result_valid),[m[41m[m
+[32m+[m[32m        .d_ready(result_ready)[m[41m[m
+[32m+[m[32m    );[m[41m[m
+[32m+[m[41m    [m
+[32m+[m[32m    pipeline_insert #([m[41m[m
+[32m+[m[32m        .DATA_WIDTH(DATA_WIDTH)[m[41m[m
+[32m+[m[32m    ) dut_insert2 ([m[41m[m
+[32m+[m[32m        .clk(clk),[m[41m[m
+[32m+[m[32m        .rst_n(rst_n),[m[41m[m
+[32m+[m[32m        .u_data(result_data),[m[41m[m
+[32m+[m[32m        .u_valid(result_valid),[m[41m[m
+[32m+[m[32m        .u_ready(result_ready),[m[41m[m
+[32m+[m[32m        .d_data(final_data),[m[41m[m
+[32m+[m[32m        .d_valid(final_valid),[m[41m[m
+[32m+[m[32m        .d_ready(final_ready)[m[41m[m
+[32m+[m[32m    );[m[41m[m
+[32m+[m[41m    [m
+[32m+[m[32m    // Clock generation (10ns cycle, 100MHz)[m[41m[m
+[32m+[m[32m    initial begin[m[41m[m
+[32m+[m[32m        clk = 0;[m[41m[m
+[32m+[m[32m        forever #5 clk = ~clk;[m[41m[m
+[32m+[m[32m    end[m[41m[m
+[32m+[m[41m    [m
+[32m+[m[32m    // Debug history tracking[m[41m[m
+[32m+[m[32m    always @(posedge clk) begin[m[41m[m
+[32m+[m[32m        debug_cycle_count <= debug_cycle_count + 1;[m[41m[m
+[32m+[m[41m        [m
+[32m+[m[32m        // Update history[m[41m[m
+[32m+[m[32m        debug_test_data_history[debug_history_index] <= test_data;[m[41m[m
+[32m+[m[32m        debug_test_valid_history[debug_history_index] <= test_valid;[m[41m[m
+[32m+[m[32m        debug_test_ready_history[debug_history_index] <= test_ready;[m[41m[m
+[32m+[m[32m        debug_prev_test_ready_history[debug_history_index] <= prev_test_ready;[m[41m[m
+[32m+[m[41m        [m
+[32m+[m[32m        // Circular buffer[m[41m[m
+[32m+[m[32m        if (debug_history_index == 9) begin[m[41m[m
+[32m+[m[32m            debug_history_index <= 0;[m[41m[m
+[32m+[m[32m        end else begin[m[41m[m
+[32m+[m[32m            debug_history_index <= debug_history_index + 1;[m[41m[m
+[32m+[m[32m        end[m[41m[m
+[32m+[m[32m    end[m[41m[m
+[32m+[m[41m    [m
+[32m+[m[32m    // Test pattern generator[m[41m[m
+[32m+[m[32m    initial begin[m[41m[m
+[32m+[m[32m        // Initialize[m[41m[m
+[32m+[m[32m        test_data = {DATA_WIDTH{1'bx}};[m[41m[m
+[32m+[m[32m        test_valid = 0;[m[41m[m
+[32m+[m[32m        test_data_count = 0;[m[41m[m
+[32m+[m[32m        bubble_cycles = 0;[m[41m[m
+[32m+[m[32m        stall_cycles = 0;[m[41m[m
+[32m+[m[32m        expected_data = 0;[m[41m[m
+[32m+[m[32m        error_count = 0;[m[41m[m
+[32m+[m[32m        sequence_error_count = 0;[m[41m[m
+[32m+[m[32m        total_error_count = 0;[m[41m[m
+[32m+[m[32m        test_count = 0;[m[41m[m
+[32m+[m[32m        array_index = 0;[m[41m[m
+[32m+[m[32m        array_size = 0;[m[41m[m
+[32m+[m[32m        debug_cycle_count = 0;[m[41m[m
+[32m+[m[32m        debug_history_index = 0;[m[41m[m
+[32m+[m[41m        [m
+[32m+[m[32m        // Initialize debug history[m[41m[m
+[32m+[m[32m        for (integer i = 0; i < 10; i = i + 1) begin[m[41m[m
+[32m+[m[32m            debug_test_data_history[i] = 0;[m[41m[m
+[32m+[m[32m            debug_test_valid_history[i] = 0;[m[41m[m
+[32m+[m[32m            debug_test_ready_history[i] = 0;[m[41m[m
+[32m+[m[32m            debug_prev_test_ready_history[i] = 0;[m[41m[m
+[32m+[m[32m        end[m[41m[m
+[32m+[m[41m        [m
+[32m+[m[32m        // Generate test pattern arrays[m[41m[m
+[32m+[m[32m        for (integer i = 0; i < TEST_DATA_COUNT; i = i + 1) begin[m[41m[m
+[32m+[m[32m            // Add valid data[m[41m[m
+[32m+[m[32m            test_data_array[array_size] = i;[m[41m[m
+[32m+[m[32m            test_valid_array[array_size] = 1;[m[41m[m
+[32m+[m[32m            array_size = array_size + 1;[m[41m[m
+[32m+[m[41m            [m
+[32m+[m[32m            // Generate bubble cycles[m[41m[m
+[32m+[m[32m            bubble_cycles = $random % (BUBBLE_N + 4) - BUBBLE_N;[m[41m[m
+[32m+[m[32m            if (bubble_cycles < 0) bubble_cycles = 0;[m[41m[m
+[32m+[m[41m            [m
+[32m+[m[32m            // Add bubbles[m[41m[m
+[32m+[m[32m            for (integer j = 0; j < bubble_cycles; j = j + 1) begin[m[41m[m
+[32m+[m[32m                test_data_array[array_size] = {DATA_WIDTH{1'bx}}; // Undefined data[m[41m[m
+[32m+[m[32m                test_valid_array[array_size] = 0; // Invalid[m[41m[m
+[32m+[m[32m                array_size = array_size + 1;[m[41m[m
+[32m+[m[32m            end[m[41m[m
+[32m+[m[32m        end[m[41m[m
+[32m+[m[41m        [m
+[32m+[m[32m        // Reset (5 cycles)[m[41m[m
+[32m+[m[32m        rst_n = 0;[m[41m[m
+[32m+[m[32m        repeat (5) @(posedge clk);[m[41m[m
+[32m+[m[32m        rst_n = 1;[m[41m[m
+[32m+[m[32m        @(posedge clk);[m[41m[m
+[32m+[m[41m        [m
+[32m+[m[32m        // Stream data according to Ready signal[m[41m[m
+[32m+[m[32m        while (array_index < array_size) begin[m[41m[m
+[32m+[m[32m            @(posedge clk);[m[41m[m
+[32m+[m[41m            [m
+[32m+[m[32m            if (test_ready) begin[m[41m[m
+[32m+[m[32m                // Ready is high, send next data[m[41m[m
+[32m+[m[32m                test_data = test_data_array[array_index];[m[41m[m
+[32m+[m[32m                test_valid = test_valid_array[array_index];[m[41m[m
+[32m+[m[32m                array_index = array_index + 1;[m[41m[m
+[32m+[m[32m            end[m[41m[m
+[32m+[m[32m            // If Ready is low, hold current data (no change)[m[41m[m
+[32m+[m[32m        end[m[41m[m
+[32m+[m[41m        [m
+[32m+[m[32m        // Stop sending data[m[41m[m
+[32m+[m[32m        test_valid = 0;[m[41m[m
+[32m+[m[41m        [m
+[32m+[m[32m        // Wait for pipeline to flush[m[41m[m
+[32m+[m[32m        repeat (PIPELINE_STAGES * 3 + 10) @(posedge clk);[m[41m[m
+[32m+[m[41m        [m
+[32m+[m[32m        // Report results[m[41m[m
+[32m+[m[32m        $display("Test completed:");[m[41m[m
+[32m+[m[32m        $display("  Total tests: %0d", test_count);[m[41m[m
+[32m+[m[32m        $display("  Data errors: %0d", error_count);[m[41m[m
+[32m+[m[32m        $display("  Sequence errors: %0d", sequence_error_count);[m[41m[m
+[32m+[m[32m        $display("  Total errors: %0d", total_error_count);[m[41m[m
+[32m+[m[41m        [m
+[32m+[m[32m        if (total_error_count == 0) begin[m[41m[m
+[32m+[m[32m            $display("PASS: All tests passed");[m[41m[m
+[32m+[m[32m        end else begin[m[41m[m
+[32m+[m[32m            $display("FAIL: %0d errors found", total_error_count);[m[41m[m
+[32m+[m[32m        end[m[41m[m
+[32m+[m[41m        [m
+[32m+[m[32m        $finish;[m[41m[m
+[32m+[m[32m    end[m[41m[m
+[32m+[m[41m    [m
+[32m+[m[32m    // Downstream Ready control circuit (2.3) - Most downstream ready control[m[41m[m
+[32m+[m[32m    reg final_ready_reg;[m[41m[m
+[32m+[m[32m    assign final_ready = final_ready_reg;[m[41m[m
+[32m+[m[41m    [m
+[32m+[m[32m    initial begin[m[41m[m
+[32m+[m[32m        final_ready_reg = 0; // Start with 0[m[41m[m
+[32m+[m[41m        [m
+[32m+[m[32m        // Wait for reset to complete (5 cycles after reset release)[m[41m[m
+[32m+[m[32m        @(posedge clk);[m[41m[m
+[32m+[m[32m        repeat (5) @(posedge clk);[m[41m[m
+[32m+[m[32m        final_ready_reg = 1; // Enable after 5 cycles[m[41m[m
+[32m+[m[41m        [m
+[32m+[m[32m        forever begin[m[41m
