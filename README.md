@@ -10,13 +10,13 @@ AXIバスの設計に必要なパイプライン動作の基本的な設計手�
 
 ## ドキュメント一覧
 
-### [第1回：パイプラインの動作原理](pipeline_principles.md)
+### [第1回：パイプラインの動作原理](part01_pipeline_principles.md)
  - 基本的なパイプライン動作とReady/Validハンドシェイクの仕組み
 
-### [第2回：Ready信号とデータにFFを1段挿入する回路](pipeline_insert.md)
+### [第2回：Ready信号とデータにFFを1段挿入する回路](part02_pipeline_insert.md)
  - パイプラインのデータとReadyの基本ルールを守りながらReady信号とデータにFFを1段挿入する回路
 
-### [第3回：パイプライン動作を確認するテストベンチ](pipeline_testbench.md)
+### [第3回：パイプライン動作を確認するテストベンチ](part03_pipeline_testbench.md)
  - パイプライン回路の動作を確実に検証するためのテストベンチ
 
 ### 今後の予定
@@ -26,8 +26,8 @@ AXIバスの設計に必要なパイプライン動作の基本的な設計手�
 ### ルール集
 AIによる一貫性のあるドキュメント作成のためのルール集
 
-- [ルール１.シーケンスチャート記述](sequence_chart_rules.md)
-- [ルール２.デルタ遅延問題の回避](delta_delay_examples.md)
+- [ルール１.シーケンスチャート記述](rule01_sequence_chart_rules.md)
+- [ルール２.デルタ遅延問題の回避](rule02_delta_delay_examples.md)
 
 ## ドキュメント作成方針
 
