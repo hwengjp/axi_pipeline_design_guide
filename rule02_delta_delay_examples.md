@@ -441,3 +441,9 @@ end
 5. **シミュレーション結果の再現性を確認**
 
 これらの手法を適用することで、安定したテストベンチの設計が可能になり、デバッグの効率も向上します。 
+
+---
+
+## ライセンス
+
+Licensed under the Apache License, Version 2.0 - see [LICENSE](LICENSE) file for details. 
