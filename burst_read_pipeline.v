@@ -1,61 +1,55 @@
 // Licensed under the Apache License, Version 2.0 - see LICENSE file for details.
 
 module burst_read_pipeline #(
-    parameter DATA_WIDTH = 32,
-    parameter ADDR_WIDTH = 32,
-    parameter MAX_BURST_LENGTH = 4
+    parameter DATA_WIDTH = 32,        // Data width in bits
+    parameter ADDR_WIDTH = 32,        // Address width in bits
+    parameter MAX_BURST_LENGTH = 4    // Maximum burst length
 )(
     // Clock and Reset
     input  wire                     clk,
     input  wire                     rst_n,
     
-    // Upstream Interface (Input) - アドレスチャネル
+    // Upstream Interface (Input)
     input  wire [ADDR_WIDTH-1:0]   u_addr,
-    input  wire [7:0]              u_length,  // バースト長-1
+    input  wire [7:0]              u_length,  // Burst length - 1
     input  wire                     u_valid,
     output wire                     u_ready,
     
-    // Memory Interface
-    output wire [ADDR_WIDTH-1:0]   mem_addr,
-    output wire                     mem_read_en,
-    input  wire [DATA_WIDTH-1:0]   mem_data,
-    input  wire                     mem_valid,
-    
-    // Downstream Interface (Output) - データチャネル
+    // Downstream Interface (Output)
     output wire [DATA_WIDTH-1:0]   d_data,
     output wire                     d_valid,
     output wire                     d_last,
     input  wire                     d_ready
 );
 
-    // T0ステージ（アドレスカウンタとRE）の内部信号
+    // T0 stage internal signals (Address counter and Read Enable)
     reg [7:0]                      t0_count;
     reg [ADDR_WIDTH-1:0]           t0_mem_addr;
     reg                             t0_mem_read_en;
     reg                             t0_valid;
     reg                             t0_last;
     reg                             t0_ready;
-    reg [1:0]                      t0_state;  // 0:アイドル, 1:バースト中, 2:最終サイクル
+    reg [1:0]                      t0_state;  // 0: Idle, 1: Bursting, 2: Final cycle
     
-    // T1ステージ（メモリアクセス）の内部信号
+    // T1 stage internal signals (Memory access)
     reg [DATA_WIDTH-1:0]           t1_data;
     reg                             t1_valid;
     reg                             t1_last;
     reg                             t1_ready;
     
-    // メモリインターフェースの割り当て
-    assign mem_addr = t0_mem_addr;
-    assign mem_read_en = t0_mem_read_en;
+    // Internal memory interface (not exposed externally)
+    wire [DATA_WIDTH-1:0]          mem_data;
+    wire                            mem_valid;
     
-    // 下流インターフェースの割り当て
+    // Downstream interface assignments
     assign d_data = t1_data;
     assign d_valid = t1_valid;
     assign d_last = t1_last;
     
-    // T0ステージのu_ready生成（T0_Readyとd_readyの論理AND）
+    // T0 stage u_ready generation (T0_Ready AND d_ready)
     assign u_ready = t0_ready && d_ready;
     
-    // T0ステージの制御（アドレスカウンタとRE）
+    // T0 stage control (Address counter and Read Enable)
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             t0_count <= 8'hFF;
@@ -67,7 +61,7 @@ module burst_read_pipeline #(
             t0_state <= 2'b00;
         end else if (d_ready) begin
             case (t0_state)
-                2'b00: begin // アイドル状態
+                2'b00: begin // Idle state
                     if (u_valid && u_ready) begin
                         t0_count <= u_length;
                         t0_mem_addr <= u_addr;
@@ -83,7 +77,7 @@ module burst_read_pipeline #(
                     end
                 end
                 
-                2'b01: begin // バースト中
+                2'b01: begin // Bursting state
                     if (t0_count > 8'h00) begin
                         t0_count <= t0_count - 8'h01;
                         t0_mem_addr <= t0_mem_addr + 1;
@@ -95,7 +89,7 @@ module burst_read_pipeline #(
                     end
                 end
                 
-                2'b10: begin // 最終サイクル
+                2'b10: begin // Final cycle
                     t0_count <= 8'hFF;
                     t0_mem_read_en <= 1'b0;
                     t0_valid <= 1'b0;
@@ -117,7 +111,7 @@ module burst_read_pipeline #(
         end
     end
     
-    // T1ステージの制御（メモリアクセス）
+    // T1 stage control (Memory access)
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             t1_data <= {DATA_WIDTH{1'b0}};
@@ -126,7 +120,7 @@ module burst_read_pipeline #(
             t1_ready <= 1'b1;
         end else if (d_ready) begin
             if (t0_valid) begin
-                // メモリレイテンシ1のため、アドレスをデータとして使用
+                // Memory latency 1: use address as data
                 t1_data <= t0_mem_addr;
                 t1_valid <= 1'b1;
                 t1_last <= t0_last;

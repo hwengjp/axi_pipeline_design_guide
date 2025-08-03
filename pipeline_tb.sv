@@ -1,5 +1,5 @@
 // Licensed under the Apache License, Version 2.0 - see LICENSE file for details.
-
+`timescale 1ns / 1ps
 module pipeline_tb #(
     parameter DATA_WIDTH = 32,
     parameter PIPELINE_STAGES = 4,
