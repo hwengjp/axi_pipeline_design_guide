@@ -95,6 +95,8 @@
 
 ## 3. テストベンチの実装
 
+<div style="max-height: 400px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; background-color: #f6f8fa;">
+
 ```verilog
 module pipeline_tb;
     // Parameters
@@ -417,6 +419,8 @@ module pipeline_tb;
     
 endmodule
 ```
+
+</div>
 
 ## 4. 実行用スクリプトの生成
 

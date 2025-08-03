@@ -174,6 +174,8 @@ d_Ready     : HHHHHHH_H_H_H_H__H_H_H_H_H_H_H_H_HHH
 
 ### 3.1 バーストリードパイプラインモジュール
 
+<div style="max-height: 400px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; background-color: #f6f8fa;">
+
 ```systemverilog
 // Licensed under the Apache License, Version 2.0 - see LICENSE file for details.
 
@@ -311,7 +313,11 @@ module burst_read_pipeline #(
 endmodule
 ```
 
+</div>
+
 ### 3.2 バーストリードパイプラインテストベンチ
+
+<div style="max-height: 400px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; background-color: #f6f8fa;">
 
 ```systemverilog
 // Licensed under the Apache License, Version 2.0 - see LICENSE file for details.
@@ -726,6 +732,8 @@ module burst_read_pipeline_tb #(
 
 endmodule
 ```
+
+</div>
 
 上の指示を与えて生成されたコードは無修正で使用可能でした。テストベンチは期待通りの動作をさせるために約5時間かかりました。詳細な指示を与えないで、XXと同様にというあいまいな指示ではリクエストされた側もうまく生成はできないということです。
 
