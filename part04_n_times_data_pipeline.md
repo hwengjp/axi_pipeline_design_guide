@@ -310,7 +310,6 @@ module burst_read_pipeline #(
 
 endmodule
 ```
-テストベンチ
 
 ### 3.2 バーストリードパイプラインテストベンチ
 
