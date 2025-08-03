@@ -81,7 +81,7 @@ State=[u_Ready,d_Ready]の値に対して、次のクロックでどのデータ
 
 ここまでの説明を読み込ませてAIに自動生成させたコードです。この回路を使用するとAXIバスのどのチャネル(リードアドレスチャネル、ライトアドレスチャネル、リードデータチャネル、ライトデータチャネル、ライトレスポンスチャネル)にも簡単に１段のフリップフロップが挿入できます。
 
-<div style="max-height: 400px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; background-color: #f6f8fa;">
+<div style="max-height: 500px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; background-color: #f6f8fa;">
 
 ```systemverilog
 // Licensed under the Apache License, Version 2.0 - see LICENSE file for details.

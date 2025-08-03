@@ -1,3 +1,13 @@
+<style>
+pre {
+    max-height: 400px !important;
+    overflow-y: auto !important;
+    border: 1px solid #ccc !important;
+    padding: 10px !important;
+    background-color: #f6f8fa !important;
+}
+</style>
+
 # AXIバスのパイプライン回路設計ガイド ～ 第１回 パイプラインの動作原理
 
 ## 目次
@@ -217,7 +227,7 @@ Ready    : HHHHHH__HHHHHHHH
 
 ここまでの説明を読み込ませてAIに自動生成させたコードです。非常にシンプルで難しいところはありません。AXIバスの基本シーケンスはこのようなReadyとValidを使用したシフトレジスタ構造なのです。
 
-<div style="max-height: 400px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; background-color: #f6f8fa;">
+<div style="max-height: 400px !important; overflow-y: auto !important; border: 1px solid #ccc !important; padding: 10px !important; background-color: #f6f8fa !important;">
 
 ```verilog
 module pipeline #(

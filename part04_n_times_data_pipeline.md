@@ -174,7 +174,7 @@ d_Ready     : HHHHHHH_H_H_H_H__H_H_H_H_H_H_H_H_HHH
 
 ### 3.1 バーストリードパイプラインモジュール
 
-<div style="max-height: 400px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; background-color: #f6f8fa;">
+<div style="max-height: 500px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; background-color: #f6f8fa;">
 
 ```systemverilog
 // Licensed under the Apache License, Version 2.0 - see LICENSE file for details.
@@ -317,7 +317,7 @@ endmodule
 
 ### 3.2 バーストリードパイプラインテストベンチ
 
-<div style="max-height: 400px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; background-color: #f6f8fa;">
+<div style="max-height: 500px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; background-color: #f6f8fa;">
 
 ```systemverilog
 // Licensed under the Apache License, Version 2.0 - see LICENSE file for details.
