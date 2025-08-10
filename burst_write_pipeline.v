@@ -23,70 +23,52 @@ module burst_write_pipeline #(
     // Downstream Response Interface (Output)
     output wire [ADDR_WIDTH-1:0]   d_response,
     output wire                     d_valid,
-    input  wire                     d_ready,
-    
-    // Debug signals for T1 stage
-    output wire [ADDR_WIDTH-1:0]   test_t1_addr,
-    output wire [DATA_WIDTH-1:0]   test_t1_data,
-    output wire                     test_t1_we,
-    output wire                     test_t1_valid,
-    output wire                     test_t1_last,
-    output wire                     test_d_ready
+    input  wire                     d_ready
 );
 
     // T0A stage internal signals (Address counter)
-    reg [7:0]                      t0a_count;
-    reg [ADDR_WIDTH-1:0]           t0a_mem_addr;
-    reg                             t0a_valid;
+    reg [7:0]                      t0a_count;      // Burst counter (0xFF = idle, 0x00 = last)
+    reg [ADDR_WIDTH-1:0]           t0a_mem_addr;  // Current memory address
+    reg                             t0a_valid;     // T0A stage valid signal
     wire                            t0a_last;      // Last burst cycle indicator
-    wire                            t0a_ready;     // T0A stage ready signal
-    wire                            t0a_state;     // State machine: 0=Idle, 1=Bursting
+    wire                            t0a_state_ready;     // T0A stage ready signal
     
     // T0D stage internal signals (Data pipeline)
-    reg [DATA_WIDTH-1:0]           t0d_data;
-    reg                             t0d_valid;
-    reg                             t0d_ready;
+    reg [DATA_WIDTH-1:0]           t0d_data;      // T0D stage data output
+    reg                             t0d_valid;     // T0D stage valid signal
+    reg                             t0d_ready;     // T0D stage ready signal
     
     // T1 stage internal signals (Merge control)
-    reg [ADDR_WIDTH-1:0]           t1_addr;
-    reg [DATA_WIDTH-1:0]           t1_data;
-    wire                            t1_we;
-    reg                             t1_valid;
-    reg                             t1_last;
-    reg                             t1_ready;
+    reg [ADDR_WIDTH-1:0]           t1_addr;       // T1 stage address output
+    reg [DATA_WIDTH-1:0]           t1_data;       // T1 stage data output
+    wire                            t1_we;         // T1 stage write enable
+    reg                             t1_valid;      // T1 stage valid signal
+    reg                             t1_last;       // T1 stage last signal
+    reg                             t1_ready;      // T1 stage ready signal
     
     // T2 stage internal signals (Response generation)
-    reg [ADDR_WIDTH-1:0]           t2_response;
-    reg                             t2_valid;
-    reg                             t2_ready;
+    reg [ADDR_WIDTH-1:0]           t2_response;   // T2 stage response output
+    reg                             t2_valid;      // T2 stage valid signal
+    reg                             t2_ready;      // T2 stage ready signal
     
     // Merge control signals
-    wire                            t0a_m_ready;
-    wire                            t0d_m_ready;
+    wire                            t0a_m_ready;   // T0A merge ready signal
+    wire                            t0d_m_ready;   // T0D merge ready signal
     
     // Downstream interface assignments
     assign d_response = t2_response;
     assign d_valid = t2_valid;
     
-    // Debug signal assignments
-    assign test_t1_addr = t1_addr;
-    assign test_t1_data = t1_data;
-    assign test_t1_we = t1_we;
-    assign test_t1_valid = t1_valid;
-    assign test_t1_last = t1_last;
-    assign test_d_ready = d_ready;
-    
     // T1 write enable assignment
     assign t1_we = t1_valid;
     
     // T0A stage control signals
-    assign t0a_state     = ((t0a_count == 8'hFF) || (t0a_count == 8'h00)) ? 1'b0 : 1'b1; // State encoding
-    assign t0a_ready     = (t0a_count == 8'hFF) || (t0a_count == 8'h00); // Ready when idle or last cycle
-    assign t0a_last      = (t0a_count == 8'h00); // Last cycle when counter reaches 0
+    assign t0a_state_ready = (t0a_count == 8'hFF) || (t0a_count == 8'h00); // Ready when idle or last cycle
+    assign t0a_last = (t0a_count == 8'h00); // Last cycle when counter reaches 0
     
     // Ready signal assignments
-    assign u_addr_ready = t0a_ready && t0a_m_ready && d_ready;
-    assign u_data_ready = t0d_ready && t0d_m_ready && d_ready;
+    assign u_addr_ready = t0a_state_ready && t0a_m_ready && d_ready; // Upstream address ready when all conditions met
+    assign u_data_ready = t0d_ready && t0d_m_ready && d_ready;       // Upstream data ready when all conditions met
     
     // Merge ready generation
     // T0A_M_Ready: T0DがValid && T0Aがnot Valid またはT0DとT0Aの両方がnot Valid またはT0DとT0Aの両方がValid
@@ -94,84 +76,68 @@ module burst_write_pipeline #(
     // T0D_M_Ready: T0Dがnot Valid && T0AがValid またはT0DとT0Aの両方がnot Valid またはT0DとT0Aの両方がValid
     assign t0d_m_ready = (!t0d_valid && t0a_valid) || (!t0d_valid && !t0a_valid) || (t0d_valid && t0a_valid);
     
-    // T0A stage control (Address counter - similar to burst_read_pipeline)
+    // T0A stage control logic (Address counter)
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            t0a_count <= 8'hFF;
-            t0a_mem_addr <= {ADDR_WIDTH{1'b0}};
-            t0a_valid <= 1'b0;
+            t0a_count <= 8'hFF;                        // Initialize to idle state
+            t0a_mem_addr <= {ADDR_WIDTH{1'b0}};        // Initialize address to 0
+            t0a_valid <= 1'b0;                         // Initialize valid to 0
         end else if (d_ready) begin
-            if(t0a_m_ready) begin
-                case (t0a_state)
-                    1'b0: begin // Idle state
-                        t0a_count <= u_length;
-                        t0a_mem_addr <= u_addr;
-                        t0a_valid <= u_addr_valid;
+            if (t0a_m_ready) begin
+                case (t0a_state_ready)
+                    1'b1: begin // Ready state (Idle or last cycle)
+                        t0a_count <= u_length;          // Load burst length
+                        t0a_mem_addr <= u_addr;         // Load start address
+                        t0a_valid <= u_addr_valid;      // Set valid based on upstream
                     end
-                    1'b1: begin // Bursting state
-                        t0a_count <= t0a_count - 8'h01;
-                        t0a_mem_addr <= t0a_mem_addr + 1;
-                        t0a_valid <= 1'b1;
+                    1'b0: begin // Not ready state (Bursting)
+                        t0a_count <= t0a_count - 8'h01; // Decrement burst counter
+                        t0a_mem_addr <= t0a_mem_addr + 1; // Increment memory address
+                        t0a_valid <= 1'b1;              // Keep valid during burst
                     end
                 endcase
             end
         end
     end
     
-    // T0D stage control (Data pipeline)
+    // T0D stage control logic (Data pipeline)
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            t0d_data <= {DATA_WIDTH{1'b0}};
-            t0d_valid <= 1'b0;
-            t0d_ready <= 1'b1;
+            t0d_data <= {DATA_WIDTH{1'b0}};             // Initialize data to 0
+            t0d_valid <= 1'b0;                          // Initialize valid to 0
+            t0d_ready <= 1'b1;                          // Initialize ready to 1
         end else if (d_ready) begin
             if (t0d_m_ready) begin
-                t0d_data <= u_data;
-                t0d_valid <= u_data_valid;
+                t0d_data <= u_data;                     // Update data from upstream
+                t0d_valid <= u_data_valid;              // Set valid based on upstream
             end
         end
     end
     
-    // T1 stage control (Merge control)
+    // T1 stage control logic (Merge control)
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            t1_addr <= {ADDR_WIDTH{1'b0}};
-            t1_data <= {DATA_WIDTH{1'b0}};
-            t1_valid <= 1'b0;
-            t1_last <= 1'b0;
-            t1_ready <= 1'b1;
+            t1_addr <= {ADDR_WIDTH{1'b0}};              // Initialize address to 0
+            t1_data <= {DATA_WIDTH{1'b0}};              // Initialize data to 0
+            t1_valid <= 1'b0;                           // Initialize valid to 0
+            t1_last <= 1'b0;                            // Initialize last to 0
         end else if (d_ready) begin
-            if (t0a_valid && t0d_valid) begin
-                // Both address and data are valid, proceed with write
-                t1_addr <= t0a_mem_addr;
-                t1_data <= t0d_data;
-                t1_valid <= 1'b1;
-                t1_last <= t0a_last;
-            end else begin
-                t1_valid <= 1'b0;
-                t1_last <= 1'b0;
-            end
+            t1_addr <= t0a_mem_addr;                    // Forward T0A address
+            t1_data <= t0d_data;                        // Forward T0D data
+            t1_valid <= (t0a_valid && t0d_valid);       // Valid when both T0A and T0D are valid
+            t1_last <= t0a_last;                        // Forward T0A last signal
         end
     end
     
-    // T2 stage control (Response generation)
+    // T2 stage control logic (Response generation)
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            t2_response <= {ADDR_WIDTH{1'b0}};
-            t2_valid <= 1'b0;
-            t2_ready <= 1'b1;
+            t2_response <= {ADDR_WIDTH{1'b0}};           // Initialize response to 0
+            t2_valid <= 1'b0;                           // Initialize valid to 0
+            t2_ready <= 1'b1;                           // Initialize ready to 1
         end else if (d_ready) begin
-            if (t1_valid) begin
-                // Check if write is successful (address equals data and WE is asserted)
-                if (t1_addr == t1_data && t1_we) begin
-                    t2_response <= t1_addr; // Use address as response
-                end else begin
-                    t2_response <= {ADDR_WIDTH{1'bx}}; // Invalid response
-                end
-                t2_valid <= 1'b1;
-            end else begin
-                t2_valid <= 1'b0;
-            end
+            t2_valid <= t1_valid;                       // Forward T1 valid signal
+            t2_response <= ((t1_addr == t1_data) && t1_we) ? t1_addr : {ADDR_WIDTH{1'bx}}; // Generate response based on condition
         end
     end
 

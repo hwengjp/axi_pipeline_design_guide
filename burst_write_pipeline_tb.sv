@@ -1,5 +1,6 @@
 // Licensed under the Apache License, Version 2.0 - see LICENSE file for details.
 `timescale 1ns / 1ps
+
 module burst_write_pipeline_tb #(
     parameter DATA_WIDTH = 32,        // Data width in bits
     parameter ADDR_WIDTH = 32,        // Address width in bits
@@ -37,29 +38,22 @@ module burst_write_pipeline_tb #(
     reg  [ADDR_WIDTH-1:0]  expected_response_array [$];
     reg                     expected_valid_array [$];
     
+    // Stall control arrays
     reg  [2:0]             stall_cycles_array [$];
+    
+    // Array control variables
     integer                 array_index;
     integer                 array_size;
     integer                 expected_response_index;
     integer                 stall_index;
     
-    // DUT signals
+    // DUT interface signals
     wire [ADDR_WIDTH-1:0]  dut_response;
     wire                    dut_valid;
     wire                    dut_ready;
     
-    // Debug signals
-    wire [ADDR_WIDTH-1:0]  test_t1_addr;
-    wire [DATA_WIDTH-1:0]  test_t1_data;
-    wire                    test_t1_we;
-    wire                    test_t1_valid;
-    wire                    test_t1_last;
-    wire                    test_d_ready;
-    
-    // Final output signals
+    // Test control signals
     reg                     final_ready;
-    
-    // Test control
     integer                 test_count;
     integer                 burst_count;
     integer                 response_count;
@@ -89,13 +83,7 @@ module burst_write_pipeline_tb #(
         .u_data_ready(test_data_ready),
         .d_response(dut_response),
         .d_valid(dut_valid),
-        .d_ready(dut_ready),
-        .test_t1_addr(test_t1_addr),
-        .test_t1_data(test_t1_data),
-        .test_t1_we(test_t1_we),
-        .test_t1_valid(test_t1_valid),
-        .test_t1_last(test_t1_last),
-        .test_d_ready(test_d_ready)
+        .d_ready(dut_ready)
     );
     
     // Clock generation (10ns cycle, 100MHz)
@@ -330,7 +318,7 @@ module burst_write_pipeline_tb #(
                     $display("  Signal: dut_response");
                     $display("  Expected: 0x%0h, Got: 0x%0h", expected_response_array[response_count], dut_response);
                     $display("  Debug - T1_addr: 0x%0h, T1_data: 0x%0h, T1_we: %0d, T1_valid: %0d", 
-                             test_t1_addr, test_t1_data, test_t1_we, test_t1_valid);
+                             dut.t1_addr, dut.t1_data, dut.t1_we, dut.t1_valid);
                     $display("  Test count: %0d, Response count: %0d", test_count, response_count);
                     repeat (1) @(posedge clk);
                     $finish;
@@ -343,7 +331,7 @@ module burst_write_pipeline_tb #(
                 response_count <= response_count + 1;
                 
                 // Report burst information
-                if (test_t1_last) begin
+                if (dut.t1_last) begin
                     burst_count <= burst_count + 1;
                     $display("Time %0t: Burst %0d completed - Response count: %0d, Test count: %0d", 
                              $time, burst_count, burst_response_count + 1, test_count);
@@ -355,9 +343,9 @@ module burst_write_pipeline_tb #(
     
     // Debug signal monitoring
     always @(posedge clk) begin
-        if (test_t1_valid && dut_ready) begin
+        if (dut.t1_valid && dut_ready) begin
             $display("Time %0t: T1 Debug - addr: %0d, data: %0d, we: %0d, valid: %0d, last: %0d", 
-                     $time, test_t1_addr, test_t1_data, test_t1_we, test_t1_valid, test_t1_last);
+                     $time, dut.t1_addr, dut.t1_data, dut.t1_we, dut.t1_valid, dut.t1_last);
         end
     end
 

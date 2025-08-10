@@ -92,54 +92,87 @@ Length       : xxxxxx333333333xxxxxx
 Valid        : ______HHHHHHHHHHHH___
 Ready        : HHHHHHH___H___H___HHH
 
-T0A_State    : 000000011121112111200
 T0A_Count    : FFFFFFF321032103210FF
-T0A_Mem_Adr  : xxxxxxx0123456789ABxx
-T0A_Mem_RE   : _______HHHHHHHHHHHH__
 T0A_Valid    : _______HHHHHHHHHHHH__
 T0A_Last     : __________H___H___H__
 T0A_Ready    : HHHHHHH___H___H___HHH
-u_Ready_A    : HHHHHHH___H___H___HHH
 
-Data         : xxxxxxx044448888xxxxxx
-Valid        : _______HHHHHHHHHHHH___
-Ready        : HHHHHHH___H___H___HHH
+T0D_Data     : xxxxxx0123456789ABxxxx
+T0D_Valid    : _______HHHHHHHHHHHH___
+T0D_Ready    : HHHHHHHHHHHHHHHHHHHHH
 
+T0D_Mem_Adr  : xxxxxx0123456789ABxx
 T0D_Mem_Dat  : xxxxxx0123456789ABxx
 T0D_Mem_WE   : ______HHHHHHHHHHHH__
 T0D_Valid    : ______HHHHHHHHHHHH__
 T0D_Last     : _________H___H___H__
-T0D_Ready    : HHHHHHH___H___H___HHH
-u_Ready_D    : HHHHHHH___H___H___HHH
-
-
-
+T0D_Ready    : HHHHHHHHHHHHHHHHHHHHH
 
 d_Response   : xxxxxxxxx001122333445566778899AABB__
 d_Valid      : _________HHHHHHHHHHHHHH_____________
 d_Ready      : HHHHHHHHHHHHHHHHHHHH
 ```
 
+## 3. サンプルコード
+
+### 3.1 バーストライトパイプラインモジュール
+
+以下の指示をAIに与えて自動で実装させます。
 ```
-part05_payload_merge_pipeline.mdの２章と３章を読んでコードの作成をお願いします。モジュール名はburst_write_pipelineです。
-アドレスパイプラインの実装は、burst_read_pipeline.vを参照してください。
+モジュール名は`burst_write_pipeline`です。アドレスパイプラインの実装は、`burst_read_pipeline.v`を参照してください。
 ```
+### 3.2 バーストライトパイプラインテストベンチ
+
+以下の指示をAIに与えて自動で実装させます。
 ```
-T1 stageの出力をデバッグ時に検証できるようにテスト信号としてポートに出してください。出す信号は、
-t1_addr
-t1_data
-t1_we
-t1_valid
-t1_last
-d_ready
-この信号の頭にtest_の文字を追加してassign文で代入して出力します。
-```
-```
-テストベンチも実装お願いします。テストベンチはburst_read_pipeline_tb.svを参考にしてください。
-テストデータと期待値は最初に配列として用意しておきます。配列はqueue型配列を使用してください。
-テストのシナリオは3章に書かれています。
+テストベンチは`burst_read_pipeline_tb.sv`を参考にしてください。テストデータと期待値は最初に配列として用意しておきます。配列はqueue型配列を使用してください。
+
+テストのシナリオは3章に書かれています。また、「テストベンチの構造」と「テスト信号の参照方法」の章を参照してください。
 ```
 
+#### テストベンチの構造
+
+テストベンチは以下の主要セクションで構成されています：
+
+- **Clock and Reset**: クロック生成とリセット制御
+- **Test pattern generator signals**: アドレスとデータのテスト信号生成
+- **Test pattern arrays**: テストデータを格納するキュー配列
+- **Expected response arrays**: 期待されるレスポンスデータ
+- **Stall control arrays**: ストール制御用の配列
+- **Array control variables**: 配列制御用の変数
+- **DUT interface signals**: DUTとのインターフェース信号
+- **Test control signals**: テスト制御用の信号
+- **Burst tracking for reporting**: バースト追跡用の信号
+- **DUT instance**: デバイスアンダーテストのインスタンス
+- **Clock generation**: クロック生成回路
+- **Reset generation**: リセット生成回路
+- **Test data initialization**: テストデータの初期化
+- **Test pattern generator**: アドレスとデータのテストパターン生成
+- **Downstream Ready control circuit**: 下流Ready制御回路
+- **Test result checker circuit**: テスト結果チェック回路
+- **Debug signal monitoring**: デバッグ信号監視
+
+#### テスト信号の参照方法
+
+修正されたコードでは、T1 stageのデバッグ信号は以下のように階層名で参照します：
+
+```systemverilog
+// デバッグ信号の監視
+always @(posedge clk) begin
+    if (dut.t1_valid && dut_ready) begin
+        $display("Time %0t: T1 Debug - addr: %0d, data: %0d, we: %0d, valid: %0d, last: %0d",
+                 $time, dut.t1_addr, dut.t1_data, dut.t1_we, dut.t1_valid, dut.t1_last);
+    end
+end
+```
+
+### 3.3 実行用スクリプト
+
+シミュレータのコンパイル・実行スクリプトは以下のように指示して自動生成させます：
+
+```
+burst_write_pipeline_tb.svのmodelsim用にコンパイルと実行を行うスクリプトを作成してください。スクリプト名はテストベンチ名に合わせます。
+```
 
 ## 5. 本質要素抽象化とは
 
@@ -157,14 +190,30 @@ d_ready
 **Valid**: データが有効であることを示す制御信号  
 **Payload**: 転送されるデータそのもの
 
+### ValidとPayloadの関係
+
+重要な洞察として、**Validは本質的にはPayloadである**ということができます。Valid信号は、その時点で有効なデータ（Payload）が存在するかどうかを示す制御情報ですが、これは実際には「データの有効性」という情報自体がPayloadとして機能していることを意味します。
+
+つまり、Valid信号は：
+- データチャネルでは「データが有効である」という情報を伝達
+- 制御チャネルでは「制御情報が有効である」という情報を伝達
+- アドレスチャネルでは「アドレスが有効である」という情報を伝達
+
+このように、Validは各チャネルにおいて「何が有効であるか」という具体的なPayload情報を伝達する役割を果たしています。したがって、ValidとPayloadは密接に関連しており、ValidはPayloadの有効性を示すメタデータとして機能していると言えます。
+
+### Readyによる制御の統一性
+
+さらに重要な点として、**ValidとPayloadはいずれもReadyで制御されている**という統一性があります。これは、パイプライン設計における制御の本質を表しています：
+
+- **Ready信号の役割**: Ready信号は、下流のステージがデータを受け取れる状態であることを示し、上流のステージに対してデータ転送の許可を与えます。
+
+- **ValidとPayloadの制御**: Valid信号（データの有効性）とPayload（実際のデータ）の両方が、下流からのReady信号によって制御されます。Readyがアサートされていない場合、ValidとPayloadは上流に伝播されません。
+
+- **制御の階層構造**: この制御構造により、パイプライン全体の流れが統一され、データの整合性が保たれます。Ready信号は、パイプラインの各段階における「流れの制御」を司る中心的役割を果たしています。
+
+この統一性により、複雑なパイプラインシステムでも、Ready、Valid、Payloadの3つの基本要素だけで制御構造を理解し、設計することが可能になります。
+
 この3つの要素により、あらゆるパイプラインの動作を統一的に記述できます。具体的なプロトコルや信号名に関係なく、パイプラインの本質的な動作を理解するための強力なツールとなります。
-
-## 4. 実行用スクリプトの生成
-
-シミュレータのコンパイル・実行スクリプトは以下のように指示して自動生成させます
-```
-burst_write_pipeline_tb.svのmodelsim用にコンパイルと実行を行うスクリプトを作成してください。スクリプト名はテストベンチ名に合わせます。
-```
 
 ---
 
