@@ -3,6 +3,7 @@ work/
 transcript
 *.wlf
 *.do
+*.vstf
 
 # Temporary files
 *.tmp

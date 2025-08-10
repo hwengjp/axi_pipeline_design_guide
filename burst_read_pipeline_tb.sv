@@ -32,7 +32,7 @@ module burst_read_pipeline_tb #(
     integer                 expected_data_index;
     integer                 stall_index;
     
-    // DUT signals (upstream and downstream only)
+    // DUT signals
     wire [DATA_WIDTH-1:0]  dut_data;
     wire                    dut_valid;
     wire                    dut_last;
@@ -52,13 +52,18 @@ module burst_read_pipeline_tb #(
     integer                 test_count;
     integer                 burst_count;
     integer                 data_count;
-    integer                 valid_address_count;  // Valid address count (excluding bubbles)
-    integer                 bubble_count;         // Bubble count
+    integer                 valid_address_count;
+    integer                 bubble_count;
     
     // Burst tracking for reporting
-    reg [ADDR_WIDTH-1:0]   current_burst_addr;   // Current burst start address
-    reg [7:0]              current_burst_length;  // Current burst length
-    integer                 burst_data_count;      // Data count within burst
+    reg [ADDR_WIDTH-1:0]   current_burst_addr;
+    reg [7:0]              current_burst_length;
+    integer                 burst_data_count;
+    
+    // Burst queue for verification
+    reg [ADDR_WIDTH-1:0]   burst_addr_queue [$];
+    reg [7:0]              burst_length_queue [$];
+    integer                 burst_queue_index;
     
     // DUT instance
     burst_read_pipeline #(
@@ -93,7 +98,6 @@ module burst_read_pipeline_tb #(
     
     // Test data initialization
     initial begin
-        // Variable declarations
         integer i, j;
         integer burst_length;
         integer stall_cycles;
@@ -102,9 +106,8 @@ module burst_read_pipeline_tb #(
         array_size = 0;
         expected_data_index = 0;
         stall_index = 0;
-        valid_address_count = 0;  // 有効なアドレス数（バブルを含まない）
-        bubble_count = 0;         // バブル数
-        burst_data_count = 0;     // バースト内データカウント
+        valid_address_count = 0;
+        bubble_count = 0;
         
         // Generate test pattern arrays
         for (i = 0; i < TEST_COUNT; i = i + 1) begin
@@ -112,72 +115,64 @@ module burst_read_pipeline_tb #(
             burst_length = $urandom_range(1, MAX_BURST_LENGTH);
             
             // Add valid burst request
-            test_addr_array.push_back(i * 16);  // Start address
-            test_length_array.push_back(burst_length - 1);  // Length - 1
+            test_addr_array.push_back(i * 16);
+            test_length_array.push_back(burst_length - 1);
             test_valid_array.push_back(1);
-            array_size = array_size + 1;
             valid_address_count = valid_address_count + 1;
             
-            // Generate expected data for this burst
+            // Add expected data for this burst
             for (j = 0; j < burst_length; j = j + 1) begin
                 expected_data_array.push_back((i * 16) + j);
                 expected_data_index = expected_data_index + 1;
             end
             
             // Generate bubble cycles
-            bubble_cycles = $random % (BUBBLE_N + 4) - BUBBLE_N;
-            if (bubble_cycles < 0) bubble_cycles = 0;
+            bubble_cycles = $urandom_range(0, BUBBLE_N);
             
             // Add bubbles
             for (j = 0; j < bubble_cycles; j = j + 1) begin
                 test_addr_array.push_back({ADDR_WIDTH{1'bx}});
                 test_length_array.push_back(8'hxx);
                 test_valid_array.push_back(0);
-                array_size = array_size + 1;
                 bubble_count = bubble_count + 1;
             end
             
-            // Generate stall cycles (except for last burst)
-            if (i < TEST_COUNT - 1) begin
-                stall_cycles = $random % (STALL_N + 4) - STALL_N;
-                if (stall_cycles < 0) stall_cycles = 0;
+            // Generate stall cycles for each burst request (including bubbles)
+            stall_cycles = $urandom_range(0, STALL_N);
+            stall_cycles_array.push_back(stall_cycles);
+            
+            // Add stall cycles for bubble cycles as well
+            for (j = 0; j < bubble_cycles; j = j + 1) begin
+                stall_cycles = $urandom_range(0, STALL_N);
                 stall_cycles_array.push_back(stall_cycles);
             end
         end
         
-        // Generate additional stall cycles for bubble cycles
-        for (i = 0; i < array_size - TEST_COUNT; i = i + 1) begin
-            stall_cycles = $random % (STALL_N + 4) - STALL_N;
-            if (stall_cycles < 0) stall_cycles = 0;
-            stall_cycles_array.push_back(stall_cycles);
-        end
+        array_size = test_addr_array.size();
         
-
+        $display("Test initialization completed:");
+        $display("  Total address patterns: %0d", test_addr_array.size());
+        $display("  Valid address patterns: %0d", valid_address_count);
+        $display("  Bubble patterns: %0d", bubble_count);
+        $display("  Expected data: %0d", expected_data_index);
     end
     
-    // Test pattern generator (always block)
+    // Test pattern generator
     always @(posedge clk) begin
         if (!rst_n) begin
-            // Reset state - hold current data
             test_addr <= {ADDR_WIDTH{1'bx}};
             test_length <= 8'hxx;
             test_valid <= 0;
             array_index <= 0;
         end else begin
-            if (array_index < array_size) begin
+            if (array_index < test_addr_array.size()) begin
                 if (test_ready) begin
-                    // Ready is high, send next data
                     test_addr <= test_addr_array[array_index];
                     test_length <= test_length_array[array_index];
                     test_valid <= test_valid_array[array_index];
-                    
-
-                    
                     array_index <= array_index + 1;
                 end
-                // If Ready is low, hold current data (no change)
             end else begin
-                // All data sent, stop sending
                 test_valid <= 0;
             end
         end
@@ -190,35 +185,35 @@ module burst_read_pipeline_tb #(
     
     always @(posedge clk) begin
         if (!rst_n) begin
-            // Reset state
             final_ready <= 0;
             stall_counter <= 0;
             stall_active <= 0;
             current_stall_cycles <= 0;
             stall_index <= 0;
         end else begin
+            // Default to ready unless stall is active
+            final_ready <= 1;
+            
             if (stall_counter == 0 && !stall_active) begin
-                // Read stall cycles from array
                 if (stall_index < stall_cycles_array.size()) begin
                     current_stall_cycles <= stall_cycles_array[stall_index];
                     stall_index <= stall_index + 1;
                 end else begin
-                    current_stall_cycles <= 0;
+                    // Reset stall_index when reaching the end to cycle through the array
+                    current_stall_cycles <= stall_cycles_array[0];
+                    stall_index <= 1;
                 end
                 
                 if (current_stall_cycles > 0) begin
                     final_ready <= 0;
                     stall_counter <= current_stall_cycles;
                     stall_active <= 1;
-                end else begin
-                    final_ready <= 1;
                 end
             end else if (stall_active) begin
-                // Stall is active, count down
                 if (stall_counter > 1) begin
                     stall_counter <= stall_counter - 1;
+                    final_ready <= 0;
                 end else begin
-                    // Stall complete
                     final_ready <= 1;
                     stall_counter <= 0;
                     stall_active <= 0;
@@ -230,11 +225,7 @@ module burst_read_pipeline_tb #(
     // Connect final ready to dut ready
     assign dut_ready = final_ready;
     
-    // Burst tracking circuit - record burst start information
-    reg [ADDR_WIDTH-1:0]   burst_addr_queue [$];  // Burst address queue
-    reg [7:0]              burst_length_queue [$]; // Burst length queue
-    integer                 burst_queue_index;     // Queue index
-    
+    // Burst queue tracking circuit
     always @(posedge clk) begin
         if (!rst_n) begin
             current_burst_addr <= {ADDR_WIDTH{1'b0}};
@@ -245,18 +236,15 @@ module burst_read_pipeline_tb #(
             if (test_valid && test_ready && test_valid_array[array_index - 1]) begin
                 burst_addr_queue.push_back(test_addr_array[array_index - 1]);
                 burst_length_queue.push_back(test_length_array[array_index - 1]);
-                $display("Time %0t: Burst queued - addr: 0x%0h, length: %0d, queue_size: %0d", 
-                         $time, test_addr_array[array_index - 1], test_length_array[array_index - 1], burst_addr_queue.size());
+                $display("Time %0t: Burst queued - addr: 0x%0h, length: %0d, queue_size: %0d, Test count: %0d", 
+                         $time, test_addr_array[array_index - 1], test_length_array[array_index - 1], burst_addr_queue.size(), test_count);
             end
-            
-
         end
     end
     
     // Test result checker circuit
     always @(posedge clk) begin
         if (!rst_n) begin
-            // Reset state
             test_count <= 0;
             burst_count <= 0;
             data_count <= 0;
@@ -274,7 +262,6 @@ module burst_read_pipeline_tb #(
                 $display("  Stall cycles (STALL_N): %0d", STALL_N);
                 $display("  Total stall cycles generated: %0d", stall_cycles_array.size());
                 $display("PASS: All tests passed");
-                // Stop after 1 clock cycle on success
                 repeat (1) @(posedge clk);
                 $finish;
             end
@@ -289,10 +276,8 @@ module burst_read_pipeline_tb #(
                     $display("ERROR: Data mismatch at test %0d", test_count);
                     $display("  Time: %0t", $time);
                     $display("  Signal: dut_data");
-                    $display("  Expected: %0d, Got: %0d", expected_data_array[data_count], dut_data);
+                    $display("  Expected: 0x%0h, Got: 0x%0h", expected_data_array[data_count], dut_data);
                     $display("  Burst: %0d, Data in burst: %0d", burst_count, test_count);
-                    
-                    // Stop after 1 clock cycle on error
                     repeat (1) @(posedge clk);
                     $finish;
                 end
@@ -303,8 +288,8 @@ module burst_read_pipeline_tb #(
                 if (dut_last) begin
                     burst_count <= burst_count + 1;
                     if (burst_queue_index < burst_addr_queue.size()) begin
-                        $display("Time %0t: Burst %0d completed - Start addr: 0x%0h, Length: %0d, Data count: %0d", 
-                                 $time, burst_count, burst_addr_queue[burst_queue_index], burst_length_queue[burst_queue_index], burst_data_count + 1);
+                        $display("Time %0t: Burst %0d completed - Start addr: 0x%0h, Length: %0d, Data count: %0d, Test count: %0d", 
+                                 $time, burst_count, burst_addr_queue[burst_queue_index], burst_length_queue[burst_queue_index], burst_data_count + 1, test_count);
                         
                         // Check if data count matches expected length
                         if (burst_data_count + 1 !== burst_length_queue[burst_queue_index] + 1) begin
