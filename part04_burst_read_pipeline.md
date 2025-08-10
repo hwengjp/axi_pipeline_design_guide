@@ -65,12 +65,12 @@ Payloadが４つに増えるシナリオつまり、バースト長４のリー�
 
 #### パイプライン構成
 
-T0はアドレスをカウントする回路。ここで上流に対するReadyの制御を行います。T1は下流のd_readyで制御されると同時に、上流に対するu_Readyを生成します。u_Readyは今までのルールであるd_ReadyがU_Readyに非同期でつながる回路に、T0でバースト中に待たせるためのT0_Readyを非同期で論理ANDした信号です。T0_ReadyはT0ステージで同期回路で生成します。
+T0はアドレスをカウントする回路。ここで上流に対するReadyの制御を行います。T1は下流のd_readyで制御されると同時に、上流に対するu_Readyを生成します。u_Readyは今までのルールであるd_ReadyがU_Readyに非同期でつながる回路に、T0でバースト中に待たせるためのT0_State_Readyを非同期で論理ANDした信号です。T0_State_ReadyはT0ステージで同期回路で生成します。
 T1はメモリです。Read Enableとアドレスをラッチして次のクロックでデータを出力します。T1は下流のd_Readyで制御されます。
 
-**重要な設計ポイント**: この回路では、パイプライン全体がReady信号で制御されており、各ステージの動作は`d_ready`がHの時のみ実行されます。また、T0ステージから派生する制御信号（`t0_mem_read_en`、`t0_last`、`t0_ready`、`t0_state`）は、`t0_count`の値をデコードして生成されるため、always文内での複雑な制御ロジックが不要になり、コードがすっきりしています。
+**重要な設計ポイント**: この回路では、パイプライン全体がReady信号で制御されており、各ステージの動作は`d_ready`がHの時のみ実行されます。また、T0ステージから派生する制御信号（`t0_mem_read_en`、`t0_last`、`t0_state_ready`）は、`t0_count`の値をデコードして生成されるため、always文内での複雑な制御ロジックが不要になり、コードがすっきりしています。
 
-**Ready制御の特徴**: 各ステージのalways文は`d_ready`がHの時のみ実行され、パイプライン全体がReady信号で統一的に制御されています。
+**Ready制御の特徴**: 各ステージのalways文は`d_ready`がHの時のみ実行され、パイプライン全体がReady信号で統一的に制御されています。また、T0ステージの制御は`t0_state_ready`信号に基づいて行われ、より直感的な制御フローを実現しています。
 
 ```
 u_Payload -> [T0] -> [T1] -> d_Payload
@@ -79,7 +79,7 @@ u_Payload -> [T0] -> [T1] -> d_Payload
 u_Ready   <-[AND]<----+-- <- d_Ready
               ^
               |
-          [T0_Ready]
+          [T0_State_Ready]
 ```
 | 段階 | 機能 | 説明 | データ増幅 |
 |------|------|------|------------|
@@ -91,76 +91,74 @@ u_Ready   <-[AND]<----+-- <- d_Ready
 アドレスは0から+4インクリメントで送られて、T0でAddress~Address+3の4つのアクセスを生成します。
 Lengthはバースト長-1の値です。下流からのd_readyはHの場合です。
 
-T0_Stateは2つのステートで管理されます。
+T0_State_Readyは2つの状態で管理されます。
 
-| ステート | 状態名 | 条件 | 動作 |
-|----------|--------|------|------|
-| 00 | リクエスト受付可能 | T0_Count=0xFFまたはT0_Count=0x00 | アイドルまたはバーストの最後のサイクル |
-| 01 | バースト中 | T0_Countが0xFFでも0x00でもない | バースト転送を実行中 |
+| 状態 | 状態名 | 条件 | 動作 |
+|------|--------|------|------|
+| 1 | リクエスト受付可能 | T0_Count=0xFFまたはT0_Count=0x00 | アイドルまたはバーストの最後のサイクル |
+| 0 | バースト中 | T0_Countが0xFFでも0x00でもない | バースト転送を実行中 |
 
-**初期値**: ステート=00（リクエスト受付可能）、T0_Count=0xFF、T0_Mem_Adr=0、T0_Mem_RE=L、T0_LAST=L、T0_Ready=H
+**初期値**: 状態=1（リクエスト受付可能）、T0_Count=0xFF、T0_Mem_Adr=0、T0_Mem_RE=L、T0_LAST=L、T0_State_Ready=H
 
-**ステート0（リクエスト受付可能）**: T0_u_Ready && T0_u_ValidでAddressとLengthから以下を生成
+**状態1（リクエスト受付可能）**: T0_u_Ready && T0_u_ValidでAddressとLengthから以下を生成
 - T0_Count ← Lengthの値
 - T0_Mem_Adr ← Addressの値
 
-**ステート1（バースト中）**: T0_Countをデクリメントし、アドレスをインクリメント
+**状態0（バースト中）**: T0_Countをデクリメントし、アドレスをインクリメント
 - T0_Count ← T0_Count - 1
 - T0_Mem_Adr ← T0_Mem_Adr + 1
 
 **制御信号の生成**: 以下の信号は`t0_count`の値をデコードして生成されます：
-- `t0_ready`: `(t0_count == 8'hFF) || (t0_count == 8'h00)` - アイドルまたは最終サイクルの時のみH
-- `t0_state`: `((t0_count == 8'hFF) || (t0_count == 8'h00)) ? 2'b00 : 2'b01` - カウンタ値からステートを生成
+- `t0_state_ready`: `(t0_count == 8'hFF) || (t0_count == 8'h00)` - アイドルまたは最終サイクルの時のみH
 - `t0_last`: `(t0_count == 8'h00)` - カウンタが0の時のみH
 - `t0_mem_read_en`: `(t0_count != 8'hFF)` - アイドル状態以外でメモリ読み取り有効
 
 ```
-Clock       : 123456789012345678901
-Address     : xxxxxx044448888xxxxxx
-Length      : xxxxxx333333333xxxxxx
-Valid       : ______HHHHHHHHHHHH___
-Ready       : HHHHHHH___H___H___HHH
+Clock         : 123456789012345678901
+Address       : xxxxxx044448888xxxxxx
+Length        : xxxxxx333333333xxxxxx
+Valid         : ______HHHHHHHHHHHH___
+Ready         : HHHHHHH___H___H___HHH
 
-T0_State    : 000000011111111111100
-T0_Count    : FFFFFFF321032103210FF
-T0_Mem_Adr  : xxxxxxx0123456789ABxx
-T0_Mem_RE   : _______HHHHHHHHHHHH__
-T0_Valid    : _______HHHHHHHHHHHH__
-T0_Last     : __________H___H___H__
-T0_Ready    : HHHHHHH___H___H___HHH
-u_Ready     : HHHHHHH___H___H___HHH
+T0_Count      : FFFFFFF321032103210FF
+T0_Mem_Adr    : xxxxxxx0123456789ABxx
+T0_Mem_RE     : _______HHHHHHHHHHHH__
+T0_Valid      : _______HHHHHHHHHHHH__
+T0_Last       : __________H___H___H__
+T0_State_Ready: HHHHHHH___H___H___HHH
+u_Ready       : HHHHHHH___H___H___HHH
 
-d_Data      : _______0123456789AB__
-d_Valid     : _______HHHHHHHHHHHH__
-d_Last      : __________H___H___H__
-d_Ready     : HHHHHHHHHHHHHHHHHHHHH
+d_Data        : _______0123456789AB__
+d_Valid       : _______HHHHHHHHHHHH__
+d_Last        : __________H___H___H__
+d_Ready       : HHHHHHHHHHHHHHHHHHHHH
 ```
 
 #### バースト長４、d_readyがトグルするシーケンス
 
-T0とT1はどちらもd_readyで論理全体のイネーブル制御を行います。T0_Readyもこのd_readyでイネーブル制御されます。
+T0とT1はどちらもd_readyで論理全体のイネーブル制御を行います。T0_State_Readyもこのd_readyでイネーブル制御されます。
 
-**Ready制御の特徴**: 各ステージのalways文は`d_ready`がHの時のみ実行され、パイプライン全体がReady信号で統一的に制御されています。
+**Ready制御の特徴**: 各ステージのalways文は`d_ready`がHの時のみ実行され、パイプライン全体がReady信号で統一的に制御されています。また、T0ステージの制御は`t0_state_ready`信号に基づいて行われ、より直感的な制御フローを実現しています。
 
 ```
-Clock       : 123456789012345678901234567890123456
-Address     : xxxxxx044444444888888888xxxxxxxxxxxx
-Length      : xxxxxx333333333333333333xxxxxxxxxxxx
-Valid       : ______HHHHHHHHHHHHHHHHHH____________
-Ready       : HHHHHHH_______H________H_______HHHHH
+Clock         : 123456789012345678901234567890123456
+Address       : xxxxxx044444444888888888xxxxxxxxxxxx
+Length        : xxxxxx333333333333333333xxxxxxxxxxxx
+Valid         : ______HHHHHHHHHHHHHHHHHH____________
+Ready         : HHHHHHH_______H________H_______HHHHH
 
-T0_Count    : FFFFFFF3322110033322110033221100FFFF
-T0_Mem_Adr  : xxxxxxx001122334445566778899AABBxxxx
-T0_Mem_RE   : _______HHHHHHHHHHHHHHHHHHHHHHHHH____
-T0_Valid    : _______HHHHHHHHHHHHHHHHHHHHHHHHH____
-T0_Last     : _____________HH_______HH______HH____
-T0_Ready    : HHHHHHH______HH_______HH______HHHHHH
-u_Ready     : HHHHHHH_______H________H_______HHHHH
+T0_Count      : FFFFFFF3322110033322110033221100FFFF
+T0_Mem_Adr    : xxxxxxx001122334445566778899AABBxxxx
+T0_Mem_RE     : _______HHHHHHHHHHHHHHHHHHHHHHHHH____
+T0_Valid      : _______HHHHHHHHHHHHHHHHHHHHHHHHH____
+T0_Last       : _____________HH_______HH______HH____
+T0_State_Ready: HHHHHHH______HH_______HH______HHHHHH
+u_Ready       : HHHHHHH_______H________H_______HHHHH
 
-d_Data      : xxxxxxxxx001122333445566778899AABB__
-d_Valid     : _________HHHHHHHHHHHHHH_____________
-d_Last      : _______________HHH______HH______HH__
-d_Ready     : HHHHHHH_H_H_H_H__H_H_H_H_H_H_H_H_HHH
+d_Data        : xxxxxxxxx001122333445566778899AABB__
+d_Valid       : _________HHHHHHHHHHHHHH_____________
+d_Last        : _______________HHH______HH______HH__
+d_Ready       : HHHHHHH_H_H_H_H__H_H_H_H_H_H_H_H_HHH
 ```
 
 ## 3. サンプルコード
@@ -179,7 +177,7 @@ d_Ready     : HHHHHHH_H_H_H_H__H_H_H_H_H_H_H_H_HHH
 
 **コードの特徴**:
 1. **Ready制御**: パイプライン全体が`d_ready`信号で制御されており、各ステージの動作はReadyがHの時のみ実行されます
-2. **デコードベース制御**: T0ステージから派生する制御信号（`t0_mem_read_en`、`t0_last`、`t0_ready`、`t0_state`）は、`t0_count`の値をデコードして生成されます
+2. **デコードベース制御**: T0ステージから派生する制御信号（`t0_mem_read_en`、`t0_last`、`t0_state_ready`）は、`t0_count`の値をデコードして生成されます
 3. **シンプルなalways文**: 複雑な制御ロジックがalways文内に含まれておらず、コードがすっきりしています
 4. **統一的制御**: パイプライン全体が一つのReady信号で統一的に制御されています
 
@@ -218,8 +216,7 @@ module burst_read_pipeline #(
     wire                            t0_mem_read_en; // Memory read enable signal
     reg                             t0_valid;     // T0 stage valid signal
     wire                            t0_last;      // Last burst cycle indicator
-    wire                            t0_ready;     // T0 stage ready signal
-    wire [1:0]                     t0_state;     // State machine: 00=Idle, 01=Bursting
+    wire                            t0_state_ready;     // T0 stage ready signal
 
     // T1 stage internal signals (Memory access)
     reg [DATA_WIDTH-1:0]           t1_data;      // T1 stage data output
@@ -236,28 +233,26 @@ module burst_read_pipeline #(
     assign d_valid = t1_valid;
     assign d_last  = t1_last;
 
-    // T0 stage control signals (decoded from t0_count)
-    assign u_ready      = t0_ready && d_ready;           // Upstream ready when both T0 and downstream are ready
-    assign t0_ready     = (t0_count == 8'hFF) || (t0_count == 8'h00); // Ready when idle or last cycle
-    assign t0_state     = ((t0_count == 8'hFF) || (t0_count == 8'h00)) ? 2'b00 : 2'b01; // State encoding
+    // T0 stage control signals
+    assign u_ready      = t0_state_ready && d_ready;           // Upstream ready when both T0 and downstream are ready
+    assign t0_state_ready     = (t0_count == 8'hFF) || (t0_count == 8'h00); // Ready when idle or last cycle
     assign t0_last      = (t0_count == 8'h00);           // Last cycle when counter reaches 0
     assign t0_mem_read_en = (t0_count != 8'hFF);        // Enable memory read when not idle
 
     // T0 stage control logic (Address counter and Read Enable)
-    // Note: All operations are controlled by d_ready - pipeline is Ready-controlled
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             t0_count    <= 8'hFF;                        // Initialize to idle state
             t0_mem_addr <= {ADDR_WIDTH{1'b0}};           // Initialize address to 0
             t0_valid    <= 1'b0;                         // Initialize valid to 0
-        end else if (d_ready) begin                      // Pipeline controlled by Ready signal
-            case (t0_state)
-                2'b00: begin // Idle state
+        end else if (d_ready) begin
+            case (t0_state_ready)
+                1'b1: begin // Ready state (Idle or last cycle)
                     t0_count    <= u_valid ? u_length : 8'hFF;  // Load burst length or stay idle
                     t0_mem_addr <= u_addr;                       // Load start address
                     t0_valid    <= u_valid;                      // Set valid based on upstream
                 end
-                2'b01: begin // Bursting state
+                1'b0: begin // Not ready state (Bursting)
                     t0_count    <= t0_count - 8'h01;            // Decrement burst counter
                     t0_mem_addr <= t0_mem_addr + 1;             // Increment memory address
                     t0_valid    <= 1'b1;                        // Keep valid during burst
@@ -267,14 +262,13 @@ module burst_read_pipeline #(
     end
 
     // T1 stage control logic (Memory access)
-    // Note: All operations are controlled by d_ready - pipeline is Ready-controlled
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             t1_data  <= {DATA_WIDTH{1'b0}};              // Initialize data to 0
             t1_valid <= 1'b0;                             // Initialize valid to 0
             t1_last  <= 1'b0;                             // Initialize last to 0
             t1_ready <= 1'b1;                             // Initialize ready to 1
-        end else if (d_ready) begin                       // Pipeline controlled by Ready signal
+        end else if (d_ready) begin
             // Memory latency 1: use address as data (simplified for demonstration)
             t1_data  <= (t0_mem_read_en) ? t0_mem_addr : t1_data; // Update data or hold at disable
             t1_valid <= t0_valid;                                // Forward T0 valid signal
@@ -289,7 +283,7 @@ endmodule
 
 **コードの特徴**:
 1. **Ready制御**: パイプライン全体が`d_ready`信号で制御されており、各ステージの動作はReadyがHの時のみ実行されます
-2. **デコードベース制御**: T0ステージから派生する制御信号（`t0_mem_read_en`、`t0_last`、`t0_ready`、`t0_state`）は、`t0_count`の値をデコードして生成されます
+2. **デコードベース制御**: T0ステージから派生する制御信号（`t0_mem_read_en`、`t0_last`、`t0_state_ready`）は、`t0_count`の値をデコードして生成されます
 3. **シンプルなalways文**: 複雑な制御ロジックがalways文内に含まれておらず、コードがすっきりしています
 4. **統一的制御**: パイプライン全体が一つのReady信号で統一的に制御されています
 
@@ -709,9 +703,9 @@ endmodule
 
 上の指示を与えて生成されたコードは無修正で使用可能でした。テストベンチは期待通りの動作をさせるために約5時間かかりました。詳細な指示を与えないで、XXと同様にというあいまいな指示ではリクエストされた側もうまく生成はできないということです。
 
-## 4. 実行用スクリプトの生成
+### 3.3 実行用スクリプト
 
-シミュレータのコンパイル・実行スクリプトは以下のように指示して自動生成させます
+以下の指示でスクリプトを自動生成させます：
 ```
 modelsim用にコンパイルと実行を行うスクリプトを作成してください。スクリプト名はテストベンチ名に合わせます。
 ```

@@ -28,8 +28,7 @@ module burst_read_pipeline #(
     wire                            t0_mem_read_en; // Memory read enable signal
     reg                             t0_valid;     // T0 stage valid signal
     wire                            t0_last;      // Last burst cycle indicator
-    wire                            t0_ready;     // T0 stage ready signal
-    wire [1:0]                     t0_state;     // State machine: 00=Idle, 01=Bursting, 10=Final
+    wire                            t0_state_ready;     // T0 stage ready signal
 
     // T1 stage internal signals (Memory access)
     reg [DATA_WIDTH-1:0]           t1_data;      // T1 stage data output
@@ -47,9 +46,8 @@ module burst_read_pipeline #(
     assign d_last  = t1_last;
 
     // T0 stage control signals
-    assign u_ready      = t0_ready && d_ready;           // Upstream ready when both T0 and downstream are ready
-    assign t0_ready     = (t0_count == 8'hFF) || (t0_count == 8'h00); // Ready when idle or last cycle
-    assign t0_state     = ((t0_count == 8'hFF) || (t0_count == 8'h00)) ? 2'b00 : 2'b01; // State encoding
+    assign u_ready      = t0_state_ready && d_ready;           // Upstream ready when both T0 and downstream are ready
+    assign t0_state_ready     = (t0_count == 8'hFF) || (t0_count == 8'h00); // Ready when idle or last cycle
     assign t0_last      = (t0_count == 8'h00);           // Last cycle when counter reaches 0
     assign t0_mem_read_en = (t0_count != 8'hFF);        // Enable memory read when not idle
 
@@ -60,13 +58,13 @@ module burst_read_pipeline #(
             t0_mem_addr <= {ADDR_WIDTH{1'b0}};           // Initialize address to 0
             t0_valid    <= 1'b0;                         // Initialize valid to 0
         end else if (d_ready) begin
-            case (t0_state)
-                2'b00: begin // Idle state
+            case (t0_state_ready)
+                1'b1: begin // Ready state (Idle or last cycle)
                     t0_count    <= u_valid ? u_length : 8'hFF;  // Load burst length or stay idle
                     t0_mem_addr <= u_addr;                       // Load start address
                     t0_valid    <= u_valid;                      // Set valid based on upstream
                 end
-                2'b01: begin // Bursting state
+                1'b0: begin // Not ready state (Bursting)
                     t0_count    <= t0_count - 8'h01;            // Decrement burst counter
                     t0_mem_addr <= t0_mem_addr + 1;             // Increment memory address
                     t0_valid    <= 1'b1;                        // Keep valid during burst

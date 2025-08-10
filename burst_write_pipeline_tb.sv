@@ -129,6 +129,13 @@ module burst_write_pipeline_tb #(
         bubble_count = 0;
         burst_response_count = 0;
         
+        // Initialize test signals to avoid X values
+        test_addr = 0;
+        test_length = 0;
+        test_addr_valid = 0;
+        test_data = 0;
+        test_data_valid = 0;
+        
         // Generate test pattern arrays
         for (i = 0; i < TEST_COUNT; i = i + 1) begin
             // Generate random burst length (1 to MAX_BURST_LENGTH)
@@ -158,8 +165,8 @@ module burst_write_pipeline_tb #(
             
             // Add bubbles for address
             for (j = 0; j < bubble_cycles; j = j + 1) begin
-                test_addr_array.push_back({ADDR_WIDTH{1'bx}});
-                test_length_array.push_back(8'hxx);
+                test_addr_array.push_back(0);
+                test_length_array.push_back(0);
                 test_addr_valid_array.push_back(0);
                 bubble_count = bubble_count + 1;
             end
@@ -169,7 +176,7 @@ module burst_write_pipeline_tb #(
             
             // Add bubbles for data
             for (j = 0; j < bubble_cycles; j = j + 1) begin
-                test_data_array.push_back({DATA_WIDTH{1'bx}});
+                test_data_array.push_back(0);
                 test_data_valid_array.push_back(0);
                 bubble_count = bubble_count + 1;
             end
@@ -200,8 +207,8 @@ module burst_write_pipeline_tb #(
     reg [31:0] addr_array_index;
     always @(posedge clk) begin
         if (!rst_n) begin
-            test_addr <= {ADDR_WIDTH{1'bx}};
-            test_length <= 8'hxx;
+            test_addr <= 0;
+            test_length <= 0;
             test_addr_valid <= 0;
             addr_array_index <= 0;
         end else begin
@@ -222,7 +229,7 @@ module burst_write_pipeline_tb #(
     reg [31:0] data_array_index;
     always @(posedge clk) begin
         if (!rst_n) begin
-            test_data <= {DATA_WIDTH{1'bx}};
+            test_data <= 0;
             test_data_valid <= 0;
             data_array_index <= 0;
         end else begin
