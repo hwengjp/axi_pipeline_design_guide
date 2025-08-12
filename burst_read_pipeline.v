@@ -34,7 +34,6 @@ module burst_read_pipeline #(
     reg [DATA_WIDTH-1:0]           t1_data;      // T1 stage data output
     reg                             t1_valid;     // T1 stage valid signal
     reg                             t1_last;      // T1 stage last signal
-    reg                             t1_ready;     // T1 stage ready signal
 
     // Internal memory interface (not exposed externally)
     wire [DATA_WIDTH-1:0]          mem_data;     // Memory data input (unused in this implementation)
@@ -79,7 +78,6 @@ module burst_read_pipeline #(
             t1_data  <= {DATA_WIDTH{1'b0}};              // Initialize data to 0
             t1_valid <= 1'b0;                             // Initialize valid to 0
             t1_last  <= 1'b0;                             // Initialize last to 0
-            t1_ready <= 1'b1;                             // Initialize ready to 1
         end else if (d_ready) begin
             // Memory latency 1: use address as data (simplified for demonstration)
             t1_data  <= (t0_mem_read_en) ? t0_mem_addr : t1_data; // Update data or hold at disable

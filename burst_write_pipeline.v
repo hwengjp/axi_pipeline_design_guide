@@ -36,7 +36,6 @@ module burst_write_pipeline #(
     // T0D stage internal signals (Data pipeline)
     reg [DATA_WIDTH-1:0]           t0d_data;      // T0D stage data output
     reg                             t0d_valid;     // T0D stage valid signal
-    reg                             t0d_ready;     // T0D stage ready signal
     
     // T1 stage internal signals (Merge control)
     reg [ADDR_WIDTH-1:0]           t1_addr;       // T1 stage address output
@@ -44,12 +43,10 @@ module burst_write_pipeline #(
     wire                            t1_we;         // T1 stage write enable
     reg                             t1_valid;      // T1 stage valid signal
     reg                             t1_last;       // T1 stage last signal
-    reg                             t1_ready;      // T1 stage ready signal
     
     // T2 stage internal signals (Response generation)
     reg [ADDR_WIDTH-1:0]           t2_response;   // T2 stage response output
     reg                             t2_valid;      // T2 stage valid signal
-    reg                             t2_ready;      // T2 stage ready signal
     
     // Merge control signals
     wire                            t0a_m_ready;   // T0A merge ready signal
@@ -68,7 +65,7 @@ module burst_write_pipeline #(
     
     // Ready signal assignments
     assign u_addr_ready = t0a_state_ready && t0a_m_ready && d_ready; // Upstream address ready when all conditions met
-    assign u_data_ready = t0d_ready && t0d_m_ready && d_ready;       // Upstream data ready when all conditions met
+    assign u_data_ready = t0d_m_ready && d_ready;       // Upstream data ready when all conditions met
     
     // Merge ready generation
     // T0A_M_Ready: T0DがValid && T0Aがnot Valid またはT0DとT0Aの両方がnot Valid またはT0DとT0Aの両方がValid
@@ -105,7 +102,6 @@ module burst_write_pipeline #(
         if (!rst_n) begin
             t0d_data <= {DATA_WIDTH{1'b0}};             // Initialize data to 0
             t0d_valid <= 1'b0;                          // Initialize valid to 0
-            t0d_ready <= 1'b1;                          // Initialize ready to 1
         end else if (d_ready) begin
             if (t0d_m_ready) begin
                 t0d_data <= u_data;                     // Update data from upstream
@@ -134,7 +130,6 @@ module burst_write_pipeline #(
         if (!rst_n) begin
             t2_response <= {ADDR_WIDTH{1'b0}};           // Initialize response to 0
             t2_valid <= 1'b0;                           // Initialize valid to 0
-            t2_ready <= 1'b1;                           // Initialize ready to 1
         end else if (d_ready) begin
             t2_valid <= t1_valid;                       // Forward T1 valid signal
             t2_response <= ((t1_addr == t1_data) && t1_we) ? t1_addr : {ADDR_WIDTH{1'bx}}; // Generate response based on condition
