@@ -20,33 +20,29 @@ module burst_rw_pipeline_tb #(
     reg                     test_r_valid;
     wire                    test_r_ready;
     
-    // Test pattern generator signals - Write Address interface
+    // Test pattern generator signals - Write interface
     reg  [ADDR_WIDTH-1:0]  test_w_addr;
     reg  [7:0]             test_w_length;
     reg                     test_w_addr_valid;
     wire                    test_w_addr_ready;
-    
-    // Test pattern generator signals - Write Data interface
     reg  [DATA_WIDTH-1:0]  test_w_data;
     reg                     test_w_data_valid;
     wire                    test_w_data_ready;
     
-    // Test pattern arrays (queue arrays) - Read interface
+    // Test pattern arrays - Read interface
     reg  [ADDR_WIDTH-1:0]  test_r_addr_array [$];
     reg  [7:0]             test_r_length_array [$];
     reg                     test_r_valid_array [$];
     reg  [DATA_WIDTH-1:0]  expected_r_data_array [$];
     
-    // Test pattern arrays (queue arrays) - Write Address interface
+    // Test pattern arrays - Write interface
     reg  [ADDR_WIDTH-1:0]  test_w_addr_array [$];
     reg  [7:0]             test_w_length_array [$];
     reg                     test_w_addr_valid_array [$];
-    
-    // Test pattern arrays (queue arrays) - Write Data interface
     reg  [DATA_WIDTH-1:0]  test_w_data_array [$];
     reg                     test_w_data_valid_array [$];
     
-    // Expected response arrays - Write interface
+    // Expected response arrays
     reg  [ADDR_WIDTH-1:0]  expected_w_response_array [$];
     reg                     expected_w_valid_array [$];
     
@@ -64,13 +60,11 @@ module burst_rw_pipeline_tb #(
     integer                 r_stall_index;
     integer                 w_stall_index;
     
-    // DUT interface signals - Read
+    // DUT interface signals
     wire [DATA_WIDTH-1:0]  dut_r_data;
     wire                    dut_r_valid;
     wire                    dut_r_last;
     wire                    dut_r_ready;
-    
-    // DUT interface signals - Write
     wire [ADDR_WIDTH-1:0]  dut_w_response;
     wire                    dut_w_valid;
     wire                    dut_w_ready;
@@ -96,7 +90,7 @@ module burst_rw_pipeline_tb #(
     integer                 r_burst_data_count;
     integer                 w_burst_response_count;
     
-    // Burst queue for verification
+    // Burst verification queues
     reg [ADDR_WIDTH-1:0]   r_burst_addr_queue [$];
     reg [7:0]              r_burst_length_queue [$];
     reg [ADDR_WIDTH-1:0]   w_burst_addr_queue [$];

@@ -46,10 +46,10 @@ module burst_rw_pipeline #(
     localparam STATE_W_LAST         = 3'b100;
 
     // State management (T1 stage control)
-    reg [2:0]                      t1_current_state;  // Current state (IDLE, R_NLAST, R_LAST, W_NLAST, W_LAST)
+    reg [2:0]                      t1_current_state;  // Current state
     reg [2:0]                      t1_next_state;     // Next state for combinational logic
     
-    // Read T0 stage internal signals (Address counter and Read Enable)
+    // Read T0 stage internal signals
     reg [7:0]                      r_t0_count;        // Burst counter (0xFF = idle, 0x00 = last)
     reg [ADDR_WIDTH-1:0]           r_t0_mem_addr;    // Current memory address
     wire                            r_t0_mem_read_en; // Memory read enable signal
@@ -57,42 +57,42 @@ module burst_rw_pipeline #(
     wire                            r_t0_last;        // Last burst cycle indicator
     wire                            r_t0_state_ready; // T0 stage ready signal
     
-    // Read T1 stage internal signals (Read/Write switching control)
+    // Read T1 stage internal signals
     reg [ADDR_WIDTH-1:0]           r_t1_addr;        // T1 stage address output
     reg                             r_t1_valid;       // T1 stage valid signal
     reg                             r_t1_last;        // T1 stage last signal
     
-    // Read T2 stage internal signals (Memory access)
+    // Read T2 stage internal signals
     reg [DATA_WIDTH-1:0]           r_t2_data;        // T2 stage data output
     reg                             r_t2_valid;       // T2 stage valid signal
     reg                             r_t2_last;        // T2 stage last signal
     
-    // Write T0A stage internal signals (Address counter)
+    // Write T0A stage internal signals
     reg [7:0]                      w_t0a_count;      // Burst counter (0xFF = idle, 0x00 = last)
     reg [ADDR_WIDTH-1:0]           w_t0a_mem_addr;  // Current memory address
     reg                             w_t0a_valid;     // T0A stage valid signal
     wire                            w_t0a_last;      // Last burst cycle indicator
     wire                            w_t0a_state_ready; // T0A stage ready signal
     
-    // Write T0D stage internal signals (Data pipeline)
+    // Write T0D stage internal signals
     reg [DATA_WIDTH-1:0]           w_t0d_data;      // T0D stage data output
-    reg                             w_t0d_valid;     // T0D stage valid signal
+    reg                             w_t0d_valid;     // T0D stage data valid signal
     
-    // Write T1 stage internal signals (Read/Write switching control)
+    // Write T1 stage internal signals
     reg [ADDR_WIDTH-1:0]           w_t1_addr;       // T1 stage address output
     reg [DATA_WIDTH-1:0]           w_t1_data;       // T1 stage data output
     wire                            w_t1_we;         // T1 stage write enable
     reg                             w_t1_valid;      // T1 stage valid signal
     reg                             w_t1_last;       // T1 stage last signal
     
-    // Write T2 stage internal signals (Merge control)
+    // Write T2 stage internal signals
     reg [ADDR_WIDTH-1:0]           w_t2_addr;       // T2 stage address output
     reg [DATA_WIDTH-1:0]           w_t2_data;       // T2 stage data output
     wire                            w_t2_we;         // T2 stage write enable
     reg                             w_t2_valid;      // T2 stage valid signal
     reg                             w_t2_last;       // T2 stage last signal
     
-    // Write T3 stage internal signals (Response generation)
+    // Write T3 stage internal signals
     reg [ADDR_WIDTH-1:0]           w_t3_response;   // T3 stage response output
     reg                             w_t3_valid;      // T3 stage valid signal
     reg                             w_t3_last;       // T3 stage last signal
@@ -126,7 +126,7 @@ module burst_rw_pipeline #(
     assign w_t0a_state_ready = (w_t0a_count == 8'hFF) || (w_t0a_count == 8'h00); // Ready when idle or last cycle
     assign w_t0a_last = (w_t0a_count == 8'h00);      // Last cycle when counter reaches 0
     
-    // Priority arbitration logic (T1 stage)
+    // Priority arbitration logic
     assign t1_r_ready =
     t1_next_state == STATE_IDLE ||
     t1_next_state == STATE_R_NLAST ||
@@ -138,9 +138,9 @@ module burst_rw_pipeline #(
     t1_next_state == STATE_W_LAST;
 
     // Ready signal assignments
-    assign u_r_ready = r_t0_state_ready && t1_r_ready && d_r_ready; // Read upstream ready
+    assign u_r_ready = r_t0_state_ready && t1_r_ready && d_r_ready;           // Read upstream ready
     assign u_w_addr_ready = w_t0a_state_ready && w_t0a_m_ready && t1_w_ready && d_w_ready; // Write address upstream ready
-    assign u_w_data_ready = w_t0d_m_ready && t1_w_ready && d_w_ready; // Write data upstream ready
+    assign u_w_data_ready = w_t0d_m_ready && t1_w_ready && d_w_ready;         // Write data upstream ready
     
     // Merge ready generation for Write pipeline
     assign w_t0a_m_ready = (w_t0d_valid && !w_t0a_valid) || (!w_t0d_valid && !w_t0a_valid) || (w_t0d_valid && w_t0a_valid);
@@ -217,7 +217,7 @@ module burst_rw_pipeline #(
         end
     end
     
-    // Read T0 stage control logic (Address counter and Read Enable)
+    // Read T0 stage control logic
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             r_t0_count <= 8'hFF;                        // Initialize to idle state
@@ -239,21 +239,21 @@ module burst_rw_pipeline #(
         end
     end
     
-    // Read T1 stage control logic (Read/Write switching control)
+    // Read T1 stage control logic
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             r_t1_addr <= {ADDR_WIDTH{1'b0}};              // Initialize address to 0
             r_t1_valid <= 1'b0;                            // Initialize valid to 0
             r_t1_last <= 1'b0;                             // Initialize last to 0
         end else if (d_r_ready && t1_r_ready) begin
-            // Forward T0 address and data to T1 stage
+            // Forward T0 signals to T1 stage
             r_t1_addr <= r_t0_mem_addr;                            // Forward T0 address
             r_t1_valid <= r_t0_valid;                              // Forward T0 valid signal
             r_t1_last <= r_t0_last;                                // Forward T0 last signal
         end
     end
     
-    // Read T2 stage control logic (Memory access)
+    // Read T2 stage control logic
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             r_t2_data <= {DATA_WIDTH{1'b0}};              // Initialize data to 0
@@ -273,7 +273,7 @@ module burst_rw_pipeline #(
         end
     end
     
-    // Write T0A stage control logic (Address counter)
+    // Write T0A stage control logic
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             w_t0a_count <= 8'hFF;                        // Initialize to idle state
@@ -297,7 +297,7 @@ module burst_rw_pipeline #(
         end
     end
     
-    // Write T0D stage control logic (Data pipeline)
+    // Write T0D stage control logic
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             w_t0d_data <= {DATA_WIDTH{1'b0}};             // Initialize data to 0
@@ -310,7 +310,7 @@ module burst_rw_pipeline #(
         end
     end
     
-    // Write T1 stage control logic (Read/Write switching control)
+    // Write T1 stage control logic
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             w_t1_addr <= {ADDR_WIDTH{1'b0}};              // Initialize address to 0
@@ -325,7 +325,7 @@ module burst_rw_pipeline #(
         end
     end
     
-    // Write T2 stage control logic (Merge control)
+    // Write T2 stage control logic
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             w_t2_addr <= {ADDR_WIDTH{1'b0}};              // Initialize address to 0
@@ -347,7 +347,7 @@ module burst_rw_pipeline #(
         end
     end
     
-    // Write T3 stage control logic (Response generation)
+    // Write T3 stage control logic
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             w_t3_response <= {ADDR_WIDTH{1'b0}};           // Initialize response to 0
