@@ -147,49 +147,62 @@ module burst_rw_pipeline #(
     assign w_t0d_m_ready = (!w_t0d_valid && w_t0a_valid) || (!w_t0d_valid && !w_t0a_valid) || (w_t0d_valid && w_t0a_valid);
     
 
+    // State transition logic - split into logical groups
     always @(*) begin
-        casez ({t1_current_state, d_r_ready, r_t0_valid, d_w_ready, (w_t0a_valid && w_t0d_valid)})
-            // Idle state - no execution
-            {STATE_IDLE, 1'b0, 1'b?, 1'b0, 1'b?}: t1_next_state = t1_current_state; 
-            {STATE_IDLE, 1'b1, 1'b0, 1'b0, 1'b?}: t1_next_state = t1_current_state;
-            {STATE_IDLE, 1'b0, 1'b?, 1'b1, 1'b0}: t1_next_state = t1_current_state;
-            {STATE_IDLE, 1'b1, 1'b0, 1'b1, 1'b0}: t1_next_state = t1_current_state;
+        case (t1_current_state)
+            STATE_IDLE: begin
+                // IDLE state transitions with priority order
+                if (d_w_ready && (w_t0a_valid && w_t0d_valid)) begin
+                    // Write priority: d_w_ready && (w_t0a_valid && w_t0d_valid)
+                    t1_next_state = (w_t0a_last) ? STATE_W_LAST : STATE_W_NLAST;
+                end else if (d_r_ready && r_t0_valid) begin
+                    // Read execution: d_r_ready && r_t0_valid
+                    t1_next_state = (r_t0_last) ? STATE_R_LAST : STATE_R_NLAST;
+                end else begin
+                    // No execution - stay in idle
+                    t1_next_state = t1_current_state;
+                end
+            end
 
-            // Read execution from idle (d_r_ready && r_t0_valid)
-            {STATE_IDLE, 1'b1, 1'b1, 1'b0, 1'b0}: t1_next_state = (r_t0_last) ? STATE_R_LAST : STATE_R_NLAST;
-            {STATE_IDLE, 1'b1, 1'b1, 1'b0, 1'b1}: t1_next_state = (r_t0_last) ? STATE_R_LAST : STATE_R_NLAST;
-            {STATE_IDLE, 1'b1, 1'b1, 1'b1, 1'b0}: t1_next_state = (r_t0_last) ? STATE_R_LAST : STATE_R_NLAST;
-            //{STATE_IDLE, 1'b1, 1'b1, 1'b1, 1'b1}: t1_next_state = (r_t0_last) ? STATE_R_LAST : STATE_R_NLAST;
-                
-            // Write execution from idle (d_w_ready && w_t0a_valid && w_t0d_valid)
-            {STATE_IDLE, 1'b0, 1'b0, 1'b1, 1'b1}: t1_next_state = (w_t0a_last) ? STATE_W_LAST : STATE_W_NLAST;
-            {STATE_IDLE, 1'b0, 1'b1, 1'b1, 1'b1}: t1_next_state = (w_t0a_last) ? STATE_W_LAST : STATE_W_NLAST;
-            {STATE_IDLE, 1'b1, 1'b0, 1'b1, 1'b1}: t1_next_state = (w_t0a_last) ? STATE_W_LAST : STATE_W_NLAST;
-            {STATE_IDLE, 1'b1, 1'b1, 1'b1, 1'b1}: t1_next_state = (w_t0a_last) ? STATE_W_LAST : STATE_W_NLAST;
+            STATE_R_NLAST, STATE_R_LAST: begin
+                // READ states transitions - d_r_ready controls state changes
+                if (d_r_ready) begin
+                    // d_r_ready is HIGH - evaluate state transitions
+                    if (d_w_ready && (w_t0a_valid && w_t0d_valid)) begin
+                        // Write request - priority to write
+                        t1_next_state = (w_t0a_last) ? STATE_W_LAST : STATE_W_NLAST;
+                    end else if (r_t0_valid) begin
+                        // Continue reading: r_t0_valid
+                        t1_next_state = (r_t0_last) ? STATE_R_LAST : STATE_R_NLAST;
+                    end else begin
+                        // No valid read request - return to idle
+                        t1_next_state = STATE_IDLE;
+                    end
+                end else begin
+                    // d_r_ready is LOW - hold current state
+                    t1_next_state = t1_current_state;
+                end
+            end
 
-            // State transitions during execution
-            //実行中は必ずValidである
-            {STATE_R_NLAST, 1'b0, 1'b?, 1'b?, 1'b?}: t1_next_state = t1_current_state;
-            {STATE_R_NLAST, 1'b1, 1'b?, 1'b?, 1'b?}: t1_next_state = (r_t0_last) ? STATE_R_LAST : STATE_R_NLAST;
-            
-            //実行中は必ずValidである
-            {STATE_W_NLAST, 1'b?, 1'b?, 1'b0, 1'b?}: t1_next_state = t1_current_state;
-            {STATE_W_NLAST, 1'b?, 1'b?, 1'b1, 1'b?}: t1_next_state = (w_t0a_last) ? STATE_W_LAST : STATE_W_NLAST;
-
-            // Return to idle after completion
-            {STATE_R_LAST, 1'b0, 1'b?, 1'b?, 1'b?}: t1_next_state = t1_current_state;
-            {STATE_R_LAST, 1'b1, 1'b0, 1'b0, 1'b?}: t1_next_state = STATE_IDLE;
-            {STATE_R_LAST, 1'b1, 1'b0, 1'b1, 1'b0}: t1_next_state = STATE_IDLE;
-            {STATE_R_LAST, 1'b1, 1'b1, 1'b0, 1'b?}: t1_next_state = (r_t0_last) ? STATE_R_LAST : STATE_R_NLAST;
-            {STATE_R_LAST, 1'b1, 1'b1, 1'b1, 1'b0}: t1_next_state = (r_t0_last) ? STATE_R_LAST : STATE_R_NLAST;
-            {STATE_R_LAST, 1'b1, 1'b?, 1'b1, 1'b1}: t1_next_state = (w_t0a_last) ? STATE_W_LAST : STATE_W_NLAST;
-
-            {STATE_W_LAST, 1'b?, 1'b?, 1'b0, 1'b?}: t1_next_state = t1_current_state;
-            {STATE_W_LAST, 1'b0, 1'b?, 1'b1, 1'b0}: t1_next_state = STATE_IDLE;
-            {STATE_W_LAST, 1'b1, 1'b0, 1'b1, 1'b0}: t1_next_state = STATE_IDLE;
-            {STATE_W_LAST, 1'b0, 1'b?, 1'b1, 1'b1}: t1_next_state = (w_t0a_last) ? STATE_W_LAST : STATE_W_NLAST;
-            {STATE_W_LAST, 1'b1, 1'b0, 1'b1, 1'b1}: t1_next_state = (w_t0a_last) ? STATE_W_LAST : STATE_W_NLAST;
-            {STATE_W_LAST, 1'b1, 1'b1, 1'b1, 1'b?}: t1_next_state = (r_t0_last) ? STATE_R_LAST : STATE_R_NLAST;
+            STATE_W_NLAST, STATE_W_LAST: begin
+                // WRITE states transitions - d_w_ready controls state changes
+                if (d_w_ready) begin
+                    // d_w_ready is HIGH - evaluate state transitions
+                    if (d_r_ready && r_t0_valid) begin
+                        // Read request - priority to read
+                        t1_next_state = (r_t0_last) ? STATE_R_LAST : STATE_R_NLAST;
+                    end else if ((w_t0a_valid && w_t0d_valid)) begin
+                        // Continue writing: (w_t0a_valid && w_t0d_valid)
+                        t1_next_state = (w_t0a_last) ? STATE_W_LAST : STATE_W_NLAST;
+                    end else begin
+                        // No valid write request - return to idle
+                        t1_next_state = STATE_IDLE;
+                    end
+                end else begin
+                    // d_w_ready is LOW - hold current state
+                    t1_next_state = t1_current_state;
+                end
+            end
 
             default: t1_next_state = 3'bx;
         endcase
