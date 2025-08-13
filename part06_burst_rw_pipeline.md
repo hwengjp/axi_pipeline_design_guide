@@ -274,7 +274,7 @@ AIに以下のように指示してコードを作成してください：
 <div style="max-height: 500px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; background-color: #f6f8fa;">
 
 ```verilog
-// Licensed under the Apache License, Version 2.0 - see LICENSE file for details.
+// Licensed under the Apache License, Version 2.0 - see [LICENSE](https://www.apache.org/licenses/LICENSE-2.0) file for details.
 
 module burst_rw_pipeline #(
     parameter DATA_WIDTH = 32,        // Data width in bits
@@ -646,7 +646,7 @@ endmodule
 <div style="max-height: 500px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; background-color: #f6f8fa;">
 
 ```verilog
-// Licensed under the Apache License, Version 2.0 - see LICENSE file for details.
+// Licensed under the Apache License, Version 2.0 - see [LICENSE](https://www.apache.org/licenses/LICENSE-2.0) file for details.
 `timescale 1ns / 1ps
 
 module burst_rw_pipeline_tb #(
@@ -1092,6 +1092,8 @@ endmodule
 - パイプライン制御の動作確認
 
 ```verilog
+// Licensed under the Apache License, Version 2.0 - see [LICENSE](https://www.apache.org/licenses/LICENSE-2.0) file for details.
+
     always @(*) begin
         casez ({t1_current_state, d_r_ready, r_t0_valid, d_w_ready, (w_t0a_valid && w_t0d_valid)})
             // Idle state - no execution
@@ -1156,6 +1158,8 @@ endmodule
 - リード・ライト統合制御の動作確認
 
 ```verilog
+// Licensed under the Apache License, Version 2.0 - see [LICENSE](https://www.apache.org/licenses/LICENSE-2.0) file for details.
+
 // 全状態での全条件の組み合わせ
 always @(*) begin
     case (t1_current_state)
@@ -1207,4 +1211,4 @@ end
 
 ## ライセンス
 
-Licensed under the Apache License, Version 2.0 - see [LICENSE](LICENSE) file for details.
+Licensed under the Apache License, Version 2.0 - see [LICENSE](https://www.apache.org/licenses/LICENSE-2.0) file for details.

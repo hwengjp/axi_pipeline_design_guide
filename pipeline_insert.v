@@ -1,4 +1,4 @@
-// Licensed under the Apache License, Version 2.0 - see LICENSE file for details.
+// Licensed under the Apache License, Version 2.0 - see [LICENSE](https://www.apache.org/licenses/LICENSE-2.0) file for details.
 
 module pipeline_insert #(
     parameter DATA_WIDTH = 32        // Data width in bits

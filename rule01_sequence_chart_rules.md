@@ -147,4 +147,4 @@ Clock    : 12345678901234
 
 ## ライセンス
 
-Licensed under the Apache License, Version 2.0 - see [LICENSE](LICENSE) file for details. 
+Licensed under the Apache License, Version 2.0 - see [LICENSE](https://www.apache.org/licenses/LICENSE-2.0) file for details. 

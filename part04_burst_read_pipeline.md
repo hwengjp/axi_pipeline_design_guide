@@ -186,7 +186,7 @@ d_Ready       : HHHHHHH_H_H_H_H__H_H_H_H_H_H_H_H_HHH
 <div style="max-height: 500px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; background-color: #f6f8fa;">
 
 ```verilog
-// Licensed under the Apache License, Version 2.0 - see LICENSE file for details.
+// Licensed under the Apache License, Version 2.0 - see [LICENSE](https://www.apache.org/licenses/LICENSE-2.0) file for details.
 
 module burst_read_pipeline #(
     parameter DATA_WIDTH = 32,        // Data width in bits
@@ -290,7 +290,7 @@ endmodule
 <div style="max-height: 500px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; background-color: #f6f8fa;">
 
 ```verilog
-// Licensed under the Apache License, Version 2.0 - see LICENSE file for details.
+// Licensed under the Apache License, Version 2.0 - see [LICENSE](https://www.apache.org/licenses/LICENSE-2.0) file for details.
 `timescale 1ns / 1ps
 module burst_read_pipeline_tb #(
     parameter DATA_WIDTH = 32,        // Data width in bits

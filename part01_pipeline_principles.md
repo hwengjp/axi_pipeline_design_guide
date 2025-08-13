@@ -220,6 +220,8 @@ Ready    : HHHHHH__HHHHHHHH
 <div style="max-height: 500px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; background-color: #f6f8fa;">
 
 ```verilog
+// Licensed under the Apache License, Version 2.0 - see [LICENSE](https://www.apache.org/licenses/LICENSE-2.0) file for details.
+
 module pipeline #(
     parameter DATA_WIDTH = 32,
     parameter PIPELINE_STAGES = 4
@@ -280,5 +282,5 @@ endmodule
 
 ## ライセンス
 
-Licensed under the Apache License, Version 2.0 - see [LICENSE](LICENSE) file for details.
+Licensed under the Apache License, Version 2.0 - see [LICENSE](https://www.apache.org/licenses/LICENSE-2.0) file for details.
 

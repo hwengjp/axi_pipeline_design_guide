@@ -91,7 +91,7 @@ AIによる一貫性のあるドキュメント作成のためのルール集
 
 ## ライセンス
 
-このプロジェクトは [Apache License 2.0](LICENSE) の下で公開されています。
+このプロジェクトは [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0) の下で公開されています。
 
 ### ライセンスの特徴
 - **出典明記**: 著作権表示とライセンス情報の保持が必須
@@ -104,7 +104,7 @@ AIによる一貫性のあるドキュメント作成のためのルール集
 - 変更の明示（改変した場合）
 - NOTICEファイルの保持（存在する場合）
 
-詳細は [LICENSE](LICENSE) ファイルまたは [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0) を参照してください。
+詳細は [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0) を参照してください。
 
 ## 貢献
 

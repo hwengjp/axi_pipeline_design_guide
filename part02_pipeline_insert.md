@@ -84,7 +84,7 @@ State=[u_Ready,d_Ready]の値に対して、次のクロックでどのデータ
 <div style="max-height: 500px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; background-color: #f6f8fa;">
 
 ```systemverilog
-// Licensed under the Apache License, Version 2.0 - see LICENSE file for details.
+// Licensed under the Apache License, Version 2.0 - see [LICENSE](https://www.apache.org/licenses/LICENSE-2.0) file for details.
 
 module pipeline_insert #(
     parameter DATA_WIDTH = 32        // Data width in bits
@@ -171,6 +171,6 @@ endmodule
 
 ## ライセンス
 
-Licensed under the Apache License, Version 2.0 - see [LICENSE](LICENSE) file for details.
+Licensed under the Apache License, Version 2.0 - see [LICENSE](https://www.apache.org/licenses/LICENSE-2.0) file for details.
 
 
