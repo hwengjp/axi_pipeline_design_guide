@@ -1,0 +1,665 @@
+# AXIバスのパイプライン回路設計ガイド ～ 第7回 AXI4仕様のシンプルデュアルポートRAM
+
+## 目次
+
+- [1. はじめに](#1-はじめに)
+- [2. 仕様](#2-仕様)
+  - [2.1 パイプライン構成](#21-パイプライン構成)
+  - [2.2 ポート定義](#22-ポート定義)
+  - [2.3 バースト制御](#23-バースト制御)
+  - [2.4 ID](#24-id)
+  - [2.5 デュアルポートRAM](#25-デュアルポートram)
+- [3. サンプルコード](#3-サンプルコード)
+  - [3.1 DUTのサンプルコード](#31-dutのサンプルコード)
+  - [3.2 テストベンチのサンプルコード](#32-テストベンチのサンプルコード)
+- [4. 何度やってもバグが取れない場合の「御破算やりなおし法」](#4-何度やってもバグが取れない場合の御破算やりなおし法)
+  - [4.1 ハルシネーション・ポチョムキン理解・認知バイアス除去](#41-ハルシネーション・ポチョムキン理解・認知バイアス除去)
+  - [4.2 マイクロデバッグ・スパゲティコード化](#42-マイクロデバッグ・スパゲティコード化)
+  - [4.3 御破算やりなおし法](#43-御破算やりなおし法)
+- [ライセンス](#ライセンス)
+
+---
+
+## 1. はじめに
+
+このドキュメントはAIに読み込ませてコードを自動生成することを目標としています。
+
+本記事では、AXI4仕様に準拠したシンプルデュアルポートRAMの実装について説明します。前回までに学んだパイプライン処理の基本概念を応用し、AXI4仕様の「シンプルデュアルポートRAM」の実装を扱います。
+
+シンプルデュアルポートRAMは、1つのクロックポートと2つの独立したアクセスポート（リードポートとライトポート）を持つメモリデバイスです。リードとライトは同時に実行できます。
+
+**シンプルデュアルポートRAMの特徴**:
+- **独立したアクセスポート**: リードポートとライトポートが独立して動作
+- **同時アクセス可能**: リード・ライトが同時実行可能
+- **アドレス競合制御**: 同一アドレスへの同時アクセスも可能（制御なし）
+- **AXI4準拠**: AXI4プロトコルの要件を満たすインターフェース
+- **パイプライン対応**: バースト転送とパイプライン処理に対応
+
+AXI4インターフェースの特徴を整理します：
+
+- **リードチャネル**: 読み出しアドレスとバースト情報を伝達
+- **ライトチャネル**: 書き込みアドレス、データ、バースト情報を伝達
+- **レスポンスチャネル**: 書き込み完了の応答を伝達
+- **バースト転送**: 連続したアドレスへの効率的なアクセス
+- **パイプライン処理**: 複数のトランザクションの並列処理
+
+シンプルデュアルポートRAMでは、リード・ライトの同時実行が可能で、同一アドレスへの同時アクセスも制御せずシンプルに実装します。これにより、リードのパイプラインとライトのパイプラインは完全に独立になり、第4回と第5回で実装したリードとライトのパイプラインの構成がそのまま使用できます。
+
+**シンプルデュアルポートRAMの利点**:
+- **効率的なリソース利用**: 単一のメモリでリード・ライト両方を処理
+- **並列処理**: リード・ライトの同時アクセスでスループット向上
+- **AXI4準拠**: 標準プロトコルによる互換性の確保
+- **パイプライン対応**: バースト転送とパイプライン処理の最適化
+- **競合制御**: 同一アドレスアクセス時の制御は行わない（シンプル実装）
+- **拡張性**: 様々なメモリサイズとデータ幅への対応
+
+## 2. 仕様
+
+### 2.1 パイプライン構成
+
+シンプルデュアルポートRAMのパイプライン構成は、リード側とライト側が完全に独立して動作します。第4回と第5回で実装したパイプライン構成を基に、メモリのレイテンシを2に修正して設計します。
+
+#### リード側パイプライン構成
+
+リード側は2段構成のパイプラインで、データ増幅を行う構成です：
+
+```
+u_r_Payload -> [T0] -> [T1] -> d_r_Payload
+                ^       ^
+                |       |
+u_r_Ready   <-[AND]<---+-- <- d_r_Ready
+                ^
+                |
+            [T0_State_Ready]
+```
+
+**リード側パイプラインの詳細**:
+
+| 段階 | 機能 | 説明 | データ増幅 | レイテンシ |
+|------|------|------|------------|------------|
+| T0 | アドレスカウンタとRE制御 | バースト転送の制御とアドレス生成 | **1→N個に増加** | 1クロック |
+| T1 | メモリアクセス | メモリからのデータ読み出し | **増幅なし**（N個維持） | 1クロック |
+
+**リード側の特徴**:
+- **T0ステージ**: バースト制御とアドレス生成、上流に対するReady制御
+- **T1ステージ**: メモリアクセス（レイテンシ1）
+- **総レイテンシ**: 2クロック（T0: 1 + T1: 1）
+
+#### ライト側パイプライン構成
+
+ライト側は4段構成のパイプラインで、2つのペイロードが合流する構成です。T0DとT0Aは同時並列に動作します：
+
+```
+u_w_Payload_D=> [T0D]=======++
+                 ^          ||
+                 |          ||
+u_w_Ready_D   <-[AND]---+   ||
+                 ^      |   ||
+                 |      |   ||
+       [T0D_Ready]      |   ||
+                        |   ||
+u_w_Payload_A=> [T0A] ===> [T1] => [T2] => [T3] => d_w_Payload
+                 ^      |   ^       ^       ^   
+                 |      |   |       |       |   
+u_w_Ready_A   <-[AND]<--+---+-------+-------+--- <- d_w_Ready
+                 ^ ^                     
+                 | |        
+       [T0A_Ready] |        
+              [T0A_M_Ready]
+```
+
+**ライト側パイプラインの詳細**:
+
+| 段階 | 機能 | 説明 | データ増幅 | レイテンシ |
+|------|------|------|------------|------------|
+| T0A/T0D | アドレス・データ並列処理 | アドレスとデータの同時並列処理 | **1→N個に増加** | 1クロック |
+| T1 | アドレス・データ合流 | アドレスとデータの合流制御 | **増幅なし**（N個維持） | 1クロック |
+| T2 | メモリアクセス | メモリへの書き込み | **増幅なし**（N個維持） | 1クロック |
+| T3 | レスポンス生成 | 書き込み完了の応答生成 | **増幅なし**（N個維持） | 1クロック |
+
+**ライト側の特徴**:
+- **T0A/T0Dステージ**: アドレスとデータの同時並列処理
+- **T1ステージ**: アドレス・データの合流制御
+- **T2ステージ**: メモリアクセス（レイテンシ1）
+- **T3ステージ**: レスポンス生成（追加レイテンシ1）
+- **総レイテンシ**: 4クロック（T0A/T0D: 1 + T1: 1 + T2: 1 + T3: 1）
+
+#### パイプライン制御の特徴
+
+**独立動作**:
+- リード・ライトのパイプラインが完全に独立して動作
+- 同一アドレスへの同時アクセスも制御せず実行
+- 各パイプラインが独自のReady制御で動作
+
+**Ready制御**:
+- 各ステージの動作は`d_ready`がHの時のみ実行
+- パイプライン全体がReady信号で統一的に制御
+- 上流へのReady信号は非同期ANDで生成
+
+**メモリレイテンシ**:
+- **リード側**: メモリレイテンシ2を採用（FPGAのBRAMの構造による要件）
+- **ライト側**: メモリレイテンシ1を採用（書き込みは即座に実行）
+- 論理合成ツールでの最適化が容易
+
+### 2.2 ポート定義
+
+シンプルデュアルポートRAMのAXI4準拠インターフェースを定義します。AXI4プロトコルの要件に従い、リード・ライトの各チャネルを独立して設計します。
+
+**AXI4インターフェースの基本構成**:
+
+- **リードアドレスチャネル**: 読み出しアドレス、バースト情報、ID
+- **リードデータチャネル**: 読み出しデータ、レスポンス、ID
+- **ライトアドレスチャネル**: 書き込みアドレス、バースト情報、ID
+- **ライトデータチャネル**: 書き込みデータ、ストローブ
+- **ライトレスポンスチャネル**: 書き込み完了のレスポンス、ID
+
+**ポート定義の詳細**:
+
+```verilog
+module simple_dual_port_ram #(
+	parameter MEMORY_SIZE_BYTES = 4096, 				// Memory size in bytes
+	parameter AXI_DATA_WIDTH = 64,						// AXI data width in bits
+	parameter AXI_ID_WIDTH = 8, 						// AXI ID width in bits
+	parameter AXI_STRB_WIDTH = AXI_DATA_WIDTH/8,		// AXI strobe width (calculated)
+	parameter AXI_ADDR_WIDTH = $clog2(MEMORY_SIZE_BYTES)	// AXI address width in bits (auto-calculated)
+)(
+	// Clock and Reset
+	input				 axi_clk,
+	input				 axi_resetn,
+
+	// AXI Read Address Channel
+	input		[AXI_ADDR_WIDTH-1:0]	axi_ar_addr,
+	input		[1:0]					axi_ar_burst,
+	input		[2:0]					axi_ar_size,
+	input		[AXI_ID_WIDTH-1:0]		axi_ar_id,
+	input		[7:0]					axi_ar_len,
+	output	wire						axi_ar_ready,
+	input								axi_ar_valid,
+
+	// AXI Read Data Channel
+	output	wire [AXI_DATA_WIDTH-1:0]	axi_r_data,
+	output	wire [AXI_ID_WIDTH-1:0]		axi_r_id,
+	output	wire [1:0]					axi_r_resp,
+	output	wire						axi_r_last,
+	input								axi_r_ready,
+	output	wire						axi_r_valid,
+
+	// AXI Write Address Channel
+	input		[AXI_ADDR_WIDTH-1:0]	axi_aw_addr,
+	input		[1:0]					axi_aw_burst,
+	input		[2:0]					axi_aw_size,
+	input		[AXI_ID_WIDTH-1:0]		axi_aw_id,
+	input		[7:0]					axi_aw_len,
+	output	wire						axi_aw_ready,
+	input								axi_aw_valid,
+
+	// AXI Write Data Channel
+	input		[AXI_DATA_WIDTH-1:0]	axi_w_data,
+	input								axi_w_last,
+	input		[AXI_STRB_WIDTH-1:0]	axi_w_strb,
+	output	wire						axi_w_ready,
+	input								axi_w_valid,
+
+	// AXI Write Response Channel
+	output	wire [AXI_ID_WIDTH-1:0]		axi_b_id,
+	output	wire [1:0]					axi_b_resp,
+	input								axi_b_ready,
+	output	wire						axi_b_valid
+);
+```
+
+### 2.3 バースト制御
+
+AXI4仕様で定義された3種類のバーストタイプをサポートします：
+
+- **FIXED (2'b00)**: 固定アドレスバースト。同一アドレスへの連続アクセスで、データの更新やFIFO操作に使用
+  - **アドレス固定**: バースト中は開始アドレスが固定され、アドレスは変化しない
+  - **最大バースト長**: 256ビート（`axi_aw_len`/`axi_ar_len` = 8'hFF）
+  - **用途**: 同一レジスタへの連続書き込み、FIFOの読み出し、カウンタの更新
+- **INCR (2'b01)**: インクリメントバースト。アドレスが連続的に増加する最も一般的なバースト転送
+  - **最大バースト長**: 256ビート（`axi_aw_len`/`axi_ar_len` = 8'hFF）
+  - **アドレス増分**: データサイズ（`axi_aw_size`/`axi_ar_size`）に基づいて自動計算
+- **WRAP (2'b10)**: ラップバースト。指定された境界でアドレスがラップする循環的なバースト転送
+  - **ラップ境界**: バースト長 × データサイズで計算される境界
+  - **境界計算**: `boundary = start_addr + (burst_length + 1) × data_size`
+  - **ラップ動作**: 境界に達すると、アドレスが開始アドレス付近に戻る
+
+### 2.4 ID
+
+AXI4のID信号は、複数のトランザクションを識別するために使用されます。IDはペイロードと一緒にパイプラインを流れ、各チャネル間でトランザクションの対応関係を維持します：
+
+**リードチャネル**:
+- **`axi_ar_id`**: リードアドレスチャネルのトランザクションID
+- **`axi_r_id`**: リードデータチャネルのトランザクションID（`axi_ar_id`と一致）
+
+**ライトチャネル**:
+- **`axi_aw_id`**: ライトアドレスチャネルのトランザクションID
+- **`axi_b_id`**: ライトレスポンスチャネルのトランザクションID（`axi_aw_id`と一致）
+
+### 2.5 デュアルポートRAM
+
+FPGAの論理合成ツールで推定可能なデュアルポートRAMのサンプル記述を示します。この記述により、論理合成ツールが適切なメモリブロック（ブロックRAM、エンベデッドRAM等）を自動的に推定・配置します。
+
+**レイテンシ**:
+
+- **レイテンシ = 1**: メモリアクセス後1クロックでデータ出力（メモリのみ、追加レジスタなし）
+
+**制御信号の説明**:
+
+- **read_enable (re)**: リード有効信号。レディネゲート時に現在の状態をホールドするための信号として使用される
+- **write_enable (we)**: ライト有効信号。レディネゲート時に現在の状態をホールドするための信号として使用される
+
+**Verilog記述例**:
+
+```verilog
+module dual_port_ram #(
+    parameter DATA_WIDTH = 64,                                    // Data width in bits
+    parameter MEM_DEPTH = 256,                                    // Memory depth (number of words)
+    parameter ADDR_WIDTH = $clog2(MEM_DEPTH)                      // Address width (auto-calculated)
+)(
+    input  wire                     clk,                         // Clock input
+    
+    // Read port interface
+    input  wire [ADDR_WIDTH-1:0]   read_addr,                   // Read address
+    input  wire                     read_enable,                 // Read enable
+    output wire [DATA_WIDTH-1:0]   read_data,                   // Read data output
+    
+    // Write port interface
+    input  wire [ADDR_WIDTH-1:0]   write_addr,                  // Write address
+    input  wire [DATA_WIDTH-1:0]   write_data,                  // Write data input
+    input  wire [DATA_WIDTH/8-1:0] write_enable                 // Write enable (byte strobe)
+);
+
+    // Memory array declaration
+    reg [DATA_WIDTH-1:0] memory [0:MEM_DEPTH-1];
+    
+    // Read operation (synchronous)
+    always @(posedge clk) begin
+        if (read_enable) begin
+            read_data <= memory[read_addr];  // Memory read with 1 clock latency
+        end
+    end
+    
+    // Write operation with byte-level control
+    always @(posedge clk) begin
+        integer i;
+        for (i = 0; i < DATA_WIDTH/8; i = i + 1) begin
+            if (write_enable[i]) begin
+                memory[write_addr][(i+1)*8-1:i*8] <= write_data[(i+1)*8-1:i*8];
+            end
+        end
+    end
+
+endmodule
+```
+
+## 3. サンプルコード
+
+### 3.1 DUTのサンプルコード
+
+シンプルデュアルポートRAMの実装例を示します。
+
+以下はAIに対する実装の指示です。
+
+```
+コードの作成をお願いします。ファイル名はaxi_simple_dual_port_ram.vです。
+
+まずはリード部分だけ記述をお願いします。メモリはドキュメントに記述されたdual_port_ramのモジュールを記述してそのインスタンスを作成して使用します。アドレスは仕様書の通りに３つのバーストモードサポートするように変更してください。IDはペイロードとしてパイプラインを流れるようにしてください。axi_ar_sizeとaxi_aw_sizeは未接続としてください。
+dual_port_ramはT1、T2ステージなのでインスタンスの、入力はT0の出力を使用します。r_t2_dataをwireで出力します。
+
+次にWriteを実装します。
+WriteのReadyとValidの動作はburst_write_pipeline.vを模倣してください。サンプルコードのレスポンスはAXI4の仕様に従っていないのでAXI4の仕様で実装してください。アドレスは３つのバーストモードをサポートしてください。
+```
+
+こちらが実装されたコードです
+<div style="max-height: 500px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; background-color: #f6f8fa;">
+
+```verilog
+// Licensed under the Apache License, Version 2.0 - see [LICENSE](https://www.apache.org/licenses/LICENSE-2.0) file for details.
+
+module axi_simple_dual_port_ram #(
+    parameter MEMORY_SIZE_BYTES = 4096,               // Memory size in bytes
+    parameter AXI_DATA_WIDTH = 64,                    // AXI data width in bits
+    parameter AXI_ID_WIDTH = 8,                      // AXI ID width in bits
+    parameter AXI_STRB_WIDTH = AXI_DATA_WIDTH/8,     // AXI strobe width (calculated)
+    parameter AXI_ADDR_WIDTH = $clog2(MEMORY_SIZE_BYTES)  // AXI address width in bits (auto-calculated)
+)(
+    // Clock and Reset
+    input                   axi_clk,
+    input                   axi_resetn,
+
+    // AXI Read Address Channel
+    input  [AXI_ADDR_WIDTH-1:0] axi_ar_addr,
+    input  [1:0]                axi_ar_burst,
+    input  [2:0]                axi_ar_size,      // Unconnected
+    input  [AXI_ID_WIDTH-1:0]   axi_ar_id,
+    input  [7:0]                axi_ar_len,
+    output wire                  axi_ar_ready,
+    input                        axi_ar_valid,
+
+    // AXI Read Data Channel
+    output wire [AXI_DATA_WIDTH-1:0] axi_r_data,
+    output wire [AXI_ID_WIDTH-1:0]   axi_r_id,
+    output wire [1:0]                axi_r_resp,
+    output wire                      axi_r_last,
+    input                            axi_r_ready,
+    output wire                      axi_r_valid,
+
+    // AXI Write Address Channel
+    input  [AXI_ADDR_WIDTH-1:0] axi_aw_addr,
+    input  [1:0]                axi_aw_burst,
+    input  [2:0]                axi_aw_size,      // Unconnected
+    input  [AXI_ID_WIDTH-1:0]   axi_aw_id,
+    input  [7:0]                axi_aw_len,
+    output wire                  axi_aw_ready,
+    input                        axi_aw_valid,
+
+    // AXI Write Data Channel
+    input  [AXI_DATA_WIDTH-1:0] axi_w_data,
+    input                        axi_w_last,
+    input  [AXI_STRB_WIDTH-1:0] axi_w_strb,
+    output wire                  axi_w_ready,
+    input                        axi_w_valid,
+
+    // AXI Write Response Channel
+    output wire [AXI_ID_WIDTH-1:0] axi_b_id,
+    output wire [1:0]              axi_b_resp,
+    input                          axi_b_ready,
+    output wire                    axi_b_valid
+);
+
+    // Read pipeline internal signals
+    reg [AXI_ADDR_WIDTH-1:0] r_t0_addr;        // T0 stage address
+    reg [1:0]                 r_t0_burst;       // T0 stage burst type
+    reg [AXI_ID_WIDTH-1:0]   r_t0_id;          // T0 stage ID
+    reg [7:0]                 r_t0_len;         // T0 stage burst length
+    reg                       r_t0_valid;       // T0 stage valid
+    reg [7:0]                 r_t0_count;       // T0 stage burst counter
+    wire                      r_t0_last;        // T0 stage last signal
+    wire                      r_t0_state_ready; // T0 stage ready state
+
+    wire [AXI_DATA_WIDTH-1:0] r_t1_data;        // T1 stage data
+    reg [AXI_ID_WIDTH-1:0]   r_t1_id;          // T1 stage ID
+    reg                       r_t1_valid;       // T1 stage valid
+    reg                       r_t1_last;        // T1 stage last signal
+
+    // Write pipeline internal signals
+    reg [AXI_ADDR_WIDTH-1:0] w_t0a_addr;        // T0A stage address
+    reg [1:0]                 w_t0a_burst;       // T0A stage burst type
+    reg [AXI_ID_WIDTH-1:0]   w_t0a_id;          // T0A stage ID
+    reg [7:0]                 w_t0a_len;         // T0A stage burst length
+    reg                       w_t0a_valid;       // T0A stage valid
+    reg [7:0]                 w_t0a_count;       // T0A stage burst counter
+    wire                      w_t0a_last;        // T0A stage last signal
+    wire                      w_t0a_state_ready; // T0A stage ready state
+
+    reg [AXI_DATA_WIDTH-1:0] w_t0d_data;        // T0D stage data
+    reg [AXI_STRB_WIDTH-1:0] w_t0d_strb;        // T0D stage strobe
+    reg                       w_t0d_valid;       // T0D stage valid
+    reg                       w_t0d_last;        // T0D stage last
+
+    reg [AXI_ID_WIDTH-1:0]   w_t1_id;           // T1 stage ID
+    reg                       w_t1_valid;        // T1 stage valid
+    reg                       w_t1_last;         // T1 stage last
+
+    reg [AXI_ID_WIDTH-1:0]   w_t2_id;           // T2 stage ID
+    reg                       w_t2_valid;        // T2 stage valid
+
+    // Write pipeline control signals
+    wire w_t0a_m_ready;      // T0A merge ready signal
+    wire w_t0d_m_ready;      // T0D merge ready signal
+
+    // Memory instance (T1 stage)
+    dual_port_ram #(
+        .DATA_WIDTH(AXI_DATA_WIDTH),
+        .MEM_DEPTH(MEMORY_SIZE_BYTES / (AXI_DATA_WIDTH/8)),
+        .ADDR_WIDTH(AXI_ADDR_WIDTH)
+    ) memory_inst (
+        .clk(axi_clk),
+        .read_addr(r_t0_addr),
+        .read_enable(axi_r_ready && r_t0_valid),
+        .read_data(r_t1_data),
+        .write_addr(w_t0a_addr),
+        .write_data(w_t0d_data),
+        .write_enable(axi_b_ready && (w_t0a_valid && w_t0d_valid) ? w_t0d_strb : {(AXI_STRB_WIDTH){1'b0}})
+    );
+
+    // Read pipeline T0 stage - Address counter and burst control
+    always @(posedge axi_clk or negedge axi_resetn) begin
+        if (!axi_resetn) begin
+            r_t0_addr <= 0;
+            r_t0_burst <= 0;
+            r_t0_id <= 0;
+            r_t0_len <= 0;
+            r_t0_valid <= 0;
+            r_t0_count <= 8'hFF;
+        end else if (axi_r_ready) begin
+            case (r_t0_state_ready)
+                1'b1: begin // Ready state (Idle or last cycle)
+                    if (axi_ar_valid) begin
+                        r_t0_addr <= axi_ar_addr;
+                        r_t0_burst <= axi_ar_burst;
+                        r_t0_id <= axi_ar_id;
+                        r_t0_len <= axi_ar_len;
+                        r_t0_valid <= 1'b1;
+                        r_t0_count <= axi_ar_len;
+                    end else begin
+                        r_t0_valid <= 1'b0;
+                        r_t0_count <= 8'hFF;
+                    end
+                end
+                1'b0: begin // Not ready state (Bursting)
+                    r_t0_count <= r_t0_count - 1;
+                    case (r_t0_burst)
+                        2'b00: begin // FIXED
+                            r_t0_addr <= r_t0_addr;  // Address remains fixed
+                        end
+                        2'b01: begin // INCR
+                            r_t0_addr <= r_t0_addr + (AXI_DATA_WIDTH/8);  // Increment by data size
+                        end
+                        2'b10: begin // WRAP
+                            // Calculate wrap boundary
+                            if (r_t0_count == 0) begin
+                                // Reset to start address for next burst
+                                r_t0_addr <= axi_ar_addr;
+                            end else begin
+                                r_t0_addr <= r_t0_addr + (AXI_DATA_WIDTH/8);
+                            end
+                        end
+                        default: begin
+                            r_t0_addr <= r_t0_addr + (AXI_DATA_WIDTH/8);  // Default to INCR
+                        end
+                    endcase
+                end
+            endcase
+        end
+    end
+
+    // Read pipeline T1 stage - Memory access
+    always @(posedge axi_clk or negedge axi_resetn) begin
+        if (!axi_resetn) begin
+            r_t1_id <= 0;
+            r_t1_valid <= 0;
+            r_t1_last <= 0;
+        end else if (axi_r_ready) begin
+            r_t1_id <= r_t0_id;
+            r_t1_valid <= r_t0_valid;
+            r_t1_last <= r_t0_last;
+        end
+    end
+
+    // Control signal generation
+    assign r_t0_last = (r_t0_count == 0);
+    assign r_t0_state_ready = (r_t0_count == 8'hFF) || (r_t0_count == 0);
+
+    // AXI interface signals
+    assign axi_ar_ready = axi_ar_valid && r_t0_state_ready;
+    assign axi_r_data = r_t1_data;
+    assign axi_r_id = r_t1_id;
+    assign axi_r_resp = 2'b00;  // OKAY response
+    assign axi_r_last = r_t1_last;
+    assign axi_r_valid = r_t1_valid;
+
+    // Write pipeline T0A stage - Address counter and burst control
+    always @(posedge axi_clk or negedge axi_resetn) begin
+        if (!axi_resetn) begin
+            w_t0a_addr <= 0;
+            w_t0a_burst <= 0;
+            w_t0a_id <= 0;
+            w_t0a_len <= 0;
+            w_t0a_valid <= 0;
+            w_t0a_count <= 8'hFF;
+        end else if (axi_b_ready) begin
+            if (w_t0a_m_ready) begin
+                case (w_t0a_state_ready)
+                    1'b1: begin // Ready state (Idle or last cycle)
+                        if (axi_aw_valid) begin
+                            w_t0a_addr <= axi_aw_addr;
+                            w_t0a_burst <= axi_aw_burst;
+                            w_t0a_id <= axi_aw_id;
+                            w_t0a_len <= axi_aw_len;
+                            w_t0a_valid <= 1'b1;
+                            w_t0a_count <= axi_aw_len;
+                        end else begin
+                            w_t0a_valid <= 1'b0;
+                            w_t0a_count <= 8'hFF;
+                        end
+                    end
+                    1'b0: begin // Not ready state (Bursting)
+                        w_t0a_count <= w_t0a_count - 1;
+                        case (w_t0a_burst)
+                            2'b00: begin // FIXED
+                                w_t0a_addr <= w_t0a_addr;  // Address remains fixed
+                            end
+                            2'b01: begin // INCR
+                                w_t0a_addr <= w_t0a_addr + (AXI_DATA_WIDTH/8);  // Increment by data size
+                            end
+                            2'b10: begin // WRAP
+                                // Calculate wrap boundary
+                                if (w_t0a_count == 0) begin
+                                    // Reset to start address for next burst
+                                    w_t0a_addr <= axi_aw_addr;
+                                end else begin
+                                    w_t0a_addr <= w_t0a_addr + (AXI_DATA_WIDTH/8);
+                                end
+                            end
+                            default: begin
+                                w_t0a_addr <= w_t0a_addr + (AXI_DATA_WIDTH/8);  // Default to INCR
+                            end
+                        endcase
+                    end
+                endcase
+            end
+        end
+    end
+
+    // Write pipeline T0D stage - Data pipeline
+    always @(posedge axi_clk or negedge axi_resetn) begin
+        if (!axi_resetn) begin
+            w_t0d_data <= 0;
+            w_t0d_strb <= 0;
+            w_t0d_valid <= 0;
+            w_t0d_last <= 0;
+        end else if (axi_b_ready) begin
+            if (w_t0d_m_ready) begin
+                w_t0d_data <= axi_w_data;
+                w_t0d_strb <= axi_w_strb;
+                w_t0d_valid <= axi_w_valid;
+                w_t0d_last <= axi_w_last;
+            end
+        end
+    end
+
+    // Write pipeline T1 stage - Merge control
+    always @(posedge axi_clk or negedge axi_resetn) begin
+        if (!axi_resetn) begin
+            w_t1_id <= 0;
+            w_t1_valid <= 0;
+            w_t1_last <= 0;
+        end else if (axi_b_ready) begin
+            w_t1_id <= w_t0a_id;
+            w_t1_valid <= (w_t0a_valid && w_t0d_valid);
+            w_t1_last <= w_t0a_last;
+        end
+    end
+
+    // Write pipeline T2 stage - Response generation
+    always @(posedge axi_clk or negedge axi_resetn) begin
+        if (!axi_resetn) begin
+            w_t2_id <= 0;
+            w_t2_valid <= 0;
+        end else if (axi_b_ready) begin
+            if (w_t1_last) begin
+                w_t2_id <= w_t1_id;
+                w_t2_valid <= w_t1_valid;
+            end else begin
+                w_t2_id <= 0;
+                w_t2_valid <= 0;
+            end
+        end
+    end
+
+    // Write control signal generation
+    assign w_t0a_last = (w_t0a_count == 0);
+    assign w_t0a_state_ready = (w_t0a_count == 8'hFF) || (w_t0a_count == 0);
+
+    // Write merge ready generation
+    assign w_t0a_m_ready = (w_t0d_valid && !w_t0a_valid) || (!w_t0d_valid && !w_t0a_valid) || (w_t0d_valid && w_t0a_valid);
+    assign w_t0d_m_ready = (!w_t0d_valid && w_t0a_valid) || (!w_t0d_valid && !w_t0a_valid) || (w_t0d_valid && w_t0a_valid);
+
+    // Write ready signal generation
+    assign axi_aw_ready = w_t0a_state_ready && w_t0a_m_ready && axi_b_ready;
+    assign axi_w_ready = w_t0d_m_ready && axi_b_ready;
+
+    // Write response signals (AXI4 compliant)
+    assign axi_b_id = w_t2_id;
+    assign axi_b_resp = 2'b00;  // OKAY response
+    assign axi_b_valid = w_t2_valid;
+
+endmodule
+```
+</div>
+
+### 3.2 テストベンチのサンプルコード
+
+次にテストベンチの実装を行います。
+
+AIに対する指示は以下の通りです：
+
+```
+テストベンチはburst_rw_pipeline_tb.svを参考にして新たに実装してください。指示した直値はパラメータで後で変更できるようにしてください。
+メモリのサイズは16KB、バス幅は32bitとします。
+テストのシナリオはバースト長とIDを乱数で発生、そのバースト長でWrite用のアドレスと書き込みデータの配列を生成。リードも同じアドレスとデータの配列を生成。リードの結果の配列と、ライトのレスポンスの配列も生成します。これをバースト1000回分生成します。
+まず最初の１回目のバーストWriteを実行に続いて２回目のバーストライトを実行、次に１回目のバーストリードに続いて２回目のバーストリードを実行、この１回目２回目のバーストリードと同時に３回目４回目のバーストライトを実行とこのようにリードとライトを２つずつセットで実行してください。セットになるアドレスチャネルのバーストリクエストはバブルの挿入なく連続するようにしてください。
+成否のチェックは、
+リードのデータ/IDとレスポンスのIDが期待値と一致すること
+VALIDアサートでペイロード(Ready以外の信号)に不定が無いこと、
+ストールするとペイロードがホールドされていること
+
+まだ無限ループが発生します。以下のようにテストベンチを変更してください。
+Readアドレスチャネル、ReadDataチャネル、Writeアドレスチャネル、WriteDataチャネル、Wrteレスポンスチャネルは個別のAlways文に分けて個別に管理してください。
+この個別管理されるAlways文はシミュレーションのデータ転送を取りしきる別のAlways文からスタートさせます。何回のアドレスcycle相当の転送を繰り返すかの指示を与えて、リクエストした全てのチャネルで指定された回数の実行が終わったことを監視して次の回のスタート指示に移る。このようにループして実行します。例えば１０００回のアドレスサイクルの実行で２回づつ実行する場合は、最初にライトアドレス、ライトデータ、ライトレスポンスに２回分の事項であることを伝えてスタートします。終了を待って、次の指示は、ライトアドレス、ライトデータ、ライトレスポンス、リードアドレス、リードデータに２回の実行であることを指示し、終了を待つ、その次の指示は。。。と続きます。
+同時実行フェースでは優先順位を制御せずに全てのチャネルに同時にスタートの指示を与えてください。
+```
+
+## 4. 何度やってもバグが取れない場合の「御破算やりなおし法」
+
+### 4.1 ハルシネーション・ポチョムキン理解・認知バイアス除去
+
+AIプログラミングの特徴として、構成を定義するとその構成がたとえダメな構成でも「これダメですね」とは決して回答しません。これはAIが指示に従うことと、ポジティブな回答をするようにという2重の制約がかかっているためと思われます。このような状況は人間でもよくあります。例えば上司が「明日までに動作するようにデバッグしておいて」とか、上司が作ったコードに「この機能を追加しておいて」とか指示をした場合に、部下は「明日までは時間が短くてできません」とか「元のコードの作りが良くないので再コーディングしていいですか」とか言えなくて、とりあえずやってみることになります。要するに「認知バイアス」がかかって、正しい思考を妨げたり、より深く考えることをやめて今できることをしようとするわけです。または、あまりに指示が強制的だとできるはずと思い込む「ハルシネーション」が人間でも発生します。また、AIも「デバッグしてください」とだけ指示されればコードを良く分析せずに薄っぺらな理解「ポチョムキン理解」の状態でエラーの箇所しか見ない行動をします。
+
+### 4.2 マイクロデバッグ・スパゲティコード化
+
+コードやアルゴリズムを深く理解せずに、エラーの出たところだけパッチ修正、チェック、パッチ修正、チェックと無限ループになるわけです。こういうのをマイクロデバッグと（私は）呼んでいます。これを繰り返すと元のシンプルなコードは跡形もなくなり、あちらこちらに変数が追加されてまるで絡まったスパゲティのようなコード「スパゲティコード化」されて解析がより困難になります。
+
+### 4.3 御破算やりなおし法
+
+ここでおすすめの方法は「御破算やりなおし法」です。要はコードをいったん捨ててもう一度最初からコーディングします。
+
+ただし、捨てるコードにも学ぶべき内容が含まれています。その捨てようとしている、そこそこ動作しているテストベンチを解析して、機能を分類して、その機能ごとにどのように実装するのが理想的で美しいかを考えて、それを仕様として列挙します。
+
+経験談ですが、社会人1年目にASICの開発を行ったことがあり、最初に入力した回路図を上司にチェックしてもらおうと印刷して持っていくと、上司にデータのフロッピーディスクも持ってこいと言われて持って行きました。すると、その場で紙の印刷もフロッピーディスクもバリバリに破られて物理的に復元不可能にされて、「もう一度最初から入力しろ」といわれました。やり方は良くないですが、このやり直しは非常に重要で、回路図・コードはたんに動作するだけでなく美しくなければ後で自分が困るということを教えたかったのだと思います。今でもこの上司の教えは守っています。
+
+## ライセンス
+
+Licensed under the Apache License, Version 2.0 - see [LICENSE](https://www.apache.org/licenses/LICENSE-2.0) file for details.
