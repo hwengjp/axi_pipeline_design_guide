@@ -13,5 +13,7 @@ transcript
 .DS_Store
 Thumbs.db
 
+axi_ram_core.v
+
 # Qiita documentation
 QiitaDocs/ 
