@@ -1,5 +1,6 @@
 // AXI4 Simple Dual Port RAM Testbench
 // Generated from part08_axi4_bus_testbench_abstraction.md
+// Licensed under the Apache License, Version 2.0 - see https://www.apache.org/licenses/LICENSE-2.0 for details.
 
 `timescale 1ns/1ps
 

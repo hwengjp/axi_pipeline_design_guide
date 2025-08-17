@@ -1,4 +1,4 @@
-// Licensed under the Apache License, Version 2.0 - see [LICENSE](https://www.apache.org/licenses/LICENSE-2.0) file for details.
+// Licensed under the Apache License, Version 2.0 - see https://www.apache.org/licenses/LICENSE-2.0 for details.
 `timescale 1ns / 1ps
 
 module burst_rw_pipeline_tb #(
