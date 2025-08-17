@@ -81,87 +81,9 @@ State=[u_Ready,d_Ready]の値に対して、次のクロックでどのデータ
 
 ここまでの説明を読み込ませてAIに自動生成させたコードです。この回路を使用するとAXIバスのどのチャネル(リードアドレスチャネル、ライトアドレスチャネル、リードデータチャネル、ライトデータチャネル、ライトレスポンスチャネル)にも簡単に１段のフリップフロップが挿入できます。
 
-<div style="max-height: 500px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; background-color: #f6f8fa;">
+**サンプルコード**: [pipeline_insert.v](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/pipeline_insert.v)
 
-```systemverilog
-// Licensed under the Apache License, Version 2.0 - see [LICENSE](https://www.apache.org/licenses/LICENSE-2.0) file for details.
-
-module pipeline_insert #(
-    parameter DATA_WIDTH = 32        // Data width in bits
-)(
-    // Clock and Reset
-    input  wire                     clk,
-    input  wire                     rst_n,
-
-    // Upstream Interface (Input)
-    input  wire [DATA_WIDTH-1:0]   u_data,
-    input  wire                     u_valid,
-    output reg                      u_ready,
-
-    // Downstream Interface (Output)
-    output reg [DATA_WIDTH-1:0]    d_data,
-    output reg                      d_valid,
-    input  wire                     d_ready
-);
-
-    // Internal signals for 1-stage pipeline
-    reg [DATA_WIDTH-1:0]           pipe_data;
-    reg                             pipe_valid;
-
-    // State signal (State=[u_ready, d_ready])
-    wire [1:0]                     state;
-    assign state = {u_ready, d_ready};
-
-    // Pipeline stage controlled by u_ready
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            pipe_data <= {DATA_WIDTH{1'b0}};
-            pipe_valid <= 1'b0;
-        end else if (u_ready) begin
-            pipe_data <= u_data;
-            pipe_valid <= u_valid;
-        end
-    end
-
-    // u_ready generation with 1-clock delay from d_ready
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            u_ready <= 1'b0;
-        end else begin
-            u_ready <= d_ready;
-        end
-    end
-
-    // Output generation based on state
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            d_data <= {DATA_WIDTH{1'b0}};
-            d_valid <= 1'b0;
-        end else begin
-            case (state)
-                2'b00: begin // State=0: Hold current values
-                    // Keep current output values (no change)
-                end
-                2'b01: begin // State=1: Output pipeline stage
-                    d_data <= pipe_data;
-                    d_valid <= pipe_valid;
-                end
-                2'b10: begin // State=2: Output pipeline stage
-                    d_data <= pipe_data;
-                    d_valid <= pipe_valid;
-                end
-                2'b11: begin // State=3: Output bypass (direct from input)
-                    d_data <= u_data;
-                    d_valid <= u_valid;
-                end
-            endcase
-        end
-    end
-
-endmodule
-```
-
-</div>
+このファイルには、パイプライン挿入回路の基本的な実装が含まれています。AXIバスの各チャネルに1段のフリップフロップを挿入するための設計例です。
 
 ## 15. 総当たり探索法
 
