@@ -35,6 +35,10 @@ parameter CLK_PERIOD = 10;                  // 10ns period
 parameter CLK_HALF_PERIOD = 5;             // 5ns half period
 parameter RESET_CYCLES = 10;                // Reset cycles
 
+// Derived parameters
+parameter AXI_ADDR_WIDTH = $clog2(MEMORY_SIZE_BYTES);
+parameter AXI_STRB_WIDTH = AXI_DATA_WIDTH / 8;
+
 // AXI4 Write Address Channel
 logic [AXI_ADDR_WIDTH-1:0] axi_aw_addr;
 logic [1:0]                axi_aw_burst;
@@ -68,17 +72,29 @@ logic                      axi_ar_ready;
 
 // AXI4 Read Data Channel
 logic [AXI_DATA_WIDTH-1:0] axi_r_data;
+logic [AXI_ID_WIDTH-1:0]   axi_r_id;
 logic [1:0]                axi_r_resp;
 logic                       axi_r_last;
 logic                      axi_r_valid;
 logic                      axi_r_ready;
 
-// Derived parameters
-parameter AXI_ADDR_WIDTH = $clog2(MEMORY_SIZE_BYTES);
-parameter AXI_STRB_WIDTH = AXI_DATA_WIDTH / 8;
-
 // Test data generation completion flag
 logic generate_stimulus_expected_done = 1'b0;
+
+// Test execution completion flag
+logic test_execution_completed = 1'b0;
+
+// Ready negate control parameters
+parameter READY_NEGATE_ARRAY_LENGTH = 1000;  // Length of ready negate pulse array
+
+// Ready negate pulse arrays for each channel
+logic [READY_NEGATE_ARRAY_LENGTH-1:0] axi_aw_ready_negate_pulses;
+logic [READY_NEGATE_ARRAY_LENGTH-1:0] axi_w_ready_negate_pulses;
+logic [READY_NEGATE_ARRAY_LENGTH-1:0] axi_b_ready_negate_pulses;
+
+// Ready negate array index counter
+logic [$clog2(READY_NEGATE_ARRAY_LENGTH):0] ready_negate_index = 0;
+
 
 // Weighted random generation structures
 typedef struct {
@@ -117,6 +133,25 @@ bubble_param_t read_addr_bubble_weights[] = '{
     '{weight: 75, cycles: 0},
     '{weight: 20, cycles: 1},
     '{weight: 5, cycles: 2}
+};
+
+// Ready negate weights for each channel
+bubble_param_t axi_aw_ready_negate_weights[] = '{
+    '{weight: 80, cycles: 0},  // 80% probability: no negate
+    '{weight: 5, cycles: 1},  // 15% probability: negate for 1 cycle
+    '{weight: 5, cycles: 2}    // 5% probability: negate for 2 cycles
+};
+
+bubble_param_t axi_w_ready_negate_weights[] = '{
+    '{weight: 80, cycles: 0},  // 85% probability: no negate
+    '{weight: 5, cycles: 1},  // 12% probability: negate for 1 cycle
+    '{weight: 5, cycles: 2}    // 3% probability: negate for 2 cycles
+};
+
+bubble_param_t axi_b_ready_negate_weights[] = '{
+    '{weight: 80, cycles: 0},  // 90% probability: no negate
+    '{weight: 5, cycles: 1},   // 8% probability: negate for 1 cycle
+    '{weight: 5, cycles: 2}    // 2% probability: negate for 2 cycles
 };
 
 // Payload structures
@@ -183,6 +218,7 @@ logic write_addr_phase_start = 1'b0;
 logic read_addr_phase_start = 1'b0;
 logic write_data_phase_start = 1'b0;
 logic read_data_phase_start = 1'b0;
+logic clear_phase_latches = 1'b0;  // Clear signal for phase completion latches
 
 // Phase completion signals
 logic write_addr_phase_done = 1'b0;
@@ -199,33 +235,37 @@ logic read_data_phase_done_latched = 1'b0;
 // Log control parameters
 parameter LOG_ENABLE = 1'b1;
 parameter DEBUG_LOG_ENABLE = 1'b1;
-parameter LOG_FILE_PATH = "axi4_testbench.log";
-
-// Log file handle
-integer log_file_handle;
 
 // Test data generation functions
 function automatic void generate_write_addr_payloads();
     int test_count = 0;
+    int i;
+    int selected_length;
+    string selected_type;
+    int phase;
+    logic [AXI_ADDR_WIDTH-1:0] random_offset;
+    int burst_size_bytes;
+    logic [AXI_ADDR_WIDTH-1:0] aligned_offset;
+    logic [AXI_ADDR_WIDTH-1:0] base_addr;
     
     foreach (burst_config_weights[i]) begin
-        burst_config_t config = burst_config_weights[i];
+        burst_config_t burst_cfg = burst_config_weights[i];
         
-        for (int weight_count = 0; weight_count < config.weight; weight_count++) begin
-            int selected_length = $urandom_range(config.length_min, config.length_max);
-            string selected_type = config.burst_type;
+        for (int weight_count = 0; weight_count < burst_cfg.weight; weight_count++) begin
+            selected_length = $urandom_range(burst_cfg.length_min, burst_cfg.length_max);
+            selected_type = burst_cfg.burst_type;
             
-            int phase = test_count / PHASE_TEST_COUNT;
+            phase = test_count / PHASE_TEST_COUNT;
             
             // Generate random offset within TEST_COUNT_ADDR_SIZE_BYTES/4
-            logic [AXI_ADDR_WIDTH-1:0] random_offset = $urandom_range(0, TEST_COUNT_ADDR_SIZE_BYTES / 4 - 1);
+            random_offset = $urandom_range(0, TEST_COUNT_ADDR_SIZE_BYTES / 4 - 1);
             
             // Align to address boundary
-            int burst_size_bytes = (selected_length + 1) * (AXI_DATA_WIDTH / 8);
-            logic [AXI_ADDR_WIDTH-1:0] aligned_offset = align_address_to_boundary(random_offset, burst_size_bytes, selected_type);
+            burst_size_bytes = (selected_length + 1) * (AXI_DATA_WIDTH / 8);
+            aligned_offset = align_address_to_boundary(random_offset, burst_size_bytes, selected_type);
             
             // Add phase offset
-            logic [AXI_ADDR_WIDTH-1:0] base_addr = aligned_offset + (phase * TEST_COUNT_ADDR_SIZE_BYTES);
+            base_addr = aligned_offset + (phase * TEST_COUNT_ADDR_SIZE_BYTES);
             
             write_addr_payloads[test_count] = '{
                 test_count: test_count,
@@ -245,6 +285,10 @@ endfunction
 
 function automatic void generate_write_addr_payloads_with_stall();
     int stall_index = 0;
+    int i;
+    int total_weight;
+    int selected_index;
+    int stall_cycles;
     
     foreach (write_addr_payloads[i]) begin
         write_addr_payload_t payload = write_addr_payloads[i];
@@ -254,10 +298,9 @@ function automatic void generate_write_addr_payloads_with_stall();
         stall_index++;
         
         // Insert stall based on weights
-        int[] weights = extract_weights_generic(write_addr_bubble_weights, write_addr_bubble_weights.size());
-        int total_weight = calculate_total_weight(weights);
-        int selected_index = generate_weighted_random_index(weights, total_weight);
-        int stall_cycles = write_addr_bubble_weights[selected_index].cycles;
+        total_weight = calculate_total_weight_generic(write_addr_bubble_weights, write_addr_bubble_weights.size());
+        selected_index = generate_weighted_random_index_generic(write_addr_bubble_weights, total_weight);
+        stall_cycles = write_addr_bubble_weights[selected_index].cycles;
         
         // Insert stall cycles
         for (int stall = 0; stall < stall_cycles; stall++) begin
@@ -277,14 +320,22 @@ function automatic void generate_write_addr_payloads_with_stall();
 endfunction
 
 function automatic void generate_write_data_payloads();
+    int i;
+    write_addr_payload_t addr_payload;
+    logic [AXI_DATA_WIDTH-1:0] random_data;
+    logic [AXI_STRB_WIDTH-1:0] strobe_pattern;
+    logic [AXI_DATA_WIDTH-1:0] strobe_mask;
+    logic [AXI_DATA_WIDTH-1:0] masked_data;
+    logic last_flag;
+    int byte_idx;
+    
     foreach (write_addr_payloads[i]) begin
-        write_addr_payload_t addr_payload = write_addr_payloads[i];
+        addr_payload = write_addr_payloads[i];
         
         // Generate random data
-        logic [AXI_DATA_WIDTH-1:0] random_data = $urandom();
+        random_data = $urandom();
         
         // Generate strobe pattern
-        logic [AXI_STRB_WIDTH-1:0] strobe_pattern;
         if (addr_payload.burst == 2'b00) begin // FIXED
             strobe_pattern = generate_fixed_strobe_pattern(
                 addr_payload.addr, 
@@ -296,16 +347,18 @@ function automatic void generate_write_data_payloads();
         end
         
         // Create strobe mask for data masking
-        logic [AXI_DATA_WIDTH-1:0] strobe_mask = 0;
-        for (int byte = 0; byte < AXI_STRB_WIDTH; byte++) begin
-            if (strobe_pattern[byte]) begin
-                strobe_mask[byte*8 +: 8] = 8'hFF;
+        strobe_mask = 0;
+        
+        for (byte_idx = 0; byte_idx < AXI_STRB_WIDTH; byte_idx++) begin
+            if (strobe_pattern[byte_idx]) begin
+                strobe_mask[byte_idx*8 +: 8] = 8'hFF;
             end
         end
-        logic [AXI_DATA_WIDTH-1:0] masked_data = random_data & strobe_mask;
+        
+        masked_data = random_data & strobe_mask;
         
         // Set last flag based on burst length
-        logic last_flag = (i == write_addr_payloads.size() - 1) ? 1'b1 : 1'b0;
+        last_flag = (i == write_addr_payloads.size() - 1) ? 1'b1 : 1'b0;
         
         write_data_payloads[i] = '{
             test_count: addr_payload.test_count,
@@ -320,6 +373,10 @@ endfunction
 
 function automatic void generate_write_data_payloads_with_stall();
     int stall_index = 0;
+    int i;
+    int total_weight;
+    int selected_index;
+    int stall_cycles;
     
     foreach (write_data_payloads[i]) begin
         write_data_payload_t payload = write_data_payloads[i];
@@ -329,10 +386,9 @@ function automatic void generate_write_data_payloads_with_stall();
         stall_index++;
         
         // Insert stall based on weights
-        int[] weights = extract_weights_generic(write_data_bubble_weights, write_data_bubble_weights.size());
-        int total_weight = calculate_total_weight(weights);
-        int selected_index = generate_weighted_random_index(weights, total_weight);
-        int stall_cycles = write_data_bubble_weights[selected_index].cycles;
+        total_weight = calculate_total_weight_generic(write_data_bubble_weights, write_data_bubble_weights.size());
+        selected_index = generate_weighted_random_index_generic(write_data_bubble_weights, total_weight);
+        stall_cycles = write_data_bubble_weights[selected_index].cycles;
         
         // Insert stall cycles
         for (int stall = 0; stall < stall_cycles; stall++) begin
@@ -350,6 +406,7 @@ function automatic void generate_write_data_payloads_with_stall();
 endfunction
 
 function automatic void generate_read_addr_payloads();
+    int i;
     foreach (write_addr_payloads[i]) begin
         read_addr_payloads[i] = '{
             test_count: write_addr_payloads[i].test_count,
@@ -366,6 +423,10 @@ endfunction
 
 function automatic void generate_read_addr_payloads_with_stall();
     int stall_index = 0;
+    int i;
+    int total_weight;
+    int selected_index;
+    int stall_cycles;
     
     foreach (read_addr_payloads[i]) begin
         read_addr_payload_t payload = read_addr_payloads[i];
@@ -375,10 +436,9 @@ function automatic void generate_read_addr_payloads_with_stall();
         stall_index++;
         
         // Insert stall based on weights
-        int[] weights = extract_weights_generic(read_addr_bubble_weights, read_addr_bubble_weights.size());
-        int total_weight = calculate_total_weight(weights);
-        int selected_index = generate_weighted_random_index(weights, total_weight);
-        int stall_cycles = read_addr_bubble_weights[selected_index].cycles;
+        total_weight = calculate_total_weight_generic(read_addr_bubble_weights, read_addr_bubble_weights.size());
+        selected_index = generate_weighted_random_index_generic(read_addr_bubble_weights, total_weight);
+        stall_cycles = read_addr_bubble_weights[selected_index].cycles;
         
         // Insert stall cycles
         for (int stall = 0; stall < stall_cycles; stall++) begin
@@ -398,6 +458,7 @@ function automatic void generate_read_addr_payloads_with_stall();
 endfunction
 
 function automatic void generate_read_data_expected();
+    int i;
     foreach (write_data_payloads[i]) begin
         read_data_expected[i] = '{
             test_count: write_data_payloads[i].test_count,
@@ -408,6 +469,7 @@ function automatic void generate_read_data_expected();
 endfunction
 
 function automatic void generate_write_resp_expected();
+    int i;
     foreach (write_addr_payloads[i]) begin
         write_resp_expected[i] = '{
             test_count: write_addr_payloads[i].test_count,
@@ -418,19 +480,37 @@ function automatic void generate_write_resp_expected();
     end
 endfunction
 
-// Generic weight extraction function
-function automatic int[] extract_weights_generic(
-    input int weight_field[],
+// (extract_weights_generic removed to avoid returning int[] which some tools reject)
+
+// Direct bubble weight helper functions (avoid packed arrays)
+function automatic int calculate_total_weight_generic(
+    input bubble_param_t weight_field[],
     input int array_size
 );
-    int weights[];
-    weights = new[array_size];
-    
+    int total = 0;
     for (int i = 0; i < array_size; i++) begin
-        weights[i] = weight_field[i];
+        total += weight_field[i].weight;
+    end
+    return total;
+endfunction
+
+function automatic int generate_weighted_random_index_generic(
+    input bubble_param_t weight_field[],
+    input int total_weight
+);
+    int random_val;
+    int cumulative_weight = 0;
+    
+    random_val = $urandom_range(0, total_weight - 1);
+    
+    for (int i = 0; i < weight_field.size(); i++) begin
+        cumulative_weight += weight_field[i].weight;
+        if (random_val < cumulative_weight) begin
+            return i;
+        end
     end
     
-    return weights;
+    return 0;
 endfunction
 
 // Helper functions
@@ -487,8 +567,8 @@ function automatic logic [AXI_STRB_WIDTH-1:0] generate_fixed_strobe_pattern(
     end
     
     // Generate STROBE pattern (byte-wise)
-    for (int byte = strobe_start; byte <= strobe_end; byte++) begin
-        strobe_pattern[byte] = 1'b1;
+    for (int byte_idx = strobe_start; byte_idx <= strobe_end; byte_idx++) begin
+        strobe_pattern[byte_idx] = 1'b1;
     end
     
     return strobe_pattern;
@@ -516,31 +596,62 @@ endfunction
 
 function automatic int calculate_total_weight(input int weights[]);
     int total = 0;
+    int i;
     foreach (weights[i]) begin
         total += weights[i];
     end
     return total;
 endfunction
 
+// Ready negate pulse array initialization function
+function automatic void initialize_ready_negate_pulses();
+    int i;
+    int total_weight;
+    int selected_index;
+    int negate_cycles;
+    
+    for (i = 0; i < READY_NEGATE_ARRAY_LENGTH; i = i + 1) begin
+        // Generate AW ready negate pulses using weighted random
+        total_weight = calculate_total_weight_generic(axi_aw_ready_negate_weights, axi_aw_ready_negate_weights.size());
+        selected_index = generate_weighted_random_index_generic(axi_aw_ready_negate_weights, total_weight);
+        negate_cycles = axi_aw_ready_negate_weights[selected_index].cycles;
+        axi_aw_ready_negate_pulses[i] = (negate_cycles > 0) ? 1'b1 : 1'b0;
+        
+        // Generate W ready negate pulses using weighted random
+        total_weight = calculate_total_weight_generic(axi_w_ready_negate_weights, axi_w_ready_negate_weights.size());
+        selected_index = generate_weighted_random_index_generic(axi_w_ready_negate_weights, total_weight);
+        negate_cycles = axi_w_ready_negate_weights[selected_index].cycles;
+        axi_w_ready_negate_pulses[i] = (negate_cycles > 0) ? 1'b1 : 1'b0;
+        
+        // Generate B ready negate pulses using weighted random
+        total_weight = calculate_total_weight_generic(axi_b_ready_negate_weights, axi_b_ready_negate_weights.size());
+        selected_index = generate_weighted_random_index_generic(axi_b_ready_negate_weights, total_weight);
+        negate_cycles = axi_b_ready_negate_weights[selected_index].cycles;
+        axi_b_ready_negate_pulses[i] = (negate_cycles > 0) ? 1'b1 : 1'b0;
+    end
+endfunction
+
 // Log output functions
 function automatic void write_log(input string message);
     if (LOG_ENABLE) begin
-        $fwrite(log_file_handle, "[%0t] %s\n", $time, message);
-        $fflush(log_file_handle);
+        $display("[%0t] %s", $time, message);
     end
 endfunction
 
 function automatic void write_debug_log(input string message);
     if (LOG_ENABLE && DEBUG_LOG_ENABLE) begin
-        $fwrite(log_file_handle, "[%0t] [DEBUG] %s\n", $time, message);
-        $fflush(log_file_handle);
+        $display("[%0t] [DEBUG] %s", $time, message);
     end
 endfunction
 
 // DUT instantiation
-axi_simple_dual_port_ram dut (
-    .clk(clk),
-    .rst_n(rst_n),
+axi_simple_dual_port_ram #(
+    .MEMORY_SIZE_BYTES(MEMORY_SIZE_BYTES),
+    .AXI_DATA_WIDTH(AXI_DATA_WIDTH),
+    .AXI_ID_WIDTH(AXI_ID_WIDTH)
+) dut (
+    .axi_clk(clk),
+    .axi_resetn(rst_n),
     .axi_aw_addr(axi_aw_addr),
     .axi_aw_burst(axi_aw_burst),
     .axi_aw_size(axi_aw_size),
@@ -549,8 +660,8 @@ axi_simple_dual_port_ram dut (
     .axi_aw_valid(axi_aw_valid),
     .axi_aw_ready(axi_aw_ready),
     .axi_w_data(axi_w_data),
-    .axi_w_strb(axi_w_strb),
     .axi_w_last(axi_w_last),
+    .axi_w_strb(axi_w_strb),
     .axi_w_valid(axi_w_valid),
     .axi_w_ready(axi_w_ready),
     .axi_b_resp(axi_b_resp),
@@ -565,28 +676,13 @@ axi_simple_dual_port_ram dut (
     .axi_ar_valid(axi_ar_valid),
     .axi_ar_ready(axi_ar_ready),
     .axi_r_data(axi_r_data),
+    .axi_r_id(axi_r_id),
     .axi_r_resp(axi_r_resp),
     .axi_r_last(axi_r_last),
     .axi_r_valid(axi_r_valid),
     .axi_r_ready(axi_r_ready)
 );
 
-// Initialize log file
-initial begin
-    if (LOG_ENABLE) begin
-        log_file_handle = $fopen(LOG_FILE_PATH, "w");
-        if (log_file_handle == 0) begin
-            $error("Failed to open log file: %s", LOG_FILE_PATH);
-        end else begin
-            write_log("=== AXI4 Testbench Log Start ===");
-            write_log("Test Parameters:");
-            write_log("  - MEMORY_SIZE_BYTES: " + $sformatf("%0d", MEMORY_SIZE_BYTES));
-            write_log("  - AXI_DATA_WIDTH: " + $sformatf("%0d", AXI_DATA_WIDTH));
-            write_log("  - TOTAL_TEST_COUNT: " + $sformatf("%0d", TOTAL_TEST_COUNT));
-            write_log("  - PHASE_TEST_COUNT: " + $sformatf("%0d", PHASE_TEST_COUNT));
-        end
-    end
-end
 
 // Time 0 payload and expected value generation
 initial begin
@@ -608,6 +704,9 @@ initial begin
     // Generate Write Response Channel expected values
     generate_write_resp_expected();
     
+    // Initialize ready negate pulse arrays
+    initialize_ready_negate_pulses();
+    
     $display("Payloads and Expected Values Generated:");
     $display("  Write Address - Basic: %0d, Stall: %0d", 
              write_addr_payloads.size(), write_addr_payloads_with_stall.size());
@@ -625,6 +724,7 @@ end
 
 // Test scenario control
 initial begin
+    
     // Initialize
     current_phase = 8'd0;
     write_addr_phase_start = 1'b0;
@@ -658,9 +758,11 @@ initial begin
     
     @(posedge clk);
     #1;
-    write_addr_phase_done_latched = 1'b0;
-    write_data_phase_done_latched = 1'b0;
-    
+    clear_phase_latches = 1'b1;  // Assert clear signal
+    @(posedge clk);
+    #1;
+    clear_phase_latches = 1'b0;  // Deassert clear signal
+        
     current_phase = current_phase + 8'd1;
     
     // Phase control loop
@@ -688,11 +790,10 @@ initial begin
         
         @(posedge clk);
         #1;
-        // Clear latched signals
-        write_addr_phase_done_latched = 1'b0;
-        read_addr_phase_done_latched = 1'b0;
-        write_data_phase_done_latched = 1'b0;
-        read_data_phase_done_latched = 1'b0;
+        clear_phase_latches = 1'b1;  // Assert clear signal
+        @(posedge clk);
+        #1;
+        clear_phase_latches = 1'b0;  // Deassert clear signal
         
         current_phase = current_phase + 8'd1;
     end
@@ -709,23 +810,33 @@ initial begin
     read_data_phase_start = 1'b0;
     
     // Wait for final phase completion
-    wait(read_addr_phase_done_latched && write_data_phase_done_latched);
+    wait(read_addr_phase_done_latched && read_data_phase_done_latched);
     
     $display("Phase %0d: All Channels Completed", current_phase);
     
     @(posedge clk);
     #1;
-    read_addr_phase_done_latched = 1'b0;
-    read_data_phase_done_latched = 1'b0;
-    
-    // All phases completed
+    clear_phase_latches = 1'b1;  // Assert clear signal
+    @(posedge clk);
+    #1;
+    clear_phase_latches = 1'b0;  // Deassert clear signal
+        
+        // All phases completed
     $display("All Phases Completed. Test Scenario Finished.");
+    test_execution_completed = 1'b1;  // Set test completion flag
+    #1 // Wait for test completion log to be written
     $finish;
 end
 
 // Phase completion signal latches
 always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
+        write_addr_phase_done_latched <= 1'b0;
+        read_addr_phase_done_latched <= 1'b0;
+        write_data_phase_done_latched <= 1'b0;
+        read_data_phase_done_latched <= 1'b0;
+    end else if (clear_phase_latches) begin
+        // Clear latched signals when clear signal is asserted
         write_addr_phase_done_latched <= 1'b0;
         read_addr_phase_done_latched <= 1'b0;
         write_data_phase_done_latched <= 1'b0;
@@ -782,9 +893,9 @@ always_ff @(posedge clk or negedge rst_n) begin
                 if (write_addr_phase_counter < PHASE_TEST_COUNT && 
                     write_addr_array_index < write_addr_payloads_with_stall.size()) begin
                     
-                    if (axi_aw_ready || !axi_aw_valid) begin
-                        // Output payload
-                        write_addr_payload_t payload = write_addr_payloads_with_stall[write_addr_array_index];
+                    if (axi_aw_ready) begin
+                        // Output payload when ready is asserted
+                        automatic write_addr_payload_t payload = write_addr_payloads_with_stall[write_addr_array_index];
                         
                         axi_aw_addr <= payload.addr;
                         axi_aw_burst <= payload.burst;
@@ -867,9 +978,9 @@ always_ff @(posedge clk or negedge rst_n) begin
                 if (read_addr_phase_counter < PHASE_TEST_COUNT && 
                     read_addr_array_index < read_addr_payloads_with_stall.size()) begin
                     
-                    if (axi_ar_ready || !axi_ar_valid) begin
-                        // Output payload
-                        read_addr_payload_t payload = read_addr_payloads_with_stall[read_addr_array_index];
+                    if (axi_ar_ready) begin
+                        // Output payload when ready is asserted
+                        automatic read_addr_payload_t payload = read_addr_payloads_with_stall[read_addr_array_index];
                         
                         axi_ar_addr <= payload.addr;
                         axi_ar_burst <= payload.burst;
@@ -950,9 +1061,9 @@ always_ff @(posedge clk or negedge rst_n) begin
                 if (write_data_phase_counter < PHASE_TEST_COUNT && 
                     write_data_array_index < write_data_payloads_with_stall.size()) begin
                     
-                    if (axi_w_ready || !axi_w_valid) begin
-                        // Output payload
-                        write_data_payload_t payload = write_data_payloads_with_stall[write_data_array_index];
+                    if (axi_w_ready) begin
+                        // Output payload when ready is asserted
+                        automatic write_data_payload_t payload = write_data_payloads_with_stall[write_data_array_index];
                         
                         axi_w_data <= payload.data;
                         axi_w_strb <= payload.strb;
@@ -1031,7 +1142,7 @@ always_ff @(posedge clk or negedge rst_n) begin
                     
                     if (axi_r_valid && axi_r_ready) begin
                         // Verify expected data
-                        read_data_expected_t expected = read_data_expected[read_data_array_index];
+                        automatic read_data_expected_t expected = read_data_expected[read_data_array_index];
                         
                         if (axi_r_data !== expected.expected_data) begin
                             $error("Read Data Mismatch at index %0d: Expected 0x%h, Got 0x%h", 
@@ -1091,6 +1202,7 @@ logic                      axi_ar_valid_delayed;
 logic                      axi_ar_ready_delayed;
 
 logic [AXI_DATA_WIDTH-1:0] axi_r_data_delayed;
+logic [AXI_ID_WIDTH-1:0]   axi_r_id_delayed;
 logic [1:0]                axi_r_resp_delayed;
 logic                       axi_r_last_delayed;
 logic                       axi_r_valid_delayed;
@@ -1125,6 +1237,7 @@ always_ff @(posedge clk) begin
     
     // Read Data Channel
     axi_r_data_delayed <= axi_r_data;
+    axi_r_id_delayed <= axi_r_id;
     axi_r_resp_delayed <= axi_r_resp;
     axi_r_last_delayed <= axi_r_last;
     axi_r_valid_delayed <= axi_r_valid;
@@ -1253,6 +1366,11 @@ always_ff @(posedge clk or negedge rst_n) begin
                        axi_r_data, axi_r_data_delayed);
                 $finish;
             end
+            if (axi_r_id !== axi_r_id_delayed) begin
+                $error("Read Data Channel: ID changed during Ready negated. Current: %0d, Delayed: %0d", 
+                       axi_r_id, axi_r_id_delayed);
+                $finish;
+            end
             if (axi_r_resp !== axi_r_resp_delayed) begin
                 $error("Read Data Channel: Response changed during Ready negated. Current: %0d, Delayed: %0d", 
                        axi_r_resp, axi_r_resp_delayed);
@@ -1272,27 +1390,68 @@ always_ff @(posedge clk or negedge rst_n) begin
     end
 end
 
-// Test completion summary
+// Test start and completion summary
 initial begin
-    wait(generate_stimulus_expected_done);
-    
-    // Display results summary (not to file)
-    $display("\n=== AXI4 Testbench Results Summary ===");
-    $display("Test Configuration:");
-    $display("  - Memory Size: %0d bytes (%0d MB)", MEMORY_SIZE_BYTES, MEMORY_SIZE_BYTES/1024/1024);
-    $display("  - Data Width: %0d bits", AXI_DATA_WIDTH);
-    $display("  - Total Test Count: %0d", TOTAL_TEST_COUNT);
-    $display("  - Phase Test Count: %0d", PHASE_TEST_COUNT);
-    $display("  - Number of Phases: %0d", (TOTAL_TEST_COUNT / PHASE_TEST_COUNT));
-    
-    // Log results to file
     if (LOG_ENABLE) begin
-        write_log("=== Test Results Summary ===");
-        write_log($sformatf("Total Test Count: %0d", TOTAL_TEST_COUNT));
-        write_log($sformatf("Number of Phases: %0d", (TOTAL_TEST_COUNT / PHASE_TEST_COUNT)));
-        write_log("Test execution completed successfully");
+        // Phase 1: Display test configuration
+        write_log("=== AXI4 Testbench Configuration ===");
+        write_log("Test Configuration:");
+        write_log($sformatf("  - Memory Size: %0d bytes (%0d MB)", MEMORY_SIZE_BYTES, MEMORY_SIZE_BYTES/1024/1024));
+        write_log($sformatf("  - Data Width: %0d bits", AXI_DATA_WIDTH));
+        write_log($sformatf("  - Total Test Count: %0d", TOTAL_TEST_COUNT));
+        write_log($sformatf("  - Phase Test Count: %0d", PHASE_TEST_COUNT));
+        write_log($sformatf("  - Number of Phases: %0d", (TOTAL_TEST_COUNT / PHASE_TEST_COUNT)));
+        
+        // Wait for stimulus generation completion
+        wait(generate_stimulus_expected_done);
+        
+        // Phase 2: Display generated payloads summary
+        write_log("=== Generated Payloads Summary ===");
+        write_log("Generated Test Data:");
+        write_log($sformatf("  - Write Address Payloads: %0d", write_addr_payloads.size()));
+        write_log($sformatf("  - Write Address with Stall: %0d", write_addr_payloads_with_stall.size()));
+        write_log($sformatf("  - Write Data Payloads: %0d", write_data_payloads.size()));
+        write_log($sformatf("  - Write Data with Stall: %0d", write_data_payloads_with_stall.size()));
+        write_log($sformatf("  - Read Address Payloads: %0d", read_addr_payloads.size()));
+        write_log($sformatf("  - Read Address with Stall: %0d", read_addr_payloads_with_stall.size()));
+        write_log($sformatf("  - Read Data Expected: %0d", read_data_expected.size()));
+        write_log($sformatf("  - Write Response Expected: %0d", write_resp_expected.size()));
+        
+        // Wait for test execution completion
+        wait(test_execution_completed);
+        
+        // Phase 3: Display test execution results summary
+        write_log("=== Test Execution Results Summary ===");
+        write_log("Test Results:");
+        write_log($sformatf("  - Total Tests Executed: %0d", TOTAL_TEST_COUNT));
+        write_log($sformatf("  - Total Phases Completed: %0d", (TOTAL_TEST_COUNT / PHASE_TEST_COUNT)));
+        write_log("  - All Phases: PASS");
+        write_log("  - Test Status: COMPLETED SUCCESSFULLY");
         write_log("=== AXI4 Testbench Log End ===");
-        $fclose(log_file_handle);
+    end
+end
+
+// Ready negate control logic
+always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+        ready_negate_index <= 0;
+        axi_aw_ready <= 1'b1;
+        axi_w_ready <= 1'b1;
+        axi_b_ready <= 1'b1;
+    end else begin
+        // Update ready negate index
+        if (ready_negate_index >= READY_NEGATE_ARRAY_LENGTH - 1) begin
+            ready_negate_index <= 0;  // Reset to 0 when reaching maximum
+        end else begin
+            ready_negate_index <= ready_negate_index + 1;
+        end
+        
+        // Control ready signals based on pulse arrays
+        // Note: ! is used because axi_*_ready_negate_pulses[i] = 1 means "negate ready signal"
+        //       So we need to invert: !1 = 0 (negate), !0 = 1 (active)
+        axi_aw_ready <= !axi_aw_ready_negate_pulses[ready_negate_index];
+        axi_w_ready <= !axi_w_ready_negate_pulses[ready_negate_index];
+        axi_b_ready <= !axi_b_ready_negate_pulses[ready_negate_index];
     end
 end
 
@@ -1368,7 +1527,7 @@ always @(posedge clk) begin
 end
 
 // Write Response Channel Control and Verification
-logic axi_b_ready = 1'b1;  // Always ready to accept responses
+// axi_b_ready is already declared at line 62, so we just use it
 
 // Write Response verification
 always_ff @(posedge clk or negedge rst_n) begin
@@ -1377,7 +1536,8 @@ always_ff @(posedge clk or negedge rst_n) begin
     end else begin
         if (axi_b_valid && axi_b_ready) begin
             // Find corresponding expected response
-            int found_index = -1;
+            automatic int found_index = -1;
+            automatic int i;
             foreach (write_resp_expected[i]) begin
                 if (write_resp_expected[i].expected_id === axi_b_id) begin
                     found_index = i;
@@ -1386,7 +1546,7 @@ always_ff @(posedge clk or negedge rst_n) begin
             end
             
             if (found_index >= 0) begin
-                write_resp_expected_t expected = write_resp_expected[found_index];
+                automatic write_resp_expected_t expected = write_resp_expected[found_index];
                 
                 // Verify response
                 if (axi_b_resp !== expected.expected_resp) begin
