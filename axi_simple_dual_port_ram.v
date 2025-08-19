@@ -176,7 +176,7 @@ module axi_simple_dual_port_ram #(
     assign r_t0_state_ready = (r_t0_count == 8'hFF) || (r_t0_count == 0);
 
     // AXI interface signals
-    assign axi_ar_ready = axi_ar_valid && r_t0_state_ready;
+    assign axi_ar_ready = axi_r_ready && r_t0_state_ready;
     assign axi_r_data = r_t1_data;
     assign axi_r_id = r_t1_id;
     assign axi_r_resp = 2'b00;  // OKAY response
