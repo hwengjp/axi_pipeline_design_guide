@@ -59,7 +59,7 @@ wire                       axi_w_ready;
 wire [1:0]                axi_b_resp;
 wire [AXI_ID_WIDTH-1:0]   axi_b_id;
 wire                       axi_b_valid;
-logic                      axi_b_ready = 1'b1;
+logic                      axi_b_ready;
 
 // AXI4 Read Address Channel
 logic [AXI_ADDR_WIDTH-1:0] axi_ar_addr;
@@ -76,7 +76,7 @@ wire [AXI_ID_WIDTH-1:0]   axi_r_id;
 wire [1:0]                axi_r_resp;
 wire                       axi_r_last;
 wire                       axi_r_valid;
-logic                      axi_r_ready = 1'b1;
+logic                      axi_r_ready;
 
 // Test data generation completion flag
 logic generate_stimulus_expected_done = 1'b0;
@@ -87,9 +87,8 @@ logic test_execution_completed = 1'b0;
 // Ready negate control parameters
 parameter READY_NEGATE_ARRAY_LENGTH = 1000;  // Length of ready negate pulse array
 
-// Ready negate pulse arrays for each channel
-logic [READY_NEGATE_ARRAY_LENGTH-1:0] axi_aw_ready_negate_pulses;
-logic [READY_NEGATE_ARRAY_LENGTH-1:0] axi_w_ready_negate_pulses;
+// Ready negate pulse arrays for TB controlled channels
+logic [READY_NEGATE_ARRAY_LENGTH-1:0] axi_r_ready_negate_pulses;
 logic [READY_NEGATE_ARRAY_LENGTH-1:0] axi_b_ready_negate_pulses;
 
 // Ready negate array index counter
@@ -135,23 +134,17 @@ bubble_param_t read_addr_bubble_weights[] = '{
     '{weight: 5, cycles: 2}
 };
 
-// Ready negate weights for each channel
-bubble_param_t axi_aw_ready_negate_weights[] = '{
+// Ready negate weights for TB controlled channels
+bubble_param_t axi_r_ready_negate_weights[] = '{
     '{weight: 80, cycles: 0},  // 80% probability: no negate
     '{weight: 5, cycles: 1},  // 15% probability: negate for 1 cycle
     '{weight: 5, cycles: 2}    // 5% probability: negate for 2 cycles
 };
 
-bubble_param_t axi_w_ready_negate_weights[] = '{
-    '{weight: 80, cycles: 0},  // 85% probability: no negate
-    '{weight: 5, cycles: 1},  // 12% probability: negate for 1 cycle
-    '{weight: 5, cycles: 2}    // 3% probability: negate for 2 cycles
-};
-
 bubble_param_t axi_b_ready_negate_weights[] = '{
-    '{weight: 80, cycles: 0},  // 90% probability: no negate
-    '{weight: 5, cycles: 1},   // 8% probability: negate for 1 cycle
-    '{weight: 5, cycles: 2}    // 2% probability: negate for 2 cycles
+    '{weight: 80, cycles: 0},  // 80% probability: no negate
+    '{weight: 5, cycles: 1},  // 15% probability: negate for 1 cycle
+    '{weight: 5, cycles: 2}    // 5% probability: negate for 2 cycles
 };
 
 // Payload structures
@@ -668,17 +661,11 @@ function automatic void initialize_ready_negate_pulses();
     int negate_cycles;
     
     for (i = 0; i < READY_NEGATE_ARRAY_LENGTH; i = i + 1) begin
-        // Generate AW ready negate pulses using weighted random
-        total_weight = calculate_total_weight_generic(axi_aw_ready_negate_weights, axi_aw_ready_negate_weights.size());
-        selected_index = generate_weighted_random_index_generic(axi_aw_ready_negate_weights, total_weight);
-        negate_cycles = axi_aw_ready_negate_weights[selected_index].cycles;
-        axi_aw_ready_negate_pulses[i] = (negate_cycles > 0) ? 1'b1 : 1'b0;
-        
-        // Generate W ready negate pulses using weighted random
-        total_weight = calculate_total_weight_generic(axi_w_ready_negate_weights, axi_w_ready_negate_weights.size());
-        selected_index = generate_weighted_random_index_generic(axi_w_ready_negate_weights, total_weight);
-        negate_cycles = axi_w_ready_negate_weights[selected_index].cycles;
-        axi_w_ready_negate_pulses[i] = (negate_cycles > 0) ? 1'b1 : 1'b0;
+        // Generate R ready negate pulses using weighted random
+        total_weight = calculate_total_weight_generic(axi_r_ready_negate_weights, axi_r_ready_negate_weights.size());
+        selected_index = generate_weighted_random_index_generic(axi_r_ready_negate_weights, total_weight);
+        negate_cycles = axi_r_ready_negate_weights[selected_index].cycles;
+        axi_r_ready_negate_pulses[i] = (negate_cycles > 0) ? 1'b1 : 1'b0;
         
         // Generate B ready negate pulses using weighted random
         total_weight = calculate_total_weight_generic(axi_b_ready_negate_weights, axi_b_ready_negate_weights.size());
@@ -1067,18 +1054,19 @@ always_ff @(posedge clk or negedge rst_n) begin
                                 payload.size, payload.id, payload.len, payload.valid));
                         end
                         
-                        // アドレス送信完了の判定
-                        if (payload.valid) begin
-                            // 次のペイロードを出力
-                            axi_aw_addr <= payload.addr;
-                            axi_aw_burst <= payload.burst;
-                            axi_aw_size <= payload.size;
-                            axi_aw_id <= payload.id;
-                            axi_aw_len <= payload.len;
-                            axi_aw_valid <= payload.valid;
-                            
-                            // カウンターを増加（アドレス送信完了時）
-                            if (write_addr_phase_counter < PHASE_TEST_COUNT) begin
+                        // 次のペイロードを出力
+                        axi_aw_addr <= payload.addr;
+                        axi_aw_burst <= payload.burst;
+                        axi_aw_size <= payload.size;
+                        axi_aw_id <= payload.id;
+                        axi_aw_len <= payload.len;
+                        axi_aw_valid <= payload.valid;
+                        
+                        // アドレス送信完了の判定（axi_aw_validの時）
+                        if (axi_aw_valid) begin
+                            // 現在のカウンター値でPhase完了判定
+                            if (write_addr_phase_counter < PHASE_TEST_COUNT - 1) begin
+                                // Phase継続: カウンターを増加
                                 write_addr_phase_counter <= write_addr_phase_counter + 8'd1;
                                 write_debug_log($sformatf("Write Addr Phase: Address sent, counter=%0d/%0d", 
                                     write_addr_phase_counter + 1, PHASE_TEST_COUNT));
@@ -1097,9 +1085,6 @@ always_ff @(posedge clk or negedge rst_n) begin
                                 
                                 write_debug_log("Write Addr Phase: Phase completed, all signals cleared");
                             end
-                        end else begin
-                            // 無効なペイロード: 信号をクリア
-                            axi_aw_valid <= 1'b0;
                         end
                     end else begin
                         // 配列終了: 全信号をクリアしてPhase完了
@@ -1187,18 +1172,19 @@ always_ff @(posedge clk or negedge rst_n) begin
                                 payload.size, payload.id, payload.len, payload.valid));
                         end
                         
-                        // アドレス送信完了の判定
-                        if (payload.valid) begin
-                            // 次のペイロードを出力
-                            axi_ar_addr <= payload.addr;
-                            axi_ar_burst <= payload.burst;
-                            axi_ar_size <= payload.size;
-                            axi_ar_id <= payload.id;
-                            axi_ar_len <= payload.len;
-                            axi_ar_valid <= payload.valid;
-                            
-                            // カウンターを増加（アドレス送信完了時）
-                            if (read_addr_phase_counter < PHASE_TEST_COUNT) begin
+                        // 次のペイロードを出力
+                        axi_ar_addr <= payload.addr;
+                        axi_ar_burst <= payload.burst;
+                        axi_ar_size <= payload.size;
+                        axi_ar_id <= payload.id;
+                        axi_ar_len <= payload.len;
+                        axi_ar_valid <= payload.valid;
+                        
+                        // アドレス送信完了の判定（axi_ar_validの時）
+                        if (axi_ar_valid) begin
+                            // 現在のカウンター値でPhase完了判定
+                            if (read_addr_phase_counter < PHASE_TEST_COUNT - 1) begin
+                                // Phase継続: カウンターを増加
                                 read_addr_phase_counter <= read_addr_phase_counter + 8'd1;
                                 write_debug_log($sformatf("Read Addr Phase: Address sent, counter=%0d/%0d", 
                                     read_addr_phase_counter + 1, PHASE_TEST_COUNT));
@@ -1217,9 +1203,6 @@ always_ff @(posedge clk or negedge rst_n) begin
                                 
                                 write_debug_log("Read Addr Phase: Phase completed, all signals cleared");
                             end
-                        end else begin
-                            // 無効なペイロード: 信号をクリア
-                            axi_ar_valid <= 1'b0;
                         end
                     end else begin
                         // 配列終了: 全信号をクリアしてPhase完了
@@ -1305,19 +1288,20 @@ always_ff @(posedge clk or negedge rst_n) begin
                                 payload.last, payload.valid));
                         end
                         
-                        // Phase完了判定（payload.lastの時）
-                        if (payload.last) begin
-                            if (write_data_phase_counter < PHASE_TEST_COUNT) begin
-                                // Phase継続: カウンターを増加
+                        // 次のペイロードを出力
+                        axi_w_data <= payload.data;
+                        axi_w_strb <= payload.strb;
+                        axi_w_last <= payload.last;
+                        axi_w_valid <= payload.valid;
+                        
+                        // Phase完了判定（axi_w_lastの時）
+                        if (axi_w_last) begin
+                            // 現在のカウンター値でPhase完了判定
+                            if (write_data_phase_counter < PHASE_TEST_COUNT - 1) begin
+                                // Phase継続: カウンターを増加して次のペイロードを出力
                                 write_data_phase_counter <= write_data_phase_counter + 8'd1;
                                 write_debug_log($sformatf("Write Data Phase: Burst completed, counter=%0d/%0d", 
                                     write_data_phase_counter + 1, PHASE_TEST_COUNT));
-                                
-                                // 次のペイロードを出力
-                                axi_w_data <= payload.data;
-                                axi_w_strb <= payload.strb;
-                                axi_w_last <= payload.last;
-                                axi_w_valid <= payload.valid;
                             end else begin
                                 // Phase完了: 全信号をクリア
                                 axi_w_data <= '0;
@@ -1331,12 +1315,6 @@ always_ff @(posedge clk or negedge rst_n) begin
                                 
                                 write_debug_log("Write Data Phase: Phase completed, all signals cleared");
                             end
-                        end else begin
-                            // バースト継続: 通常のペイロード出力
-                            axi_w_data <= payload.data;
-                            axi_w_strb <= payload.strb;
-                            axi_w_last <= payload.last;
-                            axi_w_valid <= payload.valid;
                         end
                     end else begin
                         // 配列終了: 全信号をクリアしてPhase完了
@@ -1426,7 +1404,8 @@ always_ff @(posedge clk or negedge rst_n) begin
                         
                         // バースト完了の判定（last=1の時）
                         if (axi_r_last) begin
-                            if (read_data_phase_counter < PHASE_TEST_COUNT) begin
+                            // 現在のカウンター値でPhase完了判定
+                            if (read_data_phase_counter < PHASE_TEST_COUNT - 1) begin
                                 // Phase継続: カウンターを増加
                                 read_data_phase_counter <= read_data_phase_counter + 8'd1;
                                 write_debug_log($sformatf("Read Data Phase: Burst completed, counter=%0d/%0d", 
@@ -1725,7 +1704,8 @@ always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
         ready_negate_index <= 0;
         // axi_aw_ready and axi_w_ready are controlled by DUT (wire signals)
-        // axi_b_ready is controlled by initial value (1'b1)
+        axi_r_ready <= 1'b1;
+        axi_b_ready <= 1'b1;
     end else begin
         // Update ready negate index
         if (ready_negate_index >= READY_NEGATE_ARRAY_LENGTH - 1) begin
@@ -1736,8 +1716,9 @@ always_ff @(posedge clk or negedge rst_n) begin
         
         // Control ready signals based on pulse arrays
         // Note: axi_aw_ready and axi_w_ready are controlled by DUT (wire signals)
-        //       Only axi_b_ready is controlled by TB for testing purposes
-        // axi_b_ready is controlled by initial value (1'b1)
+        //       axi_r_ready and axi_b_ready are controlled by TB for testing purposes
+        axi_r_ready <= !axi_r_ready_negate_pulses[ready_negate_index];
+        axi_b_ready <= !axi_b_ready_negate_pulses[ready_negate_index];
     end
 end
 
@@ -1889,17 +1870,12 @@ always_ff @(posedge clk or negedge rst_n) begin
                                 axi_b_id, axi_b_resp, expected.expected_resp));
                         end
                         
-                        // レスポンス完了の判定
-                        if (write_resp_phase_counter < PHASE_TEST_COUNT) begin
+                        // 現在のカウンター値でPhase完了判定
+                        if (write_resp_phase_counter < PHASE_TEST_COUNT - 1) begin
                             // Phase継続: カウンターを増加
                             write_resp_phase_counter <= write_resp_phase_counter + 8'd1;
                             write_debug_log($sformatf("Write Resp Phase: Response received, counter=%0d/%0d", 
                                 write_resp_phase_counter + 1, PHASE_TEST_COUNT));
-                            
-                            // カウンターがPHASE_TEST_COUNTに達したかチェック
-                            if (write_resp_phase_counter + 1 >= PHASE_TEST_COUNT) begin
-                                write_debug_log("Write Resp Phase: Counter reached PHASE_TEST_COUNT, preparing for completion");
-                            end
                         end else begin
                             // Phase完了: 全信号をクリア
                             // axi_b_ready is controlled by initial value (1'b1)
