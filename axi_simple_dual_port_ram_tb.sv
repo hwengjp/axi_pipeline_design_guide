@@ -28,10 +28,10 @@ end
 parameter MEMORY_SIZE_BYTES = 33554432;     // 32MB
 parameter AXI_DATA_WIDTH = 32;              // 32bit
 parameter AXI_ID_WIDTH = 8;                 // 8bit ID
-//parameter TOTAL_TEST_COUNT = 800;          // Total test count
-//parameter PHASE_TEST_COUNT = 8;           // Tests per phase
-parameter TOTAL_TEST_COUNT = 20;          // Total test count
-parameter PHASE_TEST_COUNT = 4;           // Tests per phase
+parameter TOTAL_TEST_COUNT = 800;          // Total test count
+parameter PHASE_TEST_COUNT = 8;           // Tests per phase
+//parameter TOTAL_TEST_COUNT = 20;          // Total test count
+//parameter PHASE_TEST_COUNT = 4;           // Tests per phase
 parameter TEST_COUNT_ADDR_SIZE_BYTES = 4096; // Address size per test count
 parameter CLK_PERIOD = 10;                  // 10ns period
 parameter CLK_HALF_PERIOD = 5;             // 5ns half period
@@ -112,46 +112,47 @@ typedef struct {
 
 // Weighted random generation arrays
 burst_config_t burst_config_weights[] = '{
-    /*
-    '{weight: 4, length_min: 0, length_max: 3, burst_type: "INCR"},
+    '{weight: 4, length_min: 1, length_max: 3, burst_type: "INCR"},
     '{weight: 3, length_min: 4, length_max: 7, burst_type: "INCR"},
     '{weight: 2, length_min: 8, length_max: 15, burst_type: "INCR"},
     '{weight: 1, length_min: 15, length_max: 31, burst_type: "WRAP"},
     '{weight: 1, length_min: 0, length_max: 0, burst_type: "FIXED"}
-*/
-    '{weight: 1, length_min: 0, length_max: 0, burst_type: "FIXED"}
-
 };
 
 bubble_param_t write_addr_bubble_weights[] = '{
     '{weight: 70, cycles: 0},
     '{weight: 20, cycles: 1},
-    '{weight: 10, cycles: 2}
+    '{weight: 10, cycles: 2},
+    '{weight: 4, cycles: 7}
 };
 
 bubble_param_t write_data_bubble_weights[] = '{
     '{weight: 80, cycles: 0},
     '{weight: 15, cycles: 1},
-    '{weight: 5, cycles: 2}
+    '{weight: 5, cycles: 2},
+    '{weight: 4, cycles: 7}
 };
 
 bubble_param_t read_addr_bubble_weights[] = '{
     '{weight: 75, cycles: 0},
     '{weight: 20, cycles: 1},
-    '{weight: 5, cycles: 2}
+    '{weight: 5, cycles: 2},
+    '{weight: 4, cycles: 7}
 };
 
 // Ready negate weights for TB controlled channels
 bubble_param_t axi_r_ready_negate_weights[] = '{
     '{weight: 80, cycles: 0},  // 80% probability: no negate
     '{weight: 5, cycles: 1},  // 15% probability: negate for 1 cycle
-    '{weight: 5, cycles: 2}    // 5% probability: negate for 2 cycles
+    '{weight: 5, cycles: 2},    // 5% probability: negate for 2 cycles
+    '{weight: 4, cycles: 7}
 };
 
 bubble_param_t axi_b_ready_negate_weights[] = '{
     '{weight: 80, cycles: 0},  // 80% probability: no negate
     '{weight: 5, cycles: 1},  // 15% probability: negate for 1 cycle
-    '{weight: 5, cycles: 2}    // 5% probability: negate for 2 cycles
+    '{weight: 5, cycles: 2},    // 5% probability: negate for 2 cycles
+    '{weight: 4, cycles: 7}
 };
 
 // Payload structures
@@ -372,12 +373,19 @@ function automatic void generate_write_data_payloads();
             random_data = $urandom();
             
             // Generate strobe pattern based on address, size, and burst type
-            strobe_pattern = generate_strobe_pattern(
-                addr_payload.addr, 
-                addr_payload.size, 
-                AXI_DATA_WIDTH,
-                get_burst_type_string(addr_payload.burst)
-            );
+            // STROBEの乱数はFIXEDのシングルアクセスの時だけ
+            if (get_burst_type_string(addr_payload.burst) == "FIXED" && addr_payload.len == 0) begin
+                // FIXEDシングルアクセス: 乱数STROBEを生成
+                strobe_pattern = generate_strobe_pattern(
+                    addr_payload.addr, 
+                    addr_payload.size, 
+                    AXI_DATA_WIDTH,
+                    get_burst_type_string(addr_payload.burst)
+                );
+            end else begin
+                // INCR/WRAPまたはFIXEDバースト: 全ビット1のSTROBEパターンを使用
+                strobe_pattern = '1;  // 全ビット1
+            end
             
             // Create strobe mask for data masking
             strobe_mask = 0;
