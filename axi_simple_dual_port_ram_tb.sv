@@ -28,8 +28,8 @@ end
 parameter MEMORY_SIZE_BYTES = 33554432;     // 32MB
 parameter AXI_DATA_WIDTH = 32;              // 32bit
 parameter AXI_ID_WIDTH = 8;                 // 8bit ID
-parameter TOTAL_TEST_COUNT = 20;          // Total test count
-parameter PHASE_TEST_COUNT = 2;           // Tests per phase
+parameter TOTAL_TEST_COUNT = 800;          // Total test count
+parameter PHASE_TEST_COUNT = 8;           // Tests per phase
 parameter TEST_COUNT_ADDR_SIZE_BYTES = 4096; // Address size per test count
 parameter CLK_PERIOD = 10;                  // 10ns period
 parameter CLK_HALF_PERIOD = 5;             // 5ns half period
@@ -269,6 +269,7 @@ function automatic void generate_write_addr_payloads();
         selected_length = $urandom_range(burst_cfg.length_min, burst_cfg.length_max);
         selected_type = burst_cfg.burst_type;
         
+        // Calculate phase for logging purposes (not used in address calculation)
         phase = test_count / PHASE_TEST_COUNT;
         
         // Generate random offset within TEST_COUNT_ADDR_SIZE_BYTES/4
@@ -278,8 +279,8 @@ function automatic void generate_write_addr_payloads();
         burst_size_bytes = (selected_length + 1) * (AXI_DATA_WIDTH / 8);
         aligned_offset = align_address_to_boundary(random_offset, burst_size_bytes, selected_type);
         
-        // Add phase offset
-        base_addr = aligned_offset + (phase * TEST_COUNT_ADDR_SIZE_BYTES);
+        // Add test_count offset to avoid address overlap within same phase
+        base_addr = aligned_offset + (test_count * TEST_COUNT_ADDR_SIZE_BYTES);
         
         write_addr_payloads[test_count] = '{
             test_count: test_count,
@@ -322,11 +323,11 @@ function automatic void generate_write_addr_payloads_with_stall();
         for (int stall = 0; stall < stall_cycles; stall++) begin
             write_addr_payloads_with_stall[stall_index] = '{
                 test_count: payload.test_count,
-                addr: payload.addr,
-                burst: payload.burst,
-                size: payload.size,
-                id: payload.id,
-                len: payload.len,
+                addr: '0,        // Clear address to 0 when valid=0
+                burst: '0,       // Clear burst to 0 when valid=0
+                size: '0,        // Clear size to 0 when valid=0
+                id: '0,          // Clear ID to 0 when valid=0
+                len: '0,         // Clear length to 0 when valid=0
                 valid: 1'b0,
                 phase: payload.phase
             };
@@ -417,9 +418,9 @@ function automatic void generate_write_data_payloads_with_stall();
         for (int stall = 0; stall < stall_cycles; stall++) begin
             write_data_payloads_with_stall[stall_index] = '{
                 test_count: payload.test_count,
-                data: payload.data,
-                strb: payload.strb,
-                last: payload.last,
+                data: '0,        // Clear data to 0 when valid=0
+                strb: '0,        // Clear strobe to 0 when valid=0
+                last: 1'b0,      // Clear last to 0 when valid=0
                 valid: 1'b0,
                 phase: payload.phase
             };
@@ -467,11 +468,11 @@ function automatic void generate_read_addr_payloads_with_stall();
         for (int stall = 0; stall < stall_cycles; stall++) begin
             read_addr_payloads_with_stall[stall_index] = '{
                 test_count: payload.test_count,
-                addr: payload.addr,
-                burst: payload.burst,
-                size: payload.size,
-                id: payload.id,
-                len: payload.len,
+                addr: '0,        // Clear address to 0 when valid=0
+                burst: '0,       // Clear burst to 0 when valid=0
+                size: '0,        // Clear size to 0 when valid=0
+                id: '0,          // Clear ID to 0 when valid=0
+                len: '0,         // Clear length to 0 when valid=0
                 valid: 1'b0,
                 phase: payload.phase
             };
