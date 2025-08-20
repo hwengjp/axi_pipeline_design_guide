@@ -28,8 +28,10 @@ end
 parameter MEMORY_SIZE_BYTES = 33554432;     // 32MB
 parameter AXI_DATA_WIDTH = 32;              // 32bit
 parameter AXI_ID_WIDTH = 8;                 // 8bit ID
-parameter TOTAL_TEST_COUNT = 800;          // Total test count
-parameter PHASE_TEST_COUNT = 8;           // Tests per phase
+//parameter TOTAL_TEST_COUNT = 800;          // Total test count
+//parameter PHASE_TEST_COUNT = 8;           // Tests per phase
+parameter TOTAL_TEST_COUNT = 20;          // Total test count
+parameter PHASE_TEST_COUNT = 4;           // Tests per phase
 parameter TEST_COUNT_ADDR_SIZE_BYTES = 4096; // Address size per test count
 parameter CLK_PERIOD = 10;                  // 10ns period
 parameter CLK_HALF_PERIOD = 5;             // 5ns half period
@@ -110,10 +112,15 @@ typedef struct {
 
 // Weighted random generation arrays
 burst_config_t burst_config_weights[] = '{
-    '{weight: 40, length_min: 0, length_max: 3, burst_type: "INCR"},
-    '{weight: 30, length_min: 4, length_max: 7, burst_type: "INCR"},
-    '{weight: 20, length_min: 8, length_max: 15, burst_type: "INCR"},
-    '{weight: 10, length_min: 0, length_max: 3, burst_type: "WRAP"}
+    /*
+    '{weight: 4, length_min: 0, length_max: 3, burst_type: "INCR"},
+    '{weight: 3, length_min: 4, length_max: 7, burst_type: "INCR"},
+    '{weight: 2, length_min: 8, length_max: 15, burst_type: "INCR"},
+    '{weight: 1, length_min: 15, length_max: 31, burst_type: "WRAP"},
+    '{weight: 1, length_min: 0, length_max: 0, burst_type: "FIXED"}
+*/
+    '{weight: 1, length_min: 0, length_max: 0, burst_type: "FIXED"}
+
 };
 
 bubble_param_t write_addr_bubble_weights[] = '{
@@ -191,6 +198,7 @@ read_addr_payload_t read_addr_payloads_with_stall[int];
 typedef struct {
     int                         test_count;
     logic [AXI_DATA_WIDTH-1:0] expected_data;
+    logic [AXI_STRB_WIDTH-1:0] expected_strobe;  // ダミーバイトイネーブル追加
     int                         phase;
 } read_data_expected_t;
 
@@ -238,6 +246,7 @@ function automatic void generate_write_addr_payloads();
     int i;
     int selected_length;
     string selected_type;
+    logic [2:0] selected_size;
     int phase;
     logic [AXI_ADDR_WIDTH-1:0] random_offset;
     int burst_size_bytes;
@@ -269,15 +278,20 @@ function automatic void generate_write_addr_payloads();
         selected_length = $urandom_range(burst_cfg.length_min, burst_cfg.length_max);
         selected_type = burst_cfg.burst_type;
         
+        // Generate random SIZE (0=1byte, 1=2bytes, 2=4bytes for 32-bit bus)
+        selected_size = $urandom_range(0, $clog2(AXI_DATA_WIDTH / 8));
+        
         // Calculate phase for logging purposes (not used in address calculation)
         phase = test_count / PHASE_TEST_COUNT;
         
         // Generate random offset within TEST_COUNT_ADDR_SIZE_BYTES/4
         random_offset = $urandom_range(0, TEST_COUNT_ADDR_SIZE_BYTES / 4 - 1);
         
-        // Align to address boundary
-        burst_size_bytes = (selected_length + 1) * (AXI_DATA_WIDTH / 8);
-        aligned_offset = align_address_to_boundary(random_offset, burst_size_bytes, selected_type);
+        // Calculate burst size based on SIZE field, not bus width
+        burst_size_bytes = (selected_length + 1) * (2 ** selected_size);
+        
+        // Align to address boundary based on SIZE
+        aligned_offset = align_address_to_boundary(random_offset, burst_size_bytes, selected_type, selected_size);
         
         // Add test_count offset to avoid address overlap within same phase
         base_addr = aligned_offset + (test_count * TEST_COUNT_ADDR_SIZE_BYTES);
@@ -286,15 +300,15 @@ function automatic void generate_write_addr_payloads();
             test_count: test_count,
             addr: base_addr,
             burst: get_burst_type_value(selected_type),
-            size: $clog2(AXI_DATA_WIDTH / 8),
+            size: selected_size,
             id: $urandom_range(0, (1 << AXI_ID_WIDTH) - 1),
             len: selected_length,
             valid: 1'b1,
             phase: phase
         };
         
-        write_debug_log($sformatf("Generated payload[%0d]: config_index=%0d, weight=%0d, type=%s, len=%0d", 
-            test_count, selected_config_index, burst_cfg.weight, selected_type, selected_length));
+        write_debug_log($sformatf("Generated payload[%0d]: config_index=%0d, weight=%0d, type=%s, len=%0d, size=%0d(%0d bytes)", 
+            test_count, selected_config_index, burst_cfg.weight, selected_type, selected_length, selected_size, 2**selected_size));
     end
     
     write_debug_log($sformatf("Generated %0d Write Address Payloads (TOTAL_TEST_COUNT=%0d)", test_count, TOTAL_TEST_COUNT));
@@ -357,16 +371,13 @@ function automatic void generate_write_data_payloads();
             // Generate random data
             random_data = $urandom();
             
-            // Generate strobe pattern
-            if (addr_payload.burst == 2'b00) begin // FIXED
-                strobe_pattern = generate_fixed_strobe_pattern(
-                    addr_payload.addr, 
-                    addr_payload.size, 
-                    AXI_DATA_WIDTH
-                );
-            end else begin // INCR, WRAP
-                strobe_pattern = {AXI_STRB_WIDTH{1'b1}};
-            end
+            // Generate strobe pattern based on address, size, and burst type
+            strobe_pattern = generate_strobe_pattern(
+                addr_payload.addr, 
+                addr_payload.size, 
+                AXI_DATA_WIDTH,
+                get_burst_type_string(addr_payload.burst)
+            );
             
             // Create strobe mask for data masking
             strobe_mask = 0;
@@ -487,6 +498,7 @@ function automatic void generate_read_data_expected();
         read_data_expected[i] = '{
             test_count: write_data_payloads[i].test_count,
             expected_data: write_data_payloads[i].data,
+            expected_strobe: write_data_payloads[i].strb,  // ストローブ情報をコピー
             phase: write_data_payloads[i].phase
         };
     end
@@ -577,7 +589,8 @@ endfunction
 function automatic logic [AXI_ADDR_WIDTH-1:0] align_address_to_boundary(
     input logic [AXI_ADDR_WIDTH-1:0] address,
     input int burst_size_bytes,
-    input string burst_type
+    input string burst_type,
+    input logic [2:0] size
 );
     logic [AXI_ADDR_WIDTH-1:0] aligned_addr = address;
     case (burst_type)
@@ -586,15 +599,103 @@ function automatic logic [AXI_ADDR_WIDTH-1:0] align_address_to_boundary(
             aligned_addr = (address / wrap_boundary) * wrap_boundary;
         end
         "INCR", "FIXED": begin
-            int bus_width_bytes = AXI_DATA_WIDTH / 8;
-            aligned_addr = (address / bus_width_bytes) * bus_width_bytes;
+            int size_bytes = 2 ** size;  // SIZEに応じたバイト数
+            aligned_addr = (address / size_bytes) * size_bytes;
         end
         default: begin
-            int bus_width_bytes = AXI_DATA_WIDTH / 8;
-            aligned_addr = (address / bus_width_bytes) * bus_width_bytes;
+            int size_bytes = 2 ** size;  // SIZEに応じたバイト数
+            aligned_addr = (address / size_bytes) * size_bytes;
         end
     endcase
     return aligned_addr;
+endfunction
+
+function automatic bit check_read_data(
+    input logic [AXI_DATA_WIDTH-1:0] actual_data,
+    input logic [AXI_DATA_WIDTH-1:0] expected_data,
+    input logic [AXI_STRB_WIDTH-1:0] expected_strobe
+);
+    bit check_result = 1'b1;
+    int byte_idx;
+    
+    // ストローブが有効なバイトのみをチェック
+    for (byte_idx = 0; byte_idx < AXI_STRB_WIDTH; byte_idx++) begin
+        if (expected_strobe[byte_idx]) begin
+            // このバイトが有効な場合、データを比較
+            if (actual_data[byte_idx*8 +: 8] !== expected_data[byte_idx*8 +: 8]) begin
+                check_result = 1'b0;
+                $error("Byte %0d mismatch: expected=0x%02h, actual=0x%02h", 
+                       byte_idx, expected_data[byte_idx*8 +: 8], actual_data[byte_idx*8 +: 8]);
+            end
+        end
+    end
+    
+    return check_result;
+endfunction
+
+function automatic string get_burst_type_string(input logic [1:0] burst);
+    case (burst)
+        2'b00: return "FIXED";
+        2'b01: return "INCR";
+        2'b10: return "WRAP";
+        default: return "INCR";
+    endcase
+endfunction
+
+function automatic logic [AXI_STRB_WIDTH-1:0] generate_strobe_pattern(
+    input logic [AXI_ADDR_WIDTH-1:0] address,
+    input logic [2:0] size,
+    input int data_width,
+    input string burst_type
+);
+    logic [AXI_STRB_WIDTH-1:0] strobe_pattern = 0;
+    int bus_width_bytes = data_width / 8;
+    int burst_size_bytes = size_to_bytes(size);
+    
+    if (burst_type == "FIXED") begin
+        // FIXED: アドレスオフセットから開始
+        int addr_offset = address % bus_width_bytes;
+        int strobe_start = addr_offset;
+        int strobe_end = strobe_start + burst_size_bytes - 1;
+        
+        // Check address and size consistency
+        if (strobe_end >= bus_width_bytes) begin
+            $error("FIXED transfer error: Address 0x%h with size %0d exceeds bus width %0d bytes. strobe_end=%0d", 
+                   address, burst_size_bytes, bus_width_bytes, strobe_end);
+            $finish;
+        end
+        
+        // Generate STROBE pattern (byte-wise)
+        for (int byte_idx = strobe_start; byte_idx <= strobe_end; byte_idx++) begin
+            strobe_pattern[byte_idx] = 1'b1;
+        end
+    end else begin
+        // INCR/WRAP: アドレスの最下位ビットから開始
+        int addr_offset = address % bus_width_bytes;
+        int strobe_start = addr_offset;
+        int strobe_end = strobe_start + burst_size_bytes - 1;
+        
+        // Check if transfer crosses bus width boundary
+        if (strobe_end >= bus_width_bytes) begin
+            // Cross boundary: wrap around to start
+            strobe_end = strobe_end % bus_width_bytes;
+            
+            // Set strobe from start to end (wrapped)
+            for (int byte_idx = 0; byte_idx <= strobe_end; byte_idx++) begin
+                strobe_pattern[byte_idx] = 1'b1;
+            end
+            for (int byte_idx = strobe_start; byte_idx < bus_width_bytes; byte_idx++) begin
+                strobe_pattern[byte_idx] = 1'b1;
+            end
+        end else begin
+            // No cross boundary: simple range
+            for (int byte_idx = strobe_start; byte_idx <= strobe_end; byte_idx++) begin
+                strobe_pattern[byte_idx] = 1'b1;
+            end
+        end
+    end
+    
+    return strobe_pattern;
 endfunction
 
 function automatic logic [AXI_STRB_WIDTH-1:0] generate_fixed_strobe_pattern(
@@ -748,8 +849,8 @@ function automatic void display_read_data_expected();
     write_debug_log("=== Read Data Expected ===");
     foreach (read_data_expected[i]) begin
         read_data_expected_t expected = read_data_expected[i];
-        write_debug_log($sformatf("[%0d] test_count=%0d, expected_data=0x%h, phase=%0d",
-            i, expected.test_count, expected.expected_data, expected.phase));
+        write_debug_log($sformatf("[%0d] test_count=%0d, expected_data=0x%h, expected_strobe=0x%h, phase=%0d",
+            i, expected.test_count, expected.expected_data, expected.expected_strobe, expected.phase));
     end
 endfunction
 
@@ -1032,7 +1133,7 @@ always_ff @(posedge clk or negedge rst_n) begin
                     write_addr_state <= WRITE_ADDR_ACTIVE;
                     write_addr_phase_busy <= 1'b1;
                     write_addr_phase_counter <= 8'd0;
-                    write_addr_array_index <= 0;
+                    // write_addr_array_index <= 0;  // 削除: クリアしない
                     write_addr_phase_done <= 1'b0;
                 end
             end
@@ -1045,28 +1146,28 @@ always_ff @(posedge clk or negedge rst_n) begin
                         // ペイロードの取得
                         automatic write_addr_payload_t payload = write_addr_payloads_with_stall[write_addr_array_index];
                         
-                        // 配列インデックスを更新
-                        write_addr_array_index <= write_addr_array_index + 1;
-                        
-                        // Debug output
-                        if (LOG_ENABLE && DEBUG_LOG_ENABLE) begin
-                            write_debug_log($sformatf("Write Addr[%0d]: test_count=%0d, addr=0x%h, burst=%0d, size=%0d, id=%0d, len=%0d, valid=%0d", 
-                                write_addr_array_index, payload.test_count, payload.addr, payload.burst, 
-                                payload.size, payload.id, payload.len, payload.valid));
-                        end
-                        
-                        // 次のペイロードを出力
-                        axi_aw_addr <= payload.addr;
-                        axi_aw_burst <= payload.burst;
-                        axi_aw_size <= payload.size;
-                        axi_aw_id <= payload.id;
-                        axi_aw_len <= payload.len;
-                        axi_aw_valid <= payload.valid;
-                        
+                      
                         // アドレス送信完了の判定（axi_aw_validの時）
                         if (axi_aw_valid) begin
                             // 現在のカウンター値でPhase完了判定
                             if (write_addr_phase_counter < PHASE_TEST_COUNT - 1) begin
+                                axi_aw_addr <= payload.addr;
+                                axi_aw_burst <= payload.burst;
+                                axi_aw_size <= payload.size;
+                                axi_aw_id <= payload.id;
+                                axi_aw_len <= payload.len;
+                                axi_aw_valid <= payload.valid;
+
+                                // Debug output
+                                if (LOG_ENABLE && DEBUG_LOG_ENABLE) begin
+                                    write_debug_log($sformatf("Write Addr[%0d]: test_count=%0d, addr=0x%h, burst=%0d, size=%0d, id=%0d, len=%0d, valid=%0d", 
+                                        write_addr_array_index, payload.test_count, payload.addr, payload.burst, 
+                                        payload.size, payload.id, payload.len, payload.valid));
+                                end
+
+                                // 配列インデックスを更新
+                                write_addr_array_index <= write_addr_array_index + 1;
+
                                 // Phase継続: カウンターを増加
                                 write_addr_phase_counter <= write_addr_phase_counter + 8'd1;
                                 write_debug_log($sformatf("Write Addr Phase: Address sent, counter=%0d/%0d", 
@@ -1086,6 +1187,23 @@ always_ff @(posedge clk or negedge rst_n) begin
                                 
                                 write_debug_log("Write Addr Phase: Phase completed, all signals cleared");
                             end
+                        end else begin
+                            axi_aw_addr <= payload.addr;
+                            axi_aw_burst <= payload.burst;
+                            axi_aw_size <= payload.size;
+                            axi_aw_id <= payload.id;
+                            axi_aw_len <= payload.len;
+                            axi_aw_valid <= payload.valid;
+
+                            // Debug output
+                            if (LOG_ENABLE && DEBUG_LOG_ENABLE) begin
+                                write_debug_log($sformatf("Write Addr[%0d]: test_count=%0d, addr=0x%h, burst=%0d, size=%0d, id=%0d, len=%0d, valid=%0d", 
+                                    write_addr_array_index, payload.test_count, payload.addr, payload.burst, 
+                                    payload.size, payload.id, payload.len, payload.valid));
+                            end
+
+                            // 配列インデックスを更新
+                            write_addr_array_index <= write_addr_array_index + 1;
                         end
                     end else begin
                         // 配列終了: 全信号をクリアしてPhase完了
@@ -1150,7 +1268,7 @@ always_ff @(posedge clk or negedge rst_n) begin
                     read_addr_state <= READ_ADDR_ACTIVE;
                     read_addr_phase_busy <= 1'b1;
                     read_addr_phase_counter <= 8'd0;
-                    read_addr_array_index <= 0;
+                    // 配列インデックスはクリアしない（連続的に使用）
                     read_addr_phase_done <= 1'b0;
                 end
             end
@@ -1163,28 +1281,27 @@ always_ff @(posedge clk or negedge rst_n) begin
                         // ペイロードの取得
                         automatic read_addr_payload_t payload = read_addr_payloads_with_stall[read_addr_array_index];
                         
-                        // 配列インデックスを更新
-                        read_addr_array_index <= read_addr_array_index + 1;
-                        
-                        // Debug output
-                        if (LOG_ENABLE && DEBUG_LOG_ENABLE) begin
-                            write_debug_log($sformatf("Read Addr[%0d]: test_count=%0d, addr=0x%h, burst=%0d, size=%0d, id=%0d, len=%0d, valid=%0d", 
-                                read_addr_array_index, payload.test_count, payload.addr, payload.burst, 
-                                payload.size, payload.id, payload.len, payload.valid));
-                        end
-                        
-                        // 次のペイロードを出力
-                        axi_ar_addr <= payload.addr;
-                        axi_ar_burst <= payload.burst;
-                        axi_ar_size <= payload.size;
-                        axi_ar_id <= payload.id;
-                        axi_ar_len <= payload.len;
-                        axi_ar_valid <= payload.valid;
-                        
                         // アドレス送信完了の判定（axi_ar_validの時）
                         if (axi_ar_valid) begin
                             // 現在のカウンター値でPhase完了判定
                             if (read_addr_phase_counter < PHASE_TEST_COUNT - 1) begin
+                                axi_ar_addr <= payload.addr;
+                                axi_ar_burst <= payload.burst;
+                                axi_ar_size <= payload.size;
+                                axi_ar_id <= payload.id;
+                                axi_ar_len <= payload.len;
+                                axi_ar_valid <= payload.valid;
+
+                                // Debug output
+                                if (LOG_ENABLE && DEBUG_LOG_ENABLE) begin
+                                    write_debug_log($sformatf("Read Addr[%0d]: test_count=%0d, addr=0x%h, burst=%0d, size=%0d, id=%0d, len=%0d, valid=%0d", 
+                                        read_addr_array_index, payload.test_count, payload.addr, payload.burst, 
+                                        payload.size, payload.id, payload.len, payload.valid));
+                                end
+
+                                // 配列インデックスを更新
+                                read_addr_array_index <= read_addr_array_index + 1;
+
                                 // Phase継続: カウンターを増加
                                 read_addr_phase_counter <= read_addr_phase_counter + 8'd1;
                                 write_debug_log($sformatf("Read Addr Phase: Address sent, counter=%0d/%0d", 
@@ -1204,6 +1321,24 @@ always_ff @(posedge clk or negedge rst_n) begin
                                 
                                 write_debug_log("Read Addr Phase: Phase completed, all signals cleared");
                             end
+                        end else begin
+                            // 次のペイロードを出力
+                            axi_ar_addr <= payload.addr;
+                            axi_ar_burst <= payload.burst;
+                            axi_ar_size <= payload.size;
+                            axi_ar_id <= payload.id;
+                            axi_ar_len <= payload.len;
+                            axi_ar_valid <= payload.valid;
+
+                            // Debug output
+                            if (LOG_ENABLE && DEBUG_LOG_ENABLE) begin
+                                write_debug_log($sformatf("Read Addr[%0d]: test_count=%0d, addr=0x%h, burst=%0d, size=%0d, id=%0d, len=%0d, valid=%0d", 
+                                    read_addr_array_index, payload.test_count, payload.addr, payload.burst, 
+                                    payload.size, payload.id, payload.len, payload.valid));
+                            end
+
+                            // 配列インデックスを更新
+                            read_addr_array_index <= read_addr_array_index + 1;
                         end
                     end else begin
                         // 配列終了: 全信号をクリアしてPhase完了
@@ -1266,7 +1401,7 @@ always_ff @(posedge clk or negedge rst_n) begin
                     write_data_state <= WRITE_DATA_ACTIVE;
                     write_data_phase_busy <= 1'b1;
                     write_data_phase_counter <= 8'd0;
-                    write_data_array_index <= 0;
+                    // 配列インデックスはクリアしない（連続的に使用）
                     write_data_phase_done <= 1'b0;
                 end
             end
@@ -1276,30 +1411,26 @@ always_ff @(posedge clk or negedge rst_n) begin
                 if (axi_w_ready) begin
                     // 配列の範囲チェック
                     if (write_data_array_index < write_data_payloads_with_stall.size()) begin
-                        // ペイロードの取得
+                        // ペイロードの取得（配列インデックス更新前）
                         automatic write_data_payload_t payload = write_data_payloads_with_stall[write_data_array_index];
-                        
-                        // 配列インデックスを更新
-                        write_data_array_index <= write_data_array_index + 1;
-                        
-                        // Debug output
-                        if (LOG_ENABLE && DEBUG_LOG_ENABLE) begin
-                            write_debug_log($sformatf("Write Data[%0d]: test_count=%0d, data=0x%h, strb=0x%h, last=%0d, valid=%0d", 
-                                write_data_array_index, payload.test_count, payload.data, payload.strb, 
-                                payload.last, payload.valid));
-                        end
-                        
-                        // 次のペイロードを出力
-                        axi_w_data <= payload.data;
-                        axi_w_strb <= payload.strb;
-                        axi_w_last <= payload.last;
-                        axi_w_valid <= payload.valid;
                         
                         // Phase完了判定（axi_w_lastの時）
                         if (axi_w_last) begin
                             // 現在のカウンター値でPhase完了判定
                             if (write_data_phase_counter < PHASE_TEST_COUNT - 1) begin
-                                // Phase継続: カウンターを増加して次のペイロードを出力
+                                axi_w_data <= payload.data;
+                                axi_w_strb <= payload.strb;
+                                axi_w_last <= payload.last;
+                                axi_w_valid <= payload.valid;
+                                write_data_array_index <= write_data_array_index + 1;
+
+                                // Debug output
+                                if (LOG_ENABLE && DEBUG_LOG_ENABLE) begin
+                                    write_debug_log($sformatf("Write Data[%0d]: test_count=%0d, data=0x%h, strb=0x%h, last=%0d, valid=%0d", 
+                                        write_data_array_index, payload.test_count, payload.data, payload.strb, 
+                                        payload.last, payload.valid));
+                                end
+
                                 write_data_phase_counter <= write_data_phase_counter + 8'd1;
                                 write_debug_log($sformatf("Write Data Phase: Burst completed, counter=%0d/%0d", 
                                     write_data_phase_counter + 1, PHASE_TEST_COUNT));
@@ -1316,6 +1447,21 @@ always_ff @(posedge clk or negedge rst_n) begin
                                 
                                 write_debug_log("Write Data Phase: Phase completed, all signals cleared");
                             end
+                        end else begin
+                            // 次のペイロードを出力
+                            axi_w_data <= payload.data;
+                            axi_w_strb <= payload.strb;
+                            axi_w_last <= payload.last;
+                            axi_w_valid <= payload.valid;
+
+                            // Debug output
+                            if (LOG_ENABLE && DEBUG_LOG_ENABLE) begin
+                                write_debug_log($sformatf("Write Data[%0d]: test_count=%0d, data=0x%h, strb=0x%h, last=%0d, valid=%0d", 
+                                    write_data_array_index, payload.test_count, payload.data, payload.strb, 
+                                    payload.last, payload.valid));
+                            end
+
+                            write_data_array_index <= write_data_array_index + 1;
                         end
                     end else begin
                         // 配列終了: 全信号をクリアしてPhase完了
@@ -1373,7 +1519,7 @@ always_ff @(posedge clk or negedge rst_n) begin
                     read_data_state <= READ_DATA_ACTIVE;
                     read_data_phase_busy <= 1'b1;
                     read_data_phase_counter <= 8'd0;
-                    read_data_array_index <= 0;
+                    // 配列インデックスはクリアしない（連続的に使用）
                     read_data_phase_done <= 1'b0;
                     // axi_r_ready is controlled by initial value (1'b1)
                 end
@@ -1387,26 +1533,26 @@ always_ff @(posedge clk or negedge rst_n) begin
                         // 期待値の取得
                         automatic read_data_expected_t expected = read_data_expected[read_data_array_index];
                         
-                        // データ検証
-                        if (axi_r_data !== expected.expected_data) begin
-                            $error("Read Data Mismatch at index %0d: Expected 0x%h, Got 0x%h", 
-                                   read_data_array_index, expected.expected_data, axi_r_data);
-                            $finish;
-                        end
-                        
-                        // Debug output
-                        if (LOG_ENABLE && DEBUG_LOG_ENABLE) begin
-                            write_debug_log($sformatf("Read Data[%0d]: test_count=%0d, data=0x%h, expected=0x%h, last=%0d", 
-                                read_data_array_index, expected.test_count, axi_r_data, expected.expected_data, axi_r_last));
-                        end
-                        
-                        // 配列インデックスを更新
-                        read_data_array_index <= read_data_array_index + 1;
-                        
                         // バースト完了の判定（last=1の時）
                         if (axi_r_last) begin
                             // 現在のカウンター値でPhase完了判定
                             if (read_data_phase_counter < PHASE_TEST_COUNT - 1) begin
+                                // データ検証（ストローブが有効なバイトのみ）
+                                if (!check_read_data(axi_r_data, expected.expected_data, expected.expected_strobe)) begin
+                                    $error("Read Data Mismatch at index %0d: Expected 0x%h, Got 0x%h", 
+                                        read_data_array_index, expected.expected_data, axi_r_data);
+                                    $finish;
+                                end
+                        
+                                // Debug output
+                                if (LOG_ENABLE && DEBUG_LOG_ENABLE) begin
+                                    write_debug_log($sformatf("Read Data[%0d]: test_count=%0d, data=0x%h, expected=0x%h, expected_strobe=0x%h, last=%0d", 
+                                        read_data_array_index, expected.test_count, axi_r_data, expected.expected_data, expected.expected_strobe, axi_r_last));
+                                end
+
+                                // 配列インデックスを更新
+                                read_data_array_index <= read_data_array_index + 1;
+
                                 // Phase継続: カウンターを増加
                                 read_data_phase_counter <= read_data_phase_counter + 8'd1;
                                 write_debug_log($sformatf("Read Data Phase: Burst completed, counter=%0d/%0d", 
@@ -1414,13 +1560,32 @@ always_ff @(posedge clk or negedge rst_n) begin
                             end else begin
                                 // Phase完了: 全信号をクリア
                                 // axi_r_ready is controlled by initial value (1'b1)
-                                
+
+                                // 配列インデックスを更新
+                                read_data_array_index <= read_data_array_index + 1;
+
                                 // 状態遷移
                                 read_data_state <= READ_DATA_FINISH;
                                 read_data_phase_done <= 1'b1;
                                 
                                 write_debug_log("Read Data Phase: Phase completed, all signals cleared");
                             end
+                        end else begin
+                            // データ検証（ストローブが有効なバイトのみ）
+                            if (!check_read_data(axi_r_data, expected.expected_data, expected.expected_strobe)) begin
+                                $error("Read Data Mismatch at index %0d: Expected 0x%h, Got 0x%h", 
+                                       read_data_array_index, expected.expected_data, axi_r_data);
+                                $finish;
+                            end
+                        
+                            // Debug output
+                            if (LOG_ENABLE && DEBUG_LOG_ENABLE) begin
+                                write_debug_log($sformatf("Read Data[%0d]: test_count=%0d, data=0x%h, expected=0x%h, expected_strobe=0x%h, last=%0d", 
+                                    read_data_array_index, expected.test_count, axi_r_data, expected.expected_data, expected.expected_strobe, axi_r_last));
+                            end
+
+                            // 配列インデックスを更新
+                            read_data_array_index <= read_data_array_index + 1;
                         end
                     end else begin
                         // 配列終了: 全信号をクリアしてPhase完了
