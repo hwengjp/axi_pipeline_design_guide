@@ -1,190 +1,179 @@
 // AXI4 Simple Dual Port RAM Testbench
-// Generated from part08_axi4_bus_testbench_abstraction.md
-// Licensed under the Apache License, Version 2.0 - see https://www.apache.org/licenses/LICENSE-2.0 for details.
+// Comprehensive testbench for AXI4 bus protocol verification with weighted random stimulus
+
+// Define TOP macro for hierarchical references
+`define TOP axi_simple_dual_port_ram_tb
+
+// Import common logging package
+import axi_logger_pkg::*;
 
 `timescale 1ns/1ps
 
 module axi_simple_dual_port_ram_tb;
 
-// Clock and Reset
-reg clk;
-reg rst_n;
+// Logging control parameters
+parameter LOG_ENABLE = 1'b1;                // Enable general logging
+parameter DEBUG_LOG_ENABLE = 1'b1;          // Enable debug-level logging
 
-// Clock generation
-initial begin
-    clk = 0;
-    forever #5 clk = ~clk;  // 100MHz clock
-end
+// Testbench configuration parameters
+parameter MEMORY_SIZE_BYTES = 33554432;     // Memory size: 32MB
+parameter AXI_DATA_WIDTH = 32;              // AXI data width: 32 bits
+parameter AXI_ID_WIDTH = 8;                 // AXI ID width: 8 bits
+parameter TOTAL_TEST_COUNT = 800;           // Total number of test cases
+parameter PHASE_TEST_COUNT = 8;             // Number of tests per phase
+parameter TEST_COUNT_ADDR_SIZE_BYTES = 4096; // Address space per test: 4KB
+parameter CLK_PERIOD = 10;                  // Clock period: 10ns (100MHz)
+parameter RESET_CYCLES = 4;                 // Reset duration: 4 clock cycles
 
-// Reset generation
-initial begin
-    rst_n = 0;
-    repeat(10) @(posedge clk);
-    #1;
-    rst_n = 1;
-end
+// Derived parameters (auto-calculated)
+parameter AXI_ADDR_WIDTH = $clog2(MEMORY_SIZE_BYTES);  // Address width: auto-calculated from memory size
+parameter AXI_STRB_WIDTH = AXI_DATA_WIDTH / 8;         // Strobe width: 4 bytes for 32-bit data
 
-// Testbench parameters
-parameter MEMORY_SIZE_BYTES = 33554432;     // 32MB
-parameter AXI_DATA_WIDTH = 32;              // 32bit
-parameter AXI_ID_WIDTH = 8;                 // 8bit ID
-parameter TOTAL_TEST_COUNT = 800;          // Total test count
-parameter PHASE_TEST_COUNT = 8;           // Tests per phase
-//parameter TOTAL_TEST_COUNT = 20;          // Total test count
-//parameter PHASE_TEST_COUNT = 4;           // Tests per phase
-parameter TEST_COUNT_ADDR_SIZE_BYTES = 4096; // Address size per test count
-parameter CLK_PERIOD = 10;                  // 10ns period
-parameter CLK_HALF_PERIOD = 5;             // 5ns half period
-parameter RESET_CYCLES = 4;                // Reset cycles
+// AXI4 Write Address Channel signals
+logic [AXI_ADDR_WIDTH-1:0] axi_aw_addr;    // Write address
+logic [1:0]                axi_aw_burst;   // Burst type (FIXED/INCR/WRAP)
+logic [2:0]                axi_aw_size;    // Transfer size (0=1byte, 1=2bytes, 2=4bytes)
+logic [AXI_ID_WIDTH-1:0]   axi_aw_id;      // Write transaction ID
+logic [7:0]                axi_aw_len;     // Burst length (number of transfers - 1)
+logic                      axi_aw_valid;   // Write address valid
+wire                       axi_aw_ready;   // Write address ready
 
-// Derived parameters
-parameter AXI_ADDR_WIDTH = $clog2(MEMORY_SIZE_BYTES);
-parameter AXI_STRB_WIDTH = AXI_DATA_WIDTH / 8;
+// AXI4 Write Data Channel signals
+logic [AXI_DATA_WIDTH-1:0] axi_w_data;     // Write data
+logic [AXI_STRB_WIDTH-1:0] axi_w_strb;     // Write strobe (byte enables)
+logic                       axi_w_last;     // Last transfer in burst
+logic                       axi_w_valid;    // Write data valid
+wire                       axi_w_ready;    // Write data ready
 
-// AXI4 Write Address Channel
-logic [AXI_ADDR_WIDTH-1:0] axi_aw_addr;
-logic [1:0]                axi_aw_burst;
-logic [2:0]                axi_aw_size;
-logic [AXI_ID_WIDTH-1:0]   axi_aw_id;
-logic [7:0]                axi_aw_len;
-logic                      axi_aw_valid;
-wire                       axi_aw_ready;
+// AXI4 Write Response Channel signals
+wire [1:0]                axi_b_resp;      // Write response (OKAY/EXOKAY/SLVERR/DECERR)
+wire [AXI_ID_WIDTH-1:0]   axi_b_id;        // Write response ID
+wire                       axi_b_valid;    // Write response valid
+logic                      axi_b_ready;    // Write response ready
 
-// AXI4 Write Data Channel
-logic [AXI_DATA_WIDTH-1:0] axi_w_data;
-logic [AXI_STRB_WIDTH-1:0] axi_w_strb;
-logic                       axi_w_last;
-logic                       axi_w_valid;
-wire                       axi_w_ready;
+// AXI4 Read Address Channel signals
+logic [AXI_ADDR_WIDTH-1:0] axi_ar_addr;    // Read address
+logic [1:0]                axi_ar_burst;   // Burst type (FIXED/INCR/WRAP)
+logic [2:0]                axi_ar_size;    // Transfer size (0=1byte, 1=2bytes, 2=4bytes)
+logic [AXI_ID_WIDTH-1:0]   axi_ar_id;      // Read transaction ID
+logic [7:0]                axi_ar_len;     // Burst length (number of transfers - 1)
+logic                      axi_ar_valid;   // Read address valid
+wire                       axi_ar_ready;   // Read address ready
 
-// AXI4 Write Response Channel
-wire [1:0]                axi_b_resp;
-wire [AXI_ID_WIDTH-1:0]   axi_b_id;
-wire                       axi_b_valid;
-logic                      axi_b_ready;
+// AXI4 Read Data Channel signals
+wire [AXI_DATA_WIDTH-1:0] axi_r_data;     // Read data
+wire [AXI_ID_WIDTH-1:0]   axi_r_id;       // Read data ID
+wire [1:0]                axi_r_resp;     // Read response (OKAY/EXOKAY/SLVERR/DECERR)
+wire                       axi_r_last;     // Last transfer in burst
+wire                       axi_r_valid;    // Read data valid
+logic                      axi_r_ready;    // Read data ready
 
-// AXI4 Read Address Channel
-logic [AXI_ADDR_WIDTH-1:0] axi_ar_addr;
-logic [1:0]                axi_ar_burst;
-logic [2:0]                axi_ar_size;
-logic [AXI_ID_WIDTH-1:0]   axi_ar_id;
-logic [7:0]                axi_ar_len;
-logic                      axi_ar_valid;
-wire                       axi_ar_ready;
+// Test control and status flags
+logic generate_stimulus_expected_done = 1'b0;  // Flag: stimulus generation completed
+logic test_execution_completed = 1'b0;         // Flag: test execution completed
 
-// AXI4 Read Data Channel
-wire [AXI_DATA_WIDTH-1:0] axi_r_data;
-wire [AXI_ID_WIDTH-1:0]   axi_r_id;
-wire [1:0]                axi_r_resp;
-wire                       axi_r_last;
-wire                       axi_r_valid;
-logic                      axi_r_ready;
+// Ready signal control parameters for backpressure testing
+parameter READY_NEGATE_ARRAY_LENGTH = 1000;   // Length of ready negate pulse array
 
-// Test data generation completion flag
-logic generate_stimulus_expected_done = 1'b0;
+// Ready negate pulse arrays for testbench-controlled channels
+logic [READY_NEGATE_ARRAY_LENGTH-1:0] axi_r_ready_negate_pulses;  // Read data ready negate pulses
+logic [READY_NEGATE_ARRAY_LENGTH-1:0] axi_b_ready_negate_pulses;  // Write response ready negate pulses
 
-// Test execution completion flag
-logic test_execution_completed = 1'b0;
+// Ready negate control index counter
+logic [$clog2(READY_NEGATE_ARRAY_LENGTH):0] ready_negate_index = 0;  // Current pulse array index
 
-// Ready negate control parameters
-parameter READY_NEGATE_ARRAY_LENGTH = 1000;  // Length of ready negate pulse array
-
-// Ready negate pulse arrays for TB controlled channels
-logic [READY_NEGATE_ARRAY_LENGTH-1:0] axi_r_ready_negate_pulses;
-logic [READY_NEGATE_ARRAY_LENGTH-1:0] axi_b_ready_negate_pulses;
-
-// Ready negate array index counter
-logic [$clog2(READY_NEGATE_ARRAY_LENGTH):0] ready_negate_index = 0;
-
-
-// Weighted random generation structures
+// Weighted random generation data structures
 typedef struct {
-    int weight;
-    int length_min;
-    int length_max;
-    string burst_type;
+    int weight;           // Selection weight for random generation
+    int length_min;       // Minimum burst length
+    int length_max;       // Maximum burst length
+    string burst_type;    // Burst type: "FIXED", "INCR", or "WRAP"
 } burst_config_t;
 
 typedef struct {
-    int weight;
-    int cycles;
+    int weight;           // Selection weight for random generation
+    int cycles;           // Number of stall cycles to insert
 } bubble_param_t;
 
-// Weighted random generation arrays
+// Burst configuration weights for weighted random selection (Total weight: 11)
 burst_config_t burst_config_weights[] = '{
-    '{weight: 4, length_min: 1, length_max: 3, burst_type: "INCR"},
-    '{weight: 3, length_min: 4, length_max: 7, burst_type: "INCR"},
-    '{weight: 2, length_min: 8, length_max: 15, burst_type: "INCR"},
-    '{weight: 1, length_min: 15, length_max: 31, burst_type: "WRAP"},
-    '{weight: 1, length_min: 0, length_max: 0, burst_type: "FIXED"}
+    '{weight: 4, length_min: 1, length_max: 3, burst_type: "INCR"},    // 4/11 = 36.4%: Short INCR bursts
+    '{weight: 3, length_min: 4, length_max: 7, burst_type: "INCR"},    // 3/11 = 27.3%: Medium INCR bursts
+    '{weight: 2, length_min: 8, length_max: 15, burst_type: "INCR"},   // 2/11 = 18.2%: Long INCR bursts
+    '{weight: 1, length_min: 15, length_max: 31, burst_type: "WRAP"},  // 1/11 = 9.1%: WRAP bursts
+    '{weight: 1, length_min: 0, length_max: 0, burst_type: "FIXED"}    // 1/11 = 9.1%: Single FIXED transfers
 };
 
+// Write address channel bubble weights for backpressure testing (Total weight: 104)
 bubble_param_t write_addr_bubble_weights[] = '{
-    '{weight: 70, cycles: 0},
-    '{weight: 20, cycles: 1},
-    '{weight: 10, cycles: 2},
-    '{weight: 4, cycles: 7}
+    '{weight: 70, cycles: 0},  // 70/104 = 67.3%: No stall
+    '{weight: 20, cycles: 1},  // 20/104 = 19.2%: 1-cycle stall
+    '{weight: 10, cycles: 2},  // 10/104 = 9.6%: 2-cycle stall
+    '{weight: 4, cycles: 7}    // 4/104 = 3.8%: 7-cycle stall
 };
 
+// Write data channel bubble weights for backpressure testing (Total weight: 104)
 bubble_param_t write_data_bubble_weights[] = '{
-    '{weight: 80, cycles: 0},
-    '{weight: 15, cycles: 1},
-    '{weight: 5, cycles: 2},
-    '{weight: 4, cycles: 7}
+    '{weight: 80, cycles: 0},  // 80/104 = 76.9%: No stall
+    '{weight: 15, cycles: 1},  // 15/104 = 14.4%: 1-cycle stall
+    '{weight: 5, cycles: 2},   // 5/104 = 4.8%: 2-cycle stall
+    '{weight: 4, cycles: 7}    // 4/104 = 3.8%: 7-cycle stall
 };
 
+// Read address channel bubble weights for backpressure testing (Total weight: 104)
 bubble_param_t read_addr_bubble_weights[] = '{
-    '{weight: 75, cycles: 0},
-    '{weight: 20, cycles: 1},
-    '{weight: 5, cycles: 2},
-    '{weight: 4, cycles: 7}
+    '{weight: 75, cycles: 0},  // 75/104 = 72.1%: No stall
+    '{weight: 20, cycles: 1},  // 20/104 = 19.2%: 1-cycle stall
+    '{weight: 5, cycles: 2},   // 5/104 = 4.8%: 2-cycle stall
+    '{weight: 4, cycles: 7}    // 4/104 = 3.8%: 7-cycle stall
 };
 
-// Ready negate weights for TB controlled channels
+// Read data channel ready negate weights for backpressure testing (Total weight: 94)
 bubble_param_t axi_r_ready_negate_weights[] = '{
-    '{weight: 80, cycles: 0},  // 80% probability: no negate
-    '{weight: 5, cycles: 1},  // 15% probability: negate for 1 cycle
-    '{weight: 5, cycles: 2},    // 5% probability: negate for 2 cycles
-    '{weight: 4, cycles: 7}
+    '{weight: 80, cycles: 0},  // 80/94 = 85.1%: No ready negate
+    '{weight: 5, cycles: 1},   // 5/94 = 5.3%: 1-cycle ready negate
+    '{weight: 5, cycles: 2},   // 5/94 = 5.3%: 2-cycle ready negate
+    '{weight: 4, cycles: 7}    // 4/94 = 4.3%: 7-cycle ready negate
 };
 
+// Write response channel ready negate weights for backpressure testing (Total weight: 94)
 bubble_param_t axi_b_ready_negate_weights[] = '{
-    '{weight: 80, cycles: 0},  // 80% probability: no negate
-    '{weight: 5, cycles: 1},  // 15% probability: negate for 1 cycle
-    '{weight: 5, cycles: 2},    // 5% probability: negate for 2 cycles
-    '{weight: 4, cycles: 7}
+    '{weight: 80, cycles: 0},  // 80/94 = 85.1%: No ready negate
+    '{weight: 5, cycles: 1},   // 5/94 = 5.3%: 1-cycle ready negate
+    '{weight: 5, cycles: 2},   // 5/94 = 5.3%: 2-cycle ready negate
+    '{weight: 4, cycles: 7}    // 4/94 = 4.3%: 7-cycle ready negate
 };
 
-// Payload structures
+// Test payload data structures for AXI4 channels
 typedef struct {
-    int                         test_count;
-    logic [AXI_ADDR_WIDTH-1:0] addr;
-    logic [1:0]                burst;
-    logic [2:0]                size;
-    logic [AXI_ID_WIDTH-1:0]   id;
-    logic [7:0]                len;
-    logic                      valid;
-    int                         phase;
+    int                         test_count;  // Test case identifier
+    logic [AXI_ADDR_WIDTH-1:0] addr;        // Target address
+    logic [1:0]                burst;       // Burst type (FIXED/INCR/WRAP)
+    logic [2:0]                size;        // Transfer size (0=1byte, 1=2bytes, 2=4bytes)
+    logic [AXI_ID_WIDTH-1:0]   id;          // Transaction ID
+    logic [7:0]                len;         // Burst length (number of transfers - 1)
+    logic                      valid;       // Valid signal
+    int                         phase;       // Test phase number
 } write_addr_payload_t;
 
 typedef struct {
-    int                         test_count;
-    logic [AXI_DATA_WIDTH-1:0] data;
-    logic [AXI_STRB_WIDTH-1:0] strb;
-    logic                       last;
-    logic                       valid;
-    int                         phase;
+    int                         test_count;  // Test case identifier
+    logic [AXI_DATA_WIDTH-1:0] data;        // Write data
+    logic [AXI_STRB_WIDTH-1:0] strb;        // Write strobe (byte enables)
+    logic                       last;        // Last transfer in burst
+    logic                       valid;       // Valid signal
+    int                         phase;       // Test phase number
 } write_data_payload_t;
 
 typedef struct {
-    int                         test_count;
-    logic [AXI_ADDR_WIDTH-1:0] addr;
-    logic [1:0]                burst;
-    logic [2:0]                size;
-    logic [AXI_ID_WIDTH-1:0]   id;
-    logic [7:0]                len;
-    logic                      valid;
-    int                         phase;
+    int                         test_count;  // Test case identifier
+    logic [AXI_ADDR_WIDTH-1:0] addr;        // Target address
+    logic [1:0]                burst;       // Burst type (FIXED/INCR/WRAP)
+    logic [2:0]                size;        // Transfer size (0=1byte, 1=2bytes, 2=4bytes)
+    logic [AXI_ID_WIDTH-1:0]   id;          // Transaction ID
+    logic [7:0]                len;         // Burst length (number of transfers - 1)
+    logic                      valid;       // Valid signal
+    int                         phase;       // Test phase number
 } read_addr_payload_t;
 
 // Payload arrays
@@ -195,53 +184,67 @@ write_data_payload_t write_data_payloads_with_stall[int];
 read_addr_payload_t read_addr_payloads[int];
 read_addr_payload_t read_addr_payloads_with_stall[int];
 
-// Expected value structures
+// Expected value structures for verification
 typedef struct {
-    int                         test_count;
-    logic [AXI_DATA_WIDTH-1:0] expected_data;
-    logic [AXI_STRB_WIDTH-1:0] expected_strobe;  // ダミーバイトイネーブル追加
-    int                         phase;
+    int                         test_count;  // Test case identifier
+    logic [AXI_DATA_WIDTH-1:0] expected_data;    // Expected read data
+    logic [AXI_STRB_WIDTH-1:0] expected_strobe;  // Expected strobe pattern for verification
+    int                         phase;            // Test phase number
 } read_data_expected_t;
 
 typedef struct {
-    int                         test_count;
-    logic [1:0]                expected_resp;
-    logic [AXI_ID_WIDTH-1:0]   expected_id;
-    int                         phase;
+    int                         test_count;  // Test case identifier
+    logic [1:0]                expected_resp;    // Expected write response (OKAY/EXOKAY/SLVERR/DECERR)
+    logic [AXI_ID_WIDTH-1:0]   expected_id;      // Expected write response ID
+    int                         phase;            // Test phase number
 } write_resp_expected_t;
 
-// Expected value arrays
-read_data_expected_t read_data_expected[int];
-write_resp_expected_t write_resp_expected[int];
+// Expected value storage arrays
+read_data_expected_t read_data_expected[int];      // Read data verification array
+write_resp_expected_t write_resp_expected[int];    // Write response verification array
 
-// Phase control signals
-logic [7:0] current_phase = 8'd0;
-logic write_addr_phase_start = 1'b0;
-logic read_addr_phase_start = 1'b0;
-logic write_data_phase_start = 1'b0;
-logic write_resp_phase_start = 1'b0;
-logic read_data_phase_start = 1'b0;
-logic clear_phase_latches = 1'b0;  // Clear signal for phase completion latches
+// Test phase control and synchronization signals
+logic [7:0] current_phase = 8'd0;                 // Current test phase counter
+logic write_addr_phase_start = 1'b0;              // Write address phase start trigger
+logic read_addr_phase_start = 1'b0;               // Read address phase start trigger
+logic write_data_phase_start = 1'b0;              // Write data phase start trigger
+logic write_resp_phase_start = 1'b0;              // Write response phase start trigger
+logic read_data_phase_start = 1'b0;               // Read data phase start trigger
+logic clear_phase_latches = 1'b0;                 // Clear signal for phase completion latches
 
-// Phase completion signals
-logic write_addr_phase_done = 1'b0;
-logic read_addr_phase_done = 1'b0;
-logic write_data_phase_done = 1'b0;
-logic write_resp_phase_done = 1'b0;
-logic read_data_phase_done = 1'b0;
+// Phase completion status signals
+logic write_addr_phase_done = 1'b0;               // Write address phase completion flag
+logic read_addr_phase_done = 1'b0;                // Read address phase completion flag
+logic write_data_phase_done = 1'b0;               // Write data phase completion flag
+logic write_resp_phase_done = 1'b0;               // Write response phase completion flag
+logic read_data_phase_done = 1'b0;                // Read data phase completion flag
 
-// Phase completion signal latches
-logic write_addr_phase_done_latched = 1'b0;
-logic read_addr_phase_done_latched = 1'b0;
-logic write_data_phase_done_latched = 1'b0;
-logic write_resp_phase_done_latched = 1'b0;
-logic read_data_phase_done_latched = 1'b0;
+// Phase completion signal latches for synchronization
+logic write_addr_phase_done_latched = 1'b0;       // Latched write address phase completion
+logic read_addr_phase_done_latched = 1'b0;        // Latched read address phase completion
+logic write_data_phase_done_latched = 1'b0;       // Latched write data phase completion
+logic write_resp_phase_done_latched = 1'b0;       // Latched write response phase completion
+logic read_data_phase_done_latched = 1'b0;        // Latched read data phase completion
 
-// Log control parameters
-parameter LOG_ENABLE = 1'b1;
-parameter DEBUG_LOG_ENABLE = 1'b1;
+// Clock and Reset signals
+reg clk;                    // System clock signal
+reg rst_n;                  // Active-low reset signal
 
-// Test data generation functions
+// Clock generation (100MHz based on CLK_PERIOD parameter)
+initial begin
+    clk = 0;                                    // Initialize clock to low
+    forever #(CLK_PERIOD/2) clk = ~clk;        // Generate clock with specified period
+end
+
+// Reset generation and initialization
+initial begin
+    rst_n = 0;                                  // Assert reset (active low)
+    repeat(RESET_CYCLES) @(posedge clk);       // Hold reset for specified number of cycles
+    #1;                                         // Small delay for stability
+    rst_n = 1;                                  // Deassert reset
+end
+
+// Test stimulus generation and data processing functions
 function automatic void generate_write_addr_payloads();
     int test_count = 0;
     int i;
@@ -257,17 +260,17 @@ function automatic void generate_write_addr_payloads();
     int selected_config_index;
     burst_config_t burst_cfg;
     
-    // Calculate total weight for burst configuration
+    // Calculate total weight for weighted random selection
     total_weight = 0;
     foreach (burst_config_weights[i]) begin
         total_weight += burst_config_weights[i].weight;
     end
     
-    write_debug_log($sformatf("Total weight for burst config: %0d", total_weight));
+            write_log($sformatf("Total weight for burst config: %0d", total_weight), LOG_ENABLE);
     
-    // Generate TOTAL_TEST_COUNT number of payloads using weighted random selection
+    // Generate test payloads using weighted random burst configuration selection
     for (test_count = 0; test_count < TOTAL_TEST_COUNT; test_count++) begin
-        // Generate weighted random selection for burst configuration
+        // Select burst configuration using weighted random
         selected_config_index = generate_weighted_random_index_burst_config(
             burst_config_weights, 
             total_weight
@@ -275,26 +278,26 @@ function automatic void generate_write_addr_payloads();
         
         burst_cfg = burst_config_weights[selected_config_index];
         
-        // Generate random length within the selected configuration range
+        // Generate random burst length within selected configuration range
         selected_length = $urandom_range(burst_cfg.length_min, burst_cfg.length_max);
         selected_type = burst_cfg.burst_type;
         
-        // Generate random SIZE (0=1byte, 1=2bytes, 2=4bytes for 32-bit bus)
+        // Generate random transfer size (0=1byte, 1=2bytes, 2=4bytes for 32-bit bus)
         selected_size = $urandom_range(0, $clog2(AXI_DATA_WIDTH / 8));
         
-        // Calculate phase for logging purposes (not used in address calculation)
+        // Calculate test phase for logging and organization
         phase = test_count / PHASE_TEST_COUNT;
         
-        // Generate random offset within TEST_COUNT_ADDR_SIZE_BYTES/4
+        // Generate random address offset within allocated address space
         random_offset = $urandom_range(0, TEST_COUNT_ADDR_SIZE_BYTES / 4 - 1);
         
-        // Calculate burst size based on SIZE field, not bus width
+        // Calculate burst size in bytes based on length and transfer size
         burst_size_bytes = (selected_length + 1) * (2 ** selected_size);
         
-        // Align to address boundary based on SIZE
+        // Align address to proper boundary based on burst type and size
         aligned_offset = align_address_to_boundary(random_offset, burst_size_bytes, selected_type, selected_size);
         
-        // Add test_count offset to avoid address overlap within same phase
+        // Calculate final base address with phase offset to prevent overlap
         base_addr = aligned_offset + (test_count * TEST_COUNT_ADDR_SIZE_BYTES);
         
         write_addr_payloads[test_count] = '{
@@ -309,10 +312,10 @@ function automatic void generate_write_addr_payloads();
         };
         
         write_debug_log($sformatf("Generated payload[%0d]: config_index=%0d, weight=%0d, type=%s, len=%0d, size=%0d(%0d bytes)", 
-            test_count, selected_config_index, burst_cfg.weight, selected_type, selected_length, selected_size, 2**selected_size));
+            test_count, selected_config_index, burst_cfg.weight, selected_type, selected_length, selected_size, 2**selected_size), DEBUG_LOG_ENABLE);
     end
     
-    write_debug_log($sformatf("Generated %0d Write Address Payloads (TOTAL_TEST_COUNT=%0d)", test_count, TOTAL_TEST_COUNT));
+            write_log($sformatf("Generated %0d Write Address Payloads (TOTAL_TEST_COUNT=%0d)", test_count, TOTAL_TEST_COUNT), LOG_ENABLE);
 endfunction
 
 function automatic void generate_write_addr_payloads_with_stall();
@@ -325,24 +328,24 @@ function automatic void generate_write_addr_payloads_with_stall();
     foreach (write_addr_payloads[i]) begin
         write_addr_payload_t payload = write_addr_payloads[i];
         
-        // Copy payload
+        // Copy original payload to stall array
         write_addr_payloads_with_stall[stall_index] = payload;
         stall_index++;
         
-        // Insert stall based on weights
+        // Generate stall cycles using weighted random selection
         total_weight = calculate_total_weight_generic(write_addr_bubble_weights, write_addr_bubble_weights.size());
         selected_index = generate_weighted_random_index_generic(write_addr_bubble_weights, total_weight);
         stall_cycles = write_addr_bubble_weights[selected_index].cycles;
         
-        // Insert stall cycles
+        // Insert stall cycles with cleared signals
         for (int stall = 0; stall < stall_cycles; stall++) begin
             write_addr_payloads_with_stall[stall_index] = '{
                 test_count: payload.test_count,
-                addr: '0,        // Clear address to 0 when valid=0
-                burst: '0,       // Clear burst to 0 when valid=0
-                size: '0,        // Clear size to 0 when valid=0
-                id: '0,          // Clear ID to 0 when valid=0
-                len: '0,         // Clear length to 0 when valid=0
+                addr: '0,        // Clear address when valid=0
+                burst: '0,       // Clear burst type when valid=0
+                size: '0,        // Clear transfer size when valid=0
+                id: '0,          // Clear transaction ID when valid=0
+                len: '0,         // Clear burst length when valid=0
                 valid: 1'b0,
                 phase: payload.phase
             };
@@ -367,15 +370,15 @@ function automatic void generate_write_data_payloads();
         addr_payload = write_addr_payloads[i];
         burst_length = addr_payload.len + 1; // len=0 means 1 transfer, len=2 means 3 transfers
         
-        // Generate data for each transfer in the burst
+        // Generate data payloads for each transfer in the burst
         for (int transfer = 0; transfer < burst_length; transfer++) begin
-            // Generate random data
+            // Generate random data for this transfer
             random_data = $urandom();
             
             // Generate strobe pattern based on address, size, and burst type
-            // STROBEの乱数はFIXEDのシングルアクセスの時だけ
+            // Random STROBE only for FIXED single access, all-ones for others
             if (get_burst_type_string(addr_payload.burst) == "FIXED" && addr_payload.len == 0) begin
-                // FIXEDシングルアクセス: 乱数STROBEを生成
+                // FIXED single access: generate random STROBE pattern
                 strobe_pattern = generate_strobe_pattern(
                     addr_payload.addr, 
                     addr_payload.size, 
@@ -383,11 +386,11 @@ function automatic void generate_write_data_payloads();
                     get_burst_type_string(addr_payload.burst)
                 );
             end else begin
-                // INCR/WRAPまたはFIXEDバースト: 全ビット1のSTROBEパターンを使用
-                strobe_pattern = '1;  // 全ビット1
+                // INCR/WRAP or FIXED burst: use all-ones STROBE pattern
+                strobe_pattern = '1;  // All bits set to 1
             end
             
-            // Create strobe mask for data masking
+            // Create strobe mask for proper data masking
             strobe_mask = 0;
             
             for (byte_idx = 0; byte_idx < AXI_STRB_WIDTH; byte_idx++) begin
@@ -398,7 +401,7 @@ function automatic void generate_write_data_payloads();
             
             masked_data = random_data & strobe_mask;
             
-            // Set last flag for the last transfer in the burst
+            // Set last flag for the final transfer in the burst
             last_flag = (transfer == burst_length - 1) ? 1'b1 : 1'b0;
             
             write_data_payloads[data_index] = '{
@@ -424,22 +427,22 @@ function automatic void generate_write_data_payloads_with_stall();
     foreach (write_data_payloads[i]) begin
         write_data_payload_t payload = write_data_payloads[i];
         
-        // Copy payload
+        // Copy original payload to stall array
         write_data_payloads_with_stall[stall_index] = payload;
         stall_index++;
         
-        // Insert stall based on weights
+        // Generate stall cycles using weighted random selection
         total_weight = calculate_total_weight_generic(write_data_bubble_weights, write_data_bubble_weights.size());
         selected_index = generate_weighted_random_index_generic(write_data_bubble_weights, total_weight);
         stall_cycles = write_data_bubble_weights[selected_index].cycles;
         
-        // Insert stall cycles
+        // Insert stall cycles with cleared signals
         for (int stall = 0; stall < stall_cycles; stall++) begin
             write_data_payloads_with_stall[stall_index] = '{
                 test_count: payload.test_count,
-                data: '0,        // Clear data to 0 when valid=0
-                strb: '0,        // Clear strobe to 0 when valid=0
-                last: 1'b0,      // Clear last to 0 when valid=0
+                data: '0,        // Clear data when valid=0
+                strb: '0,        // Clear strobe when valid=0
+                last: 1'b0,      // Clear last flag when valid=0
                 valid: 1'b0,
                 phase: payload.phase
             };
@@ -474,24 +477,24 @@ function automatic void generate_read_addr_payloads_with_stall();
     foreach (read_addr_payloads[i]) begin
         read_addr_payload_t payload = read_addr_payloads[i];
         
-        // Copy payload
+        // Copy original payload to stall array
         read_addr_payloads_with_stall[stall_index] = payload;
         stall_index++;
         
-        // Insert stall based on weights
+        // Generate stall cycles using weighted random selection
         total_weight = calculate_total_weight_generic(read_addr_bubble_weights, read_addr_bubble_weights.size());
         selected_index = generate_weighted_random_index_generic(read_addr_bubble_weights, total_weight);
         stall_cycles = read_addr_bubble_weights[selected_index].cycles;
         
-        // Insert stall cycles
+        // Insert stall cycles with cleared signals
         for (int stall = 0; stall < stall_cycles; stall++) begin
             read_addr_payloads_with_stall[stall_index] = '{
                 test_count: payload.test_count,
-                addr: '0,        // Clear address to 0 when valid=0
-                burst: '0,       // Clear burst to 0 when valid=0
-                size: '0,        // Clear size to 0 when valid=0
-                id: '0,          // Clear ID to 0 when valid=0
-                len: '0,         // Clear length to 0 when valid=0
+                addr: '0,        // Clear address when valid=0
+                burst: '0,       // Clear burst type when valid=0
+                size: '0,        // Clear transfer size when valid=0
+                id: '0,          // Clear transaction ID when valid=0
+                len: '0,         // Clear burst length when valid=0
                 valid: 1'b0,
                 phase: payload.phase
             };
@@ -506,7 +509,7 @@ function automatic void generate_read_data_expected();
         read_data_expected[i] = '{
             test_count: write_data_payloads[i].test_count,
             expected_data: write_data_payloads[i].data,
-            expected_strobe: write_data_payloads[i].strb,  // ストローブ情報をコピー
+            expected_strobe: write_data_payloads[i].strb,  // Copy strobe pattern for verification
             phase: write_data_payloads[i].phase
         };
     end
@@ -524,9 +527,7 @@ function automatic void generate_write_resp_expected();
     end
 endfunction
 
-// (extract_weights_generic removed to avoid returning int[] which some tools reject)
-
-// Direct bubble weight helper functions (avoid packed arrays)
+// Weight calculation and random selection helper functions (avoid packed arrays for tool compatibility)
 function automatic int calculate_total_weight_generic(
     input bubble_param_t weight_field[],
     input int array_size
@@ -576,7 +577,7 @@ function automatic int generate_weighted_random_index_burst_config(
     return 0;
 endfunction
 
-// Helper functions
+// AXI4 protocol and utility helper functions
 function automatic logic [1:0] get_burst_type_value(input string burst_type);
     case (burst_type)
         "FIXED": return 2'b00;
@@ -607,11 +608,11 @@ function automatic logic [AXI_ADDR_WIDTH-1:0] align_address_to_boundary(
             aligned_addr = (address / wrap_boundary) * wrap_boundary;
         end
         "INCR", "FIXED": begin
-            int size_bytes = 2 ** size;  // SIZEに応じたバイト数
+            int size_bytes = 2 ** size;  // Calculate bytes based on SIZE field
             aligned_addr = (address / size_bytes) * size_bytes;
         end
         default: begin
-            int size_bytes = 2 ** size;  // SIZEに応じたバイト数
+            int size_bytes = 2 ** size;  // Calculate bytes based on SIZE field
             aligned_addr = (address / size_bytes) * size_bytes;
         end
     endcase
@@ -626,10 +627,10 @@ function automatic bit check_read_data(
     bit check_result = 1'b1;
     int byte_idx;
     
-    // ストローブが有効なバイトのみをチェック
+    // Check only bytes that are enabled by strobe
     for (byte_idx = 0; byte_idx < AXI_STRB_WIDTH; byte_idx++) begin
         if (expected_strobe[byte_idx]) begin
-            // このバイトが有効な場合、データを比較
+            // Compare data for this enabled byte
             if (actual_data[byte_idx*8 +: 8] !== expected_data[byte_idx*8 +: 8]) begin
                 check_result = 1'b0;
                 $error("Byte %0d mismatch: expected=0x%02h, actual=0x%02h", 
@@ -661,34 +662,34 @@ function automatic logic [AXI_STRB_WIDTH-1:0] generate_strobe_pattern(
     int burst_size_bytes = size_to_bytes(size);
     
     if (burst_type == "FIXED") begin
-        // FIXED: アドレスオフセットから開始
+        // FIXED: Start from address offset within bus width
         int addr_offset = address % bus_width_bytes;
         int strobe_start = addr_offset;
         int strobe_end = strobe_start + burst_size_bytes - 1;
         
-        // Check address and size consistency
+        // Check address and size consistency for FIXED transfers
         if (strobe_end >= bus_width_bytes) begin
             $error("FIXED transfer error: Address 0x%h with size %0d exceeds bus width %0d bytes. strobe_end=%0d", 
                    address, burst_size_bytes, bus_width_bytes, strobe_end);
             $finish;
         end
         
-        // Generate STROBE pattern (byte-wise)
+        // Generate STROBE pattern for FIXED transfer (byte-wise)
         for (int byte_idx = strobe_start; byte_idx <= strobe_end; byte_idx++) begin
             strobe_pattern[byte_idx] = 1'b1;
         end
     end else begin
-        // INCR/WRAP: アドレスの最下位ビットから開始
+        // INCR/WRAP: Start from least significant bits of address
         int addr_offset = address % bus_width_bytes;
         int strobe_start = addr_offset;
         int strobe_end = strobe_start + burst_size_bytes - 1;
         
         // Check if transfer crosses bus width boundary
         if (strobe_end >= bus_width_bytes) begin
-            // Cross boundary: wrap around to start
+            // Cross boundary: wrap around to start of bus width
             strobe_end = strobe_end % bus_width_bytes;
             
-            // Set strobe from start to end (wrapped)
+            // Set strobe from start to end (wrapped around)
             for (int byte_idx = 0; byte_idx <= strobe_end; byte_idx++) begin
                 strobe_pattern[byte_idx] = 1'b1;
             end
@@ -696,7 +697,7 @@ function automatic logic [AXI_STRB_WIDTH-1:0] generate_strobe_pattern(
                 strobe_pattern[byte_idx] = 1'b1;
             end
         end else begin
-            // No cross boundary: simple range
+            // No cross boundary: simple range within bus width
             for (int byte_idx = strobe_start; byte_idx <= strobe_end; byte_idx++) begin
                 strobe_pattern[byte_idx] = 1'b1;
             end
@@ -704,63 +705,6 @@ function automatic logic [AXI_STRB_WIDTH-1:0] generate_strobe_pattern(
     end
     
     return strobe_pattern;
-endfunction
-
-function automatic logic [AXI_STRB_WIDTH-1:0] generate_fixed_strobe_pattern(
-    input logic [AXI_ADDR_WIDTH-1:0] address,
-    input logic [2:0] size,
-    input int data_width
-);
-    logic [AXI_STRB_WIDTH-1:0] strobe_pattern = 0;
-    int bus_width_bytes = data_width / 8;
-    int burst_size_bytes = size_to_bytes(size);
-    
-    int addr_offset = address % bus_width_bytes;
-    int strobe_start = addr_offset;
-    int strobe_end = strobe_start + burst_size_bytes - 1;
-    
-    // Check address and size consistency
-    if (strobe_end >= bus_width_bytes) begin
-        $error("FIXED transfer error: Address 0x%h with size %0d exceeds bus width %0d bytes. strobe_end=%0d", 
-               address, burst_size_bytes, bus_width_bytes, strobe_end);
-        $finish;
-    end
-    
-    // Generate STROBE pattern (byte-wise)
-    for (int byte_idx = strobe_start; byte_idx <= strobe_end; byte_idx++) begin
-        strobe_pattern[byte_idx] = 1'b1;
-    end
-    
-    return strobe_pattern;
-endfunction
-
-// Weighted random generation functions
-function automatic int generate_weighted_random_index(
-    input int weights[],
-    input int total_weight
-);
-    int random_val;
-    int cumulative_weight = 0;
-    
-    random_val = $urandom_range(0, total_weight - 1);
-    
-    for (int i = 0; i < weights.size(); i++) begin
-        cumulative_weight += weights[i];
-        if (random_val < cumulative_weight) begin
-            return i;
-        end
-    end
-    
-    return 0;
-endfunction
-
-function automatic int calculate_total_weight(input int weights[]);
-    int total = 0;
-    int i;
-    foreach (weights[i]) begin
-        total += weights[i];
-    end
-    return total;
 endfunction
 
 // Ready negate pulse array initialization function
@@ -771,13 +715,13 @@ function automatic void initialize_ready_negate_pulses();
     int negate_cycles;
     
     for (i = 0; i < READY_NEGATE_ARRAY_LENGTH; i = i + 1) begin
-        // Generate R ready negate pulses using weighted random
+        // Generate read data ready negate pulses using weighted random selection
         total_weight = calculate_total_weight_generic(axi_r_ready_negate_weights, axi_r_ready_negate_weights.size());
         selected_index = generate_weighted_random_index_generic(axi_r_ready_negate_weights, total_weight);
         negate_cycles = axi_r_ready_negate_weights[selected_index].cycles;
         axi_r_ready_negate_pulses[i] = (negate_cycles > 0) ? 1'b1 : 1'b0;
         
-        // Generate B ready negate pulses using weighted random
+        // Generate write response ready negate pulses using weighted random selection
         total_weight = calculate_total_weight_generic(axi_b_ready_negate_weights, axi_b_ready_negate_weights.size());
         selected_index = generate_weighted_random_index_generic(axi_b_ready_negate_weights, total_weight);
         negate_cycles = axi_b_ready_negate_weights[selected_index].cycles;
@@ -785,94 +729,81 @@ function automatic void initialize_ready_negate_pulses();
     end
 endfunction
 
-// Log output functions
-function automatic void write_log(input string message);
-    if (LOG_ENABLE) begin
-        $display("[%0t] %s", $time, message);
-    end
-endfunction
-
-function automatic void write_debug_log(input string message);
-    if (LOG_ENABLE && DEBUG_LOG_ENABLE) begin
-        $display("[%0t] [DEBUG] %s", $time, message);
-    end
-endfunction
-
-// Array display functions
+// Test data display and verification functions
 function automatic void display_write_addr_payloads();
-    write_debug_log("=== Write Address Payloads ===");
+            write_log("=== Write Address Payloads ===", LOG_ENABLE);
     foreach (write_addr_payloads[i]) begin
         write_addr_payload_t payload = write_addr_payloads[i];
         write_debug_log($sformatf("[%0d] test_count=%0d, addr=0x%h, burst=%0d, size=%s, id=%0d, len=%0d, valid=%0d, phase=%0d",
-            i, payload.test_count, payload.addr, payload.burst, size_to_string(payload.size), payload.id, payload.len, payload.valid, payload.phase));
+            i, payload.test_count, payload.addr, payload.burst, size_to_string(payload.size), payload.id, payload.len, payload.valid, payload.phase), DEBUG_LOG_ENABLE);
     end
 endfunction
 
 function automatic void display_write_addr_payloads_with_stall();
-    write_debug_log("=== Write Address Payloads with Stall ===");
+            write_log("=== Write Address Payloads with Stall ===", LOG_ENABLE);
     foreach (write_addr_payloads_with_stall[i]) begin
         write_addr_payload_t payload = write_addr_payloads_with_stall[i];
         write_debug_log($sformatf("[%0d] test_count=%0d, addr=0x%h, burst=%0d, size=%s, id=%0d, len=%0d, valid=%0d, phase=%0d",
-            i, payload.test_count, payload.addr, payload.burst, size_to_string(payload.size), payload.id, payload.len, payload.valid, payload.phase));
+            i, payload.test_count, payload.addr, payload.burst, size_to_string(payload.size), payload.id, payload.len, payload.valid, payload.phase), DEBUG_LOG_ENABLE);
     end
 endfunction
 
 function automatic void display_write_data_payloads();
-    write_debug_log("=== Write Data Payloads ===");
+            write_log("=== Write Data Payloads ===", LOG_ENABLE);
     foreach (write_data_payloads[i]) begin
         write_data_payload_t payload = write_data_payloads[i];
         write_debug_log($sformatf("[%0d] test_count=%0d, data=0x%h, strb=0x%h, last=%0d, valid=%0d, phase=%0d",
-            i, payload.test_count, payload.data, payload.strb, payload.last, payload.valid, payload.phase));
+            i, payload.test_count, payload.data, payload.strb, payload.last, payload.valid, payload.phase), DEBUG_LOG_ENABLE);
     end
 endfunction
 
 function automatic void display_write_data_payloads_with_stall();
-    write_debug_log("=== Write Data Payloads with Stall ===");
+            write_log("=== Write Data Payloads with Stall ===", LOG_ENABLE);
     foreach (write_data_payloads_with_stall[i]) begin
         write_data_payload_t payload = write_data_payloads_with_stall[i];
         write_debug_log($sformatf("[%0d] test_count=%0d, data=0x%h, strb=0x%h, last=%0d, valid=%0d, phase=%0d",
-            i, payload.test_count, payload.data, payload.strb, payload.last, payload.valid, payload.phase));
+            i, payload.test_count, payload.data, payload.strb, payload.last, payload.valid, payload.phase), DEBUG_LOG_ENABLE);
     end
 endfunction
 
 function automatic void display_read_addr_payloads();
-    write_debug_log("=== Read Address Payloads ===");
+            write_log("=== Read Address Payloads ===", LOG_ENABLE);
     foreach (read_addr_payloads[i]) begin
         read_addr_payload_t payload = read_addr_payloads[i];
         write_debug_log($sformatf("[%0d] test_count=%0d, addr=0x%h, burst=%0d, size=%s, id=%0d, len=%0d, valid=%0d, phase=%0d",
-            i, payload.test_count, payload.addr, payload.burst, size_to_string(payload.size), payload.id, payload.len, payload.valid, payload.phase));
+            i, payload.test_count, payload.addr, payload.burst, size_to_string(payload.size), payload.id, payload.len, payload.valid, payload.phase), DEBUG_LOG_ENABLE);
     end
 endfunction
 
 function automatic void display_read_addr_payloads_with_stall();
-    write_debug_log("=== Read Address Payloads with Stall ===");
+            write_log("=== Read Address Payloads with Stall ===", LOG_ENABLE);
     foreach (read_addr_payloads_with_stall[i]) begin
         read_addr_payload_t payload = read_addr_payloads_with_stall[i];
         write_debug_log($sformatf("[%0d] test_count=%0d, addr=0x%h, burst=%0d, size=%s, id=%0d, len=%0d, valid=%0d, phase=%0d",
-            i, payload.test_count, payload.addr, payload.burst, size_to_string(payload.size), payload.id, payload.len, payload.valid, payload.phase));
+            i, payload.test_count, payload.addr, payload.burst, size_to_string(payload.size), payload.id, payload.len, payload.valid, payload.phase), DEBUG_LOG_ENABLE);
     end
 endfunction
 
 function automatic void display_read_data_expected();
-    write_debug_log("=== Read Data Expected ===");
+            write_log("=== Read Data Expected ===", LOG_ENABLE);
     foreach (read_data_expected[i]) begin
         read_data_expected_t expected = read_data_expected[i];
         write_debug_log($sformatf("[%0d] test_count=%0d, expected_data=0x%h, expected_strobe=0x%h, phase=%0d",
-            i, expected.test_count, expected.expected_data, expected.expected_strobe, expected.phase));
+            i, expected.test_count, expected.expected_data, expected.expected_strobe, expected.phase), DEBUG_LOG_ENABLE);
     end
 endfunction
 
 function automatic void display_write_resp_expected();
-    write_debug_log("=== Write Response Expected ===");
+            write_log("=== Write Response Expected ===", LOG_ENABLE);
     foreach (write_resp_expected[i]) begin
         write_resp_expected_t expected = write_resp_expected[i];
         write_debug_log($sformatf("[%0d] test_count=%0d, expected_resp=%0d, expected_id=%0d, phase=%0d",
-            i, expected.test_count, expected.expected_resp, expected.expected_id, expected.phase));
+            i, expected.test_count, expected.expected_resp, expected.expected_id, expected.phase), DEBUG_LOG_ENABLE);
     end
 endfunction
 
 function automatic void display_all_arrays();
-    write_debug_log("=== Displaying All Generated Arrays ===");
+            write_log("=== Displaying All Generated Test Arrays ===", LOG_ENABLE);
     display_write_addr_payloads();
     display_write_addr_payloads_with_stall();
     display_write_data_payloads();
@@ -881,10 +812,10 @@ function automatic void display_all_arrays();
     display_read_addr_payloads_with_stall();
     display_read_data_expected();
     display_write_resp_expected();
-    write_debug_log("=== All Arrays Displayed ===");
+            write_log("=== All Test Arrays Displayed Successfully ===", LOG_ENABLE);
 endfunction
 
-// DUT instantiation
+// Device Under Test (DUT) instantiation - AXI4 Simple Dual Port RAM
 axi_simple_dual_port_ram #(
     .MEMORY_SIZE_BYTES(MEMORY_SIZE_BYTES),
     .AXI_DATA_WIDTH(AXI_DATA_WIDTH),
@@ -924,27 +855,27 @@ axi_simple_dual_port_ram #(
 );
 
 
-// Time 0 payload and expected value generation
+// Time 0: Generate all test stimulus and expected values
 initial begin
-    // Generate Write Address Channel payloads
+    // Generate write address channel payloads (basic and with stall cycles)
     generate_write_addr_payloads();
     generate_write_addr_payloads_with_stall();
     
-    // Generate Write Data Channel payloads
+    // Generate write data channel payloads (basic and with stall cycles)
     generate_write_data_payloads();
     generate_write_data_payloads_with_stall();
     
-    // Generate Read Address Channel payloads
+    // Generate read address channel payloads (basic and with stall cycles)
     generate_read_addr_payloads();
     generate_read_addr_payloads_with_stall();
     
-    // Generate Read Data Channel expected values
+    // Generate read data channel expected values for verification
     generate_read_data_expected();
     
-    // Generate Write Response Channel expected values
+    // Generate write response channel expected values for verification
     generate_write_resp_expected();
     
-    // Initialize ready negate pulse arrays
+    // Initialize ready signal negate pulse arrays for backpressure testing
     initialize_ready_negate_pulses();
     
     $display("Payloads and Expected Values Generated:");
@@ -957,41 +888,41 @@ initial begin
     $display("  Read Data Expected - %0d", read_data_expected.size());
     $display("  Write Response Expected - %0d", write_resp_expected.size());
     
-    // Display all generated arrays
+    // Display all generated test arrays for verification
     display_all_arrays();
     
-    // Display array size verification
-    write_debug_log($sformatf("Array Size Verification:"));
-    write_debug_log($sformatf("  Write Address Payloads: %0d", write_addr_payloads.size()));
-    write_debug_log($sformatf("  Write Data Payloads: %0d (should match total burst transfers)", write_data_payloads.size()));
-    write_debug_log($sformatf("  Read Address Payloads: %0d", read_addr_payloads.size()));
-    write_debug_log($sformatf("  Read Data Expected: %0d (should match write data count)", read_data_expected.size()));
-    write_debug_log($sformatf("  Write Response Expected: %0d", write_resp_expected.size()));
+    // Display array size verification and consistency checks
+            write_log($sformatf("Array Size Verification:"), LOG_ENABLE);
+        write_log($sformatf("  Write Address Payloads: %0d", write_addr_payloads.size()), LOG_ENABLE);
+        write_log($sformatf("  Write Data Payloads: %0d (should match total burst transfers)", write_data_payloads.size()), LOG_ENABLE);
+        write_log($sformatf("  Read Address Payloads: %0d", read_addr_payloads.size()), LOG_ENABLE);
+        write_log($sformatf("  Read Data Expected: %0d (should match write data count)", read_data_expected.size()), LOG_ENABLE);
+        write_log($sformatf("  Write Response Expected: %0d", write_resp_expected.size()), LOG_ENABLE);
     
-    // Set completion flag
+    // Set completion flag to indicate stimulus generation is done
     #1;
     generate_stimulus_expected_done = 1'b1;
 end
 
-// Test scenario control
+// Test scenario control and phase management
 initial begin
     
-    // Initialize
+    // Initialize phase control signals to default values
     current_phase = 8'd0;
     write_addr_phase_start = 1'b0;
     read_addr_phase_start = 1'b0;
     write_data_phase_start = 1'b0;
     read_data_phase_start = 1'b0;
     
-    // Wait for stimulus generation completion
+    // Wait for stimulus generation completion before starting test execution
     wait(generate_stimulus_expected_done);
     $display("Phase %0d: Stimulus and Expected Values Generation Confirmed", current_phase);
     
-    // Wait for reset deassertion
+    // Wait for reset deassertion to ensure stable system state
     wait(rst_n);
     $display("Phase %0d: Reset Deassertion Confirmed", current_phase);
     
-    // Start first phase
+    // Start first phase (write operations only - no read operations)
     repeat(2) @(posedge clk);
     #1;
     write_addr_phase_start = 1'b1;
@@ -1004,25 +935,25 @@ initial begin
     write_data_phase_start = 1'b0;
     write_resp_phase_start = 1'b0;
     
-    // Wait for first phase completion
+    // Wait for first phase completion (all write channels must complete)
     wait(write_addr_phase_done_latched && write_data_phase_done_latched && write_resp_phase_done_latched);
     
-    $display("Phase %0d: All Channels Completed", current_phase);
+    $display("Phase %0d: All Write Channels Completed", current_phase);
     
     @(posedge clk);
     #1;
-    clear_phase_latches = 1'b1;  // Assert clear signal
+    clear_phase_latches = 1'b1;  // Assert clear signal for phase completion
     @(posedge clk);
     #1;
     clear_phase_latches = 1'b0;  // Deassert clear signal
         
     current_phase = current_phase + 8'd1;
     
-    // Phase control loop
+    // Main phase control loop for mixed read/write operations
     for (int phase = 0; phase < (TOTAL_TEST_COUNT / PHASE_TEST_COUNT) - 1; phase++) begin
         @(posedge clk);
         #1;
-        // Start all channels
+        // Start all channels simultaneously for concurrent operation
         write_addr_phase_start = 1'b1;
         read_addr_phase_start = 1'b1;
         write_data_phase_start = 1'b1;
@@ -1031,13 +962,14 @@ initial begin
         
         @(posedge clk);
         #1;
+        // Deassert start signals after one clock cycle
         write_addr_phase_start = 1'b0;
         read_addr_phase_start = 1'b0;
         write_data_phase_start = 1'b0;
         write_resp_phase_start = 1'b0;
         read_data_phase_start = 1'b0;
         
-        // Wait for all channels completion
+        // Wait for all channels completion before proceeding to next phase
         wait(write_addr_phase_done_latched && read_addr_phase_done_latched && 
              write_data_phase_done_latched && write_resp_phase_done_latched && read_data_phase_done_latched);
         
@@ -1045,7 +977,7 @@ initial begin
         
         @(posedge clk);
         #1;
-        clear_phase_latches = 1'b1;  // Assert clear signal
+        clear_phase_latches = 1'b1;  // Assert clear signal for phase completion
         @(posedge clk);
         #1;
         clear_phase_latches = 1'b0;  // Deassert clear signal
@@ -1053,7 +985,7 @@ initial begin
         current_phase = current_phase + 8'd1;
     end
     
-    // Final phase
+    // Final phase (read operations only to verify written data)
     @(posedge clk);
     #1;
     read_addr_phase_start = 1'b1;
@@ -1064,26 +996,26 @@ initial begin
     read_addr_phase_start = 1'b0;
     read_data_phase_start = 1'b0;
     
-    // Wait for final phase completion
+    // Wait for final phase completion (read channels only)
     wait(read_addr_phase_done_latched && read_data_phase_done_latched);
     
-    $display("Phase %0d: All Channels Completed", current_phase);
+    $display("Phase %0d: All Read Channels Completed", current_phase);
     
     @(posedge clk);
     #1;
-    clear_phase_latches = 1'b1;  // Assert clear signal
+    clear_phase_latches = 1'b1;  // Assert clear signal for final phase
     @(posedge clk);
     #1;
     clear_phase_latches = 1'b0;  // Deassert clear signal
         
-        // All phases completed
-    $display("All Phases Completed. Test Scenario Finished.");
+    // All phases completed successfully
+    $display("All Phases Completed. Test Scenario Finished Successfully.");
     test_execution_completed = 1'b1;  // Set test completion flag
-    #1 // Wait for test completion log to be written
+    #1; // Wait for test completion log to be written
     $finish;
 end
 
-// Phase completion signal latches
+// Phase completion signal latches for synchronization and control
 always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
         write_addr_phase_done_latched <= 1'b0;
@@ -1108,9 +1040,9 @@ end
 
 // Write Address Channel Control Circuit
 typedef enum logic [1:0] {
-    WRITE_ADDR_IDLE,        // 待機状態
-    WRITE_ADDR_ACTIVE,      // アクティブ状態（ストール処理も含む）
-    WRITE_ADDR_FINISH       // 終了処理状態
+    WRITE_ADDR_IDLE,        // Idle state waiting for phase start
+    WRITE_ADDR_ACTIVE,      // Active state (includes stall handling)
+    WRITE_ADDR_FINISH       // Finish processing state
 } write_addr_state_t;
 
 write_addr_state_t write_addr_state = WRITE_ADDR_IDLE;
@@ -1141,23 +1073,22 @@ always_ff @(posedge clk or negedge rst_n) begin
                     write_addr_state <= WRITE_ADDR_ACTIVE;
                     write_addr_phase_busy <= 1'b1;
                     write_addr_phase_counter <= 8'd0;
-                    // write_addr_array_index <= 0;  // 削除: クリアしない
                     write_addr_phase_done <= 1'b0;
                 end
             end
             
             WRITE_ADDR_ACTIVE: begin
-                // 最優先: Ready信号の判定
+                // Priority: Check ready signal first
                 if (axi_aw_ready) begin
-                    // 配列の範囲チェック
+                    // Check array bounds
                     if (write_addr_array_index < write_addr_payloads_with_stall.size()) begin
-                        // ペイロードの取得
+                        // Get payload from array
                         automatic write_addr_payload_t payload = write_addr_payloads_with_stall[write_addr_array_index];
                         
                       
-                        // アドレス送信完了の判定（axi_aw_validの時）
+                        // Check if address transmission is complete (when axi_aw_valid is asserted)
                         if (axi_aw_valid) begin
-                            // 現在のカウンター値でPhase完了判定
+                            // Check phase completion using current counter value
                             if (write_addr_phase_counter < PHASE_TEST_COUNT - 1) begin
                                 axi_aw_addr <= payload.addr;
                                 axi_aw_burst <= payload.burst;
@@ -1166,22 +1097,22 @@ always_ff @(posedge clk or negedge rst_n) begin
                                 axi_aw_len <= payload.len;
                                 axi_aw_valid <= payload.valid;
 
-                                // Debug output
+                                // Debug output for address transmission
                                 if (LOG_ENABLE && DEBUG_LOG_ENABLE) begin
                                     write_debug_log($sformatf("Write Addr[%0d]: test_count=%0d, addr=0x%h, burst=%0d, size=%0d, id=%0d, len=%0d, valid=%0d", 
                                         write_addr_array_index, payload.test_count, payload.addr, payload.burst, 
-                                        payload.size, payload.id, payload.len, payload.valid));
+                                        payload.size, payload.id, payload.len, payload.valid), DEBUG_LOG_ENABLE);
                                 end
 
-                                // 配列インデックスを更新
+                                // Update array index for next payload
                                 write_addr_array_index <= write_addr_array_index + 1;
 
-                                // Phase継続: カウンターを増加
+                                // Phase continues: increment counter
                                 write_addr_phase_counter <= write_addr_phase_counter + 8'd1;
                                 write_debug_log($sformatf("Write Addr Phase: Address sent, counter=%0d/%0d", 
-                                    write_addr_phase_counter + 1, PHASE_TEST_COUNT));
+                                    write_addr_phase_counter + 1, PHASE_TEST_COUNT), DEBUG_LOG_ENABLE);
                             end else begin
-                                // Phase完了: 全信号をクリア
+                                // Phase completed: clear all signals
                                 axi_aw_addr <= '0;
                                 axi_aw_burst <= '0;
                                 axi_aw_size <= '0;
@@ -1189,13 +1120,14 @@ always_ff @(posedge clk or negedge rst_n) begin
                                 axi_aw_len <= '0;
                                 axi_aw_valid <= 1'b0;
                                 
-                                // 状態遷移
+                                // State transition to finish
                                 write_addr_state <= WRITE_ADDR_FINISH;
                                 write_addr_phase_done <= 1'b1;
                                 
-                                write_debug_log("Write Addr Phase: Phase completed, all signals cleared");
+                                write_debug_log("Write Addr Phase: Phase completed, all signals cleared", DEBUG_LOG_ENABLE);
                             end
                         end else begin
+                            // Set address signals for transmission
                             axi_aw_addr <= payload.addr;
                             axi_aw_burst <= payload.burst;
                             axi_aw_size <= payload.size;
@@ -1203,18 +1135,18 @@ always_ff @(posedge clk or negedge rst_n) begin
                             axi_aw_len <= payload.len;
                             axi_aw_valid <= payload.valid;
 
-                            // Debug output
+                            // Debug output for signal setting
                             if (LOG_ENABLE && DEBUG_LOG_ENABLE) begin
                                 write_debug_log($sformatf("Write Addr[%0d]: test_count=%0d, addr=0x%h, burst=%0d, size=%0d, id=%0d, len=%0d, valid=%0d", 
                                     write_addr_array_index, payload.test_count, payload.addr, payload.burst, 
-                                    payload.size, payload.id, payload.len, payload.valid));
+                                    payload.size, payload.id, payload.len, payload.valid), DEBUG_LOG_ENABLE);
                             end
 
-                            // 配列インデックスを更新
+                            // Update array index for next payload
                             write_addr_array_index <= write_addr_array_index + 1;
                         end
                     end else begin
-                        // 配列終了: 全信号をクリアしてPhase完了
+                        // Array end reached: clear all signals and complete phase
                         axi_aw_addr <= '0;
                         axi_aw_burst <= '0;
                         axi_aw_size <= '0;
@@ -1225,10 +1157,10 @@ always_ff @(posedge clk or negedge rst_n) begin
                         write_addr_state <= WRITE_ADDR_FINISH;
                         write_addr_phase_done <= 1'b1;
                         
-                        write_debug_log("Write Addr Phase: Array end reached, all signals cleared");
+                        write_debug_log("Write Addr Phase: Array end reached, all signals cleared", DEBUG_LOG_ENABLE);
                     end
                 end
-                // axi_aw_ready = 0の場合は何もしない（現在の信号を保持）
+                // When axi_aw_ready = 0, do nothing (maintain current signals)
             end
             
             WRITE_ADDR_FINISH: begin
@@ -1243,9 +1175,9 @@ end
 
 // Read Address Channel Control Circuit
 typedef enum logic [1:0] {
-    READ_ADDR_IDLE,        // 待機状態
-    READ_ADDR_ACTIVE,      // アクティブ状態（ストール処理も含む）
-    READ_ADDR_FINISH       // 終了処理状態
+    READ_ADDR_IDLE,        // Idle state waiting for phase start
+    READ_ADDR_ACTIVE,      // Active state (includes stall handling)
+    READ_ADDR_FINISH       // Finish processing state
 } read_addr_state_t;
 
 read_addr_state_t read_addr_state = READ_ADDR_IDLE;
@@ -1276,22 +1208,21 @@ always_ff @(posedge clk or negedge rst_n) begin
                     read_addr_state <= READ_ADDR_ACTIVE;
                     read_addr_phase_busy <= 1'b1;
                     read_addr_phase_counter <= 8'd0;
-                    // 配列インデックスはクリアしない（連続的に使用）
                     read_addr_phase_done <= 1'b0;
                 end
             end
             
             READ_ADDR_ACTIVE: begin
-                // 最優先: Ready信号の判定
+                // Priority: Check ready signal first
                 if (axi_ar_ready) begin
-                    // 配列の範囲チェック
+                    // Check array bounds
                     if (read_addr_array_index < read_addr_payloads_with_stall.size()) begin
-                        // ペイロードの取得
+                        // Get payload from array
                         automatic read_addr_payload_t payload = read_addr_payloads_with_stall[read_addr_array_index];
                         
-                        // アドレス送信完了の判定（axi_ar_validの時）
+                        // Check if address transmission is complete (when axi_ar_valid is asserted)
                         if (axi_ar_valid) begin
-                            // 現在のカウンター値でPhase完了判定
+                            // Check phase completion using current counter value
                             if (read_addr_phase_counter < PHASE_TEST_COUNT - 1) begin
                                 axi_ar_addr <= payload.addr;
                                 axi_ar_burst <= payload.burst;
@@ -1300,22 +1231,22 @@ always_ff @(posedge clk or negedge rst_n) begin
                                 axi_ar_len <= payload.len;
                                 axi_ar_valid <= payload.valid;
 
-                                // Debug output
+                                // Debug output for address transmission
                                 if (LOG_ENABLE && DEBUG_LOG_ENABLE) begin
                                     write_debug_log($sformatf("Read Addr[%0d]: test_count=%0d, addr=0x%h, burst=%0d, size=%0d, id=%0d, len=%0d, valid=%0d", 
                                         read_addr_array_index, payload.test_count, payload.addr, payload.burst, 
-                                        payload.size, payload.id, payload.len, payload.valid));
+                                        payload.size, payload.id, payload.len, payload.valid), DEBUG_LOG_ENABLE);
                                 end
 
-                                // 配列インデックスを更新
+                                // Update array index for next payload
                                 read_addr_array_index <= read_addr_array_index + 1;
 
-                                // Phase継続: カウンターを増加
+                                // Phase continues: increment counter
                                 read_addr_phase_counter <= read_addr_phase_counter + 8'd1;
                                 write_debug_log($sformatf("Read Addr Phase: Address sent, counter=%0d/%0d", 
-                                    read_addr_phase_counter + 1, PHASE_TEST_COUNT));
+                                    read_addr_phase_counter + 1, PHASE_TEST_COUNT), DEBUG_LOG_ENABLE);
                             end else begin
-                                // Phase完了: 全信号をクリア
+                                // Phase completed: clear all signals
                                 axi_ar_addr <= '0;
                                 axi_ar_burst <= '0;
                                 axi_ar_size <= '0;
@@ -1323,14 +1254,14 @@ always_ff @(posedge clk or negedge rst_n) begin
                                 axi_ar_len <= '0;
                                 axi_ar_valid <= 1'b0;
                                 
-                                // 状態遷移
+                                // State transition to finish
                                 read_addr_state <= READ_ADDR_FINISH;
                                 read_addr_phase_done <= 1'b1;
                                 
-                                write_debug_log("Read Addr Phase: Phase completed, all signals cleared");
+                                write_debug_log("Read Addr Phase: Phase completed, all signals cleared", DEBUG_LOG_ENABLE);
                             end
                         end else begin
-                            // 次のペイロードを出力
+                            // Set address signals for next payload
                             axi_ar_addr <= payload.addr;
                             axi_ar_burst <= payload.burst;
                             axi_ar_size <= payload.size;
@@ -1338,18 +1269,18 @@ always_ff @(posedge clk or negedge rst_n) begin
                             axi_ar_len <= payload.len;
                             axi_ar_valid <= payload.valid;
 
-                            // Debug output
+                            // Debug output for signal setting
                             if (LOG_ENABLE && DEBUG_LOG_ENABLE) begin
                                 write_debug_log($sformatf("Read Addr[%0d]: test_count=%0d, addr=0x%h, burst=%0d, size=%0d, id=%0d, len=%0d, valid=%0d", 
                                     read_addr_array_index, payload.test_count, payload.addr, payload.burst, 
-                                    payload.size, payload.id, payload.len, payload.valid));
+                                    payload.size, payload.id, payload.len, payload.valid), DEBUG_LOG_ENABLE);
                             end
 
-                            // 配列インデックスを更新
+                            // Update array index for next payload
                             read_addr_array_index <= read_addr_array_index + 1;
                         end
                     end else begin
-                        // 配列終了: 全信号をクリアしてPhase完了
+                        // Array end reached: clear all signals and complete phase
                         axi_ar_addr <= '0;
                         axi_ar_burst <= '0;
                         axi_ar_size <= '0;
@@ -1360,10 +1291,10 @@ always_ff @(posedge clk or negedge rst_n) begin
                         read_addr_state <= READ_ADDR_FINISH;
                         read_addr_phase_done <= 1'b1;
                         
-                        write_debug_log("Read Addr Phase: Array end reached, all signals cleared");
+                        write_debug_log("Read Addr Phase: Array end reached, all signals cleared", DEBUG_LOG_ENABLE);
                     end
                 end
-                // axi_ar_ready = 0の場合は何もしない（現在の信号を保持）
+                // When axi_ar_ready = 0, do nothing (maintain current signals)
             end
             
             READ_ADDR_FINISH: begin
@@ -1378,9 +1309,9 @@ end
 
 // Write Data Channel Control Circuit
 typedef enum logic [1:0] {
-    WRITE_DATA_IDLE,        // 待機状態
-    WRITE_DATA_ACTIVE,      // アクティブ状態（ストール処理も含む）
-    WRITE_DATA_FINISH       // 終了処理状態
+    WRITE_DATA_IDLE,        // Idle state waiting for phase start
+    WRITE_DATA_ACTIVE,      // Active state (includes stall handling)
+    WRITE_DATA_FINISH       // Finish processing state
 } write_data_state_t;
 
 write_data_state_t write_data_state = WRITE_DATA_IDLE;
@@ -1409,22 +1340,21 @@ always_ff @(posedge clk or negedge rst_n) begin
                     write_data_state <= WRITE_DATA_ACTIVE;
                     write_data_phase_busy <= 1'b1;
                     write_data_phase_counter <= 8'd0;
-                    // 配列インデックスはクリアしない（連続的に使用）
                     write_data_phase_done <= 1'b0;
                 end
             end
             
             WRITE_DATA_ACTIVE: begin
-                // 最優先: Ready信号の判定
+                // Priority: Check ready signal first
                 if (axi_w_ready) begin
-                    // 配列の範囲チェック
+                    // Check array bounds
                     if (write_data_array_index < write_data_payloads_with_stall.size()) begin
-                        // ペイロードの取得（配列インデックス更新前）
+                        // Get payload (before updating array index)
                         automatic write_data_payload_t payload = write_data_payloads_with_stall[write_data_array_index];
                         
-                        // Phase完了判定（axi_w_lastの時）
+                        // Check phase completion (when axi_w_last is asserted)
                         if (axi_w_last) begin
-                            // 現在のカウンター値でPhase完了判定
+                            // Check phase completion using current counter value
                             if (write_data_phase_counter < PHASE_TEST_COUNT - 1) begin
                                 axi_w_data <= payload.data;
                                 axi_w_strb <= payload.strb;
@@ -1432,47 +1362,47 @@ always_ff @(posedge clk or negedge rst_n) begin
                                 axi_w_valid <= payload.valid;
                                 write_data_array_index <= write_data_array_index + 1;
 
-                                // Debug output
+                                // Debug output for data transmission
                                 if (LOG_ENABLE && DEBUG_LOG_ENABLE) begin
                                     write_debug_log($sformatf("Write Data[%0d]: test_count=%0d, data=0x%h, strb=0x%h, last=%0d, valid=%0d", 
                                         write_data_array_index, payload.test_count, payload.data, payload.strb, 
-                                        payload.last, payload.valid));
+                                        payload.last, payload.valid), DEBUG_LOG_ENABLE);
                                 end
 
                                 write_data_phase_counter <= write_data_phase_counter + 8'd1;
                                 write_debug_log($sformatf("Write Data Phase: Burst completed, counter=%0d/%0d", 
-                                    write_data_phase_counter + 1, PHASE_TEST_COUNT));
+                                    write_data_phase_counter + 1, PHASE_TEST_COUNT), DEBUG_LOG_ENABLE);
                             end else begin
-                                // Phase完了: 全信号をクリア
+                                // Phase completed: clear all signals
                                 axi_w_data <= '0;
                                 axi_w_strb <= '0;
                                 axi_w_last <= 1'b0;
                                 axi_w_valid <= 1'b0;
                                 
-                                // 状態遷移
+                                // State transition to finish
                                 write_data_state <= WRITE_DATA_FINISH;
                                 write_data_phase_done <= 1'b1;
                                 
-                                write_debug_log("Write Data Phase: Phase completed, all signals cleared");
+                                write_debug_log("Write Data Phase: Phase completed, all signals cleared", DEBUG_LOG_ENABLE);
                             end
                         end else begin
-                            // 次のペイロードを出力
+                            // Set data signals for next payload
                             axi_w_data <= payload.data;
                             axi_w_strb <= payload.strb;
                             axi_w_last <= payload.last;
                             axi_w_valid <= payload.valid;
 
-                            // Debug output
+                            // Debug output for signal setting
                             if (LOG_ENABLE && DEBUG_LOG_ENABLE) begin
                                 write_debug_log($sformatf("Write Data[%0d]: test_count=%0d, data=0x%h, strb=0x%h, last=%0d, valid=%0d", 
                                     write_data_array_index, payload.test_count, payload.data, payload.strb, 
-                                    payload.last, payload.valid));
+                                    payload.last, payload.valid), DEBUG_LOG_ENABLE);
                             end
 
                             write_data_array_index <= write_data_array_index + 1;
                         end
                     end else begin
-                        // 配列終了: 全信号をクリアしてPhase完了
+                        // Array end reached: clear all signals and complete phase
                         axi_w_data <= '0;
                         axi_w_strb <= '0;
                         axi_w_last <= 1'b0;
@@ -1481,10 +1411,10 @@ always_ff @(posedge clk or negedge rst_n) begin
                         write_data_state <= WRITE_DATA_FINISH;
                         write_data_phase_done <= 1'b1;
                         
-                        write_debug_log("Write Data Phase: Array end reached, all signals cleared");
+                        write_debug_log("Write Data Phase: Array end reached, all signals cleared", DEBUG_LOG_ENABLE);
                     end
                 end
-                // axi_w_ready = 0の場合は何もしない（現在の信号を保持）
+                // When axi_w_ready = 0, do nothing (maintain current signals)
             end
             
             WRITE_DATA_FINISH: begin
@@ -1499,9 +1429,9 @@ end
 
 // Read Data Channel Control Circuit
 typedef enum logic [1:0] {
-    READ_DATA_IDLE,        // 待機状態
-    READ_DATA_ACTIVE,      // アクティブ状態（期待値検証も含む）
-    READ_DATA_FINISH       // 終了処理状態
+    READ_DATA_IDLE,        // Idle state waiting for phase start
+    READ_DATA_ACTIVE,      // Active state (includes expected value verification)
+    READ_DATA_FINISH       // Finish processing state
 } read_data_state_t;
 
 read_data_state_t read_data_state = READ_DATA_IDLE;
@@ -1519,7 +1449,6 @@ always_ff @(posedge clk or negedge rst_n) begin
         read_data_array_index <= 0;
         
         // AXI4 signals
-        // axi_r_ready is controlled by initial value (1'b1)
     end else begin
         case (read_data_state)
             READ_DATA_IDLE: begin
@@ -1527,85 +1456,81 @@ always_ff @(posedge clk or negedge rst_n) begin
                     read_data_state <= READ_DATA_ACTIVE;
                     read_data_phase_busy <= 1'b1;
                     read_data_phase_counter <= 8'd0;
-                    // 配列インデックスはクリアしない（連続的に使用）
                     read_data_phase_done <= 1'b0;
-                    // axi_r_ready is controlled by initial value (1'b1)
                 end
             end
             
             READ_DATA_ACTIVE: begin
-                // 最優先: Valid信号の判定
+                // Priority: Check valid signal first
                 if (axi_r_valid && axi_r_ready) begin
-                    // 配列の範囲チェック
+                    // Check array bounds
                     if (read_data_array_index < read_data_expected.size()) begin
-                        // 期待値の取得
+                        // Get expected value from array
                         automatic read_data_expected_t expected = read_data_expected[read_data_array_index];
                         
-                        // バースト完了の判定（last=1の時）
+                        // Check burst completion (when last=1)
                         if (axi_r_last) begin
-                            // 現在のカウンター値でPhase完了判定
+                            // Check phase completion using current counter value
                             if (read_data_phase_counter < PHASE_TEST_COUNT - 1) begin
-                                // データ検証（ストローブが有効なバイトのみ）
+                                // Data verification (only bytes enabled by strobe)
                                 if (!check_read_data(axi_r_data, expected.expected_data, expected.expected_strobe)) begin
                                     $error("Read Data Mismatch at index %0d: Expected 0x%h, Got 0x%h", 
                                         read_data_array_index, expected.expected_data, axi_r_data);
                                     $finish;
                                 end
                         
-                                // Debug output
+                                // Debug output for data verification
                                 if (LOG_ENABLE && DEBUG_LOG_ENABLE) begin
                                     write_debug_log($sformatf("Read Data[%0d]: test_count=%0d, data=0x%h, expected=0x%h, expected_strobe=0x%h, last=%0d", 
-                                        read_data_array_index, expected.test_count, axi_r_data, expected.expected_data, expected.expected_strobe, axi_r_last));
+                                        read_data_array_index, expected.test_count, axi_r_data, expected.expected_data, expected.expected_strobe, axi_r_last), DEBUG_LOG_ENABLE);
                                 end
 
-                                // 配列インデックスを更新
+                                // Update array index for next expected value
                                 read_data_array_index <= read_data_array_index + 1;
 
-                                // Phase継続: カウンターを増加
+                                // Phase continues: increment counter
                                 read_data_phase_counter <= read_data_phase_counter + 8'd1;
                                 write_debug_log($sformatf("Read Data Phase: Burst completed, counter=%0d/%0d", 
-                                    read_data_phase_counter + 1, PHASE_TEST_COUNT));
+                                    read_data_phase_counter + 1, PHASE_TEST_COUNT), DEBUG_LOG_ENABLE);
                             end else begin
-                                // Phase完了: 全信号をクリア
-                                // axi_r_ready is controlled by initial value (1'b1)
+                                // Phase completed: clear all signals
 
-                                // 配列インデックスを更新
+                                // Update array index for next expected value
                                 read_data_array_index <= read_data_array_index + 1;
 
-                                // 状態遷移
+                                // State transition to finish
                                 read_data_state <= READ_DATA_FINISH;
                                 read_data_phase_done <= 1'b1;
                                 
-                                write_debug_log("Read Data Phase: Phase completed, all signals cleared");
+                                write_debug_log("Read Data Phase: Phase completed, all signals cleared", DEBUG_LOG_ENABLE);
                             end
                         end else begin
-                            // データ検証（ストローブが有効なバイトのみ）
+                            // Data verification (only bytes enabled by strobe)
                             if (!check_read_data(axi_r_data, expected.expected_data, expected.expected_strobe)) begin
                                 $error("Read Data Mismatch at index %0d: Expected 0x%h, Got 0x%h", 
                                        read_data_array_index, expected.expected_data, axi_r_data);
                                 $finish;
                             end
                         
-                            // Debug output
+                            // Debug output for data verification
                             if (LOG_ENABLE && DEBUG_LOG_ENABLE) begin
                                 write_debug_log($sformatf("Read Data[%0d]: test_count=%0d, data=0x%h, expected=0x%h, expected_strobe=0x%h, last=%0d", 
-                                    read_data_array_index, expected.test_count, axi_r_data, expected.expected_data, expected.expected_strobe, axi_r_last));
-                            end
+                                    read_data_array_index, expected.test_count, axi_r_data, expected.expected_data, expected.expected_strobe, axi_r_last), DEBUG_LOG_ENABLE);
+                                end
 
-                            // 配列インデックスを更新
+                            // Update array index for next expected value
                             read_data_array_index <= read_data_array_index + 1;
                         end
                     end else begin
-                        // 配列終了: 全信号をクリアしてPhase完了
-                        // axi_r_ready is controlled by initial value (1'b1)
+                        // Array end reached: clear all signals and complete phase
                         
                         read_data_state <= READ_DATA_FINISH;
                         read_data_phase_done <= 1'b1;
                         
-                        write_debug_log("Read Data Phase: Array end reached, all signals cleared");
+                        write_debug_log("Read Data Phase: Array end reached, all signals cleared", DEBUG_LOG_ENABLE);
                     end
                 end
-                // axi_r_valid = 0 または axi_r_ready = 0の場合は何もしない（現在の信号を保持）
+                // When axi_r_valid = 0 or axi_r_ready = 0, do nothing (maintain current signals)
             end
             
             READ_DATA_FINISH: begin
@@ -1613,14 +1538,13 @@ always_ff @(posedge clk or negedge rst_n) begin
                 read_data_phase_done <= 1'b0;
                 read_data_phase_busy <= 1'b0;
                 read_data_state <= READ_DATA_IDLE;
-                // axi_r_ready is controlled by initial value (1'b1)
             end
         endcase
     end
 end
 
-// Protocol Verification System
-// 1-clock delayed signals for payload hold check
+// Protocol Verification System for AXI4 compliance checking
+// 1-clock delayed signals for payload hold verification
 logic [AXI_ADDR_WIDTH-1:0] axi_aw_addr_delayed;
 logic [1:0]                axi_aw_burst_delayed;
 logic [2:0]                axi_aw_size_delayed;
@@ -1650,7 +1574,7 @@ logic                       axi_r_last_delayed;
 logic                       axi_r_valid_delayed;
 logic                       axi_r_ready_delayed;
 
-// 1-clock delay circuit
+// 1-clock delay circuit for signal comparison
 always_ff @(posedge clk) begin
     // Write Address Channel
     axi_aw_addr_delayed <= axi_aw_addr;
@@ -1692,34 +1616,34 @@ always_ff @(posedge clk or negedge rst_n) begin
         // Don't monitor during reset
     end else begin
         if (!axi_aw_ready_delayed) begin
-            // Check if payload changed during Ready negated
+            // Check if payload changed while Ready was negated
             if (axi_aw_addr !== axi_aw_addr_delayed) begin
-                $error("Write Address Channel: Address changed during Ready negated. Current: 0x%h, Delayed: 0x%h", 
+                $error("Write Address Channel: Address changed while Ready was negated. Current: 0x%h, Delayed: 0x%h", 
                        axi_aw_addr, axi_aw_addr_delayed);
                 $finish;
             end
             if (axi_aw_burst !== axi_aw_burst_delayed) begin
-                $error("Write Address Channel: Burst changed during Ready negated. Current: %0d, Delayed: %0d", 
+                $error("Write Address Channel: Burst changed while Ready was negated. Current: %0d, Delayed: %0d", 
                        axi_aw_burst, axi_aw_burst_delayed);
                 $finish;
             end
             if (axi_aw_size !== axi_aw_size_delayed) begin
-                $error("Write Address Channel: Size changed during Ready negated. Current: %0d, Delayed: %0d", 
+                $error("Write Address Channel: Size changed while Ready was negated. Current: %0d, Delayed: %0d", 
                        axi_aw_size, axi_aw_size_delayed);
                 $finish;
             end
             if (axi_aw_id !== axi_aw_id_delayed) begin
-                $error("Write Address Channel: ID changed during Ready negated. Current: %0d, Delayed: %0d", 
+                $error("Write Address Channel: ID changed while Ready was negated. Current: %0d, Delayed: %0d", 
                        axi_aw_id, axi_aw_id_delayed);
                 $finish;
             end
             if (axi_aw_len !== axi_aw_len_delayed) begin
-                $error("Write Address Channel: Length changed during Ready negated. Current: %0d, Delayed: %0d", 
+                $error("Write Address Channel: Length changed while Ready was negated. Current: %0d, Delayed: %0d", 
                        axi_aw_len, axi_aw_len_delayed);
                 $finish;
             end
             if (axi_aw_valid !== axi_aw_valid_delayed) begin
-                $error("Write Address Channel: Valid changed during Ready negated. Current: %0d, Delayed: %0d", 
+                $error("Write Address Channel: Valid changed while Ready was negated. Current: %0d, Delayed: %0d", 
                        axi_aw_valid, axi_aw_valid_delayed);
                 $finish;
             end
@@ -1734,22 +1658,22 @@ always_ff @(posedge clk or negedge rst_n) begin
     end else begin
         if (!axi_w_ready_delayed) begin
             if (axi_w_data !== axi_w_data_delayed) begin
-                $error("Write Data Channel: Data changed during Ready negated. Current: 0x%h, Delayed: 0x%h", 
+                $error("Write Data Channel: Data changed while Ready was negated. Current: 0x%h, Delayed: 0x%h", 
                        axi_w_data, axi_w_data_delayed);
                 $finish;
             end
             if (axi_w_strb !== axi_w_strb_delayed) begin
-                $error("Write Data Channel: Strobe changed during Ready negated. Current: 0x%h, Delayed: 0x%h", 
+                $error("Write Data Channel: Strobe changed while Ready was negated. Current: 0x%h, Delayed: 0x%h", 
                        axi_w_strb, axi_w_strb_delayed);
                 $finish;
             end
             if (axi_w_last !== axi_w_last_delayed) begin
-                $error("Write Data Channel: Last changed during Ready negated. Current: %0d, Delayed: %0d", 
+                $error("Write Data Channel: Last changed while Ready was negated. Current: %0d, Delayed: %0d", 
                        axi_w_last, axi_w_last_delayed);
                 $finish;
             end
             if (axi_w_valid !== axi_w_valid_delayed) begin
-                $error("Write Data Channel: Valid changed during Ready negated. Current: %0d, Delayed: %0d", 
+                $error("Write Data Channel: Valid changed while Ready was negated. Current: %0d, Delayed: %0d", 
                        axi_w_valid, axi_w_valid_delayed);
                 $finish;
             end
@@ -1764,32 +1688,32 @@ always_ff @(posedge clk or negedge rst_n) begin
     end else begin
         if (!axi_ar_ready_delayed) begin
             if (axi_ar_addr !== axi_ar_addr_delayed) begin
-                $error("Read Address Channel: Address changed during Ready negated. Current: 0x%h, Delayed: 0x%h", 
+                $error("Read Address Channel: Address changed while Ready was negated. Current: 0x%h, Delayed: 0x%h", 
                        axi_ar_addr, axi_ar_addr_delayed);
                 $finish;
             end
             if (axi_ar_burst !== axi_ar_burst_delayed) begin
-                $error("Read Address Channel: Burst changed during Ready negated. Current: %0d, Delayed: %0d", 
+                $error("Read Address Channel: Burst changed while Ready was negated. Current: %0d, Delayed: %0d", 
                        axi_ar_burst, axi_ar_burst_delayed);
                 $finish;
             end
             if (axi_ar_size !== axi_ar_size_delayed) begin
-                $error("Read Address Channel: Size changed during Ready negated. Current: %0d, Delayed: %0d", 
+                $error("Read Address Channel: Size changed while Ready was negated. Current: %0d, Delayed: %0d", 
                        axi_ar_size, axi_ar_size_delayed);
                 $finish;
             end
             if (axi_ar_id !== axi_ar_id_delayed) begin
-                $error("Read Address Channel: ID changed during Ready negated. Current: %0d, Delayed: %0d", 
+                $error("Read Address Channel: ID changed while Ready was negated. Current: %0d, Delayed: %0d", 
                        axi_ar_id, axi_ar_id_delayed);
                 $finish;
             end
             if (axi_ar_len !== axi_ar_len_delayed) begin
-                $error("Read Address Channel: Length changed during Ready negated. Current: %0d, Delayed: %0d", 
+                $error("Read Address Channel: Length changed while Ready was negated. Current: %0d, Delayed: %0d", 
                        axi_ar_len, axi_ar_len_delayed);
                 $finish;
             end
             if (axi_ar_valid !== axi_ar_valid_delayed) begin
-                $error("Read Address Channel: Valid changed during Ready negated. Current: %0d, Delayed: %0d", 
+                $error("Read Address Channel: Valid changed while Ready was negated. Current: %0d, Delayed: %0d", 
                        axi_ar_valid, axi_ar_valid_delayed);
                 $finish;
             end
@@ -1804,27 +1728,27 @@ always_ff @(posedge clk or negedge rst_n) begin
     end else begin
         if (!axi_r_ready_delayed) begin
             if (axi_r_data !== axi_r_data_delayed) begin
-                $error("Read Data Channel: Data changed during Ready negated. Current: 0x%h, Delayed: 0x%h", 
+                $error("Read Data Channel: Data changed while Ready was negated. Current: 0x%h, Delayed: 0x%h", 
                        axi_r_data, axi_r_data_delayed);
                 $finish;
             end
             if (axi_r_id !== axi_r_id_delayed) begin
-                $error("Read Data Channel: ID changed during Ready negated. Current: %0d, Delayed: %0d", 
+                $error("Read Data Channel: ID changed while Ready was negated. Current: %0d, Delayed: %0d", 
                        axi_r_id, axi_r_id_delayed);
                 $finish;
             end
             if (axi_r_resp !== axi_r_resp_delayed) begin
-                $error("Read Data Channel: Response changed during Ready negated. Current: %0d, Delayed: %0d", 
+                $error("Read Data Channel: Response changed while Ready was negated. Current: %0d, Delayed: %0d", 
                        axi_r_resp, axi_r_resp_delayed);
                 $finish;
             end
             if (axi_r_last !== axi_r_last_delayed) begin
-                $error("Read Data Channel: Last changed during Ready negated. Current: %0d, Delayed: %0d", 
+                $error("Read Data Channel: Last changed while Ready was negated. Current: %0d, Delayed: %0d", 
                        axi_r_last, axi_r_last_delayed);
                 $finish;
             end
             if (axi_r_valid !== axi_r_valid_delayed) begin
-                $error("Read Data Channel: Valid changed during Ready negated. Current: %0d, Delayed: %0d", 
+                $error("Read Data Channel: Valid changed while Ready was negated. Current: %0d, Delayed: %0d", 
                        axi_r_valid, axi_r_valid_delayed);
                 $finish;
             end
@@ -1832,45 +1756,13 @@ always_ff @(posedge clk or negedge rst_n) begin
     end
 end
 
-// Test start and completion summary
+// Test completion monitoring
 initial begin
-    if (LOG_ENABLE) begin
-        // Phase 1: Display test configuration
-        write_log("=== AXI4 Testbench Configuration ===");
-        write_log("Test Configuration:");
-        write_log($sformatf("  - Memory Size: %0d bytes (%0d MB)", MEMORY_SIZE_BYTES, MEMORY_SIZE_BYTES/1024/1024));
-        write_log($sformatf("  - Data Width: %0d bits", AXI_DATA_WIDTH));
-        write_log($sformatf("  - Total Test Count: %0d", TOTAL_TEST_COUNT));
-        write_log($sformatf("  - Phase Test Count: %0d", PHASE_TEST_COUNT));
-        write_log($sformatf("  - Number of Phases: %0d", (TOTAL_TEST_COUNT / PHASE_TEST_COUNT)));
-        
-        // Wait for stimulus generation completion
-        wait(generate_stimulus_expected_done);
-        
-        // Phase 2: Display generated payloads summary
-        write_log("=== Generated Payloads Summary ===");
-        write_log("Generated Test Data:");
-        write_log($sformatf("  - Write Address Payloads: %0d", write_addr_payloads.size()));
-        write_log($sformatf("  - Write Address with Stall: %0d", write_addr_payloads_with_stall.size()));
-        write_log($sformatf("  - Write Data Payloads: %0d", write_data_payloads.size()));
-        write_log($sformatf("  - Write Data with Stall: %0d", write_data_payloads_with_stall.size()));
-        write_log($sformatf("  - Read Address Payloads: %0d", read_addr_payloads.size()));
-        write_log($sformatf("  - Read Address with Stall: %0d", read_addr_payloads_with_stall.size()));
-        write_log($sformatf("  - Read Data Expected: %0d", read_data_expected.size()));
-        write_log($sformatf("  - Write Response Expected: %0d", write_resp_expected.size()));
-        
-        // Wait for test execution completion
-        wait(test_execution_completed);
-        
-        // Phase 3: Display test execution results summary
-        write_log("=== Test Execution Results Summary ===");
-        write_log("Test Results:");
-        write_log($sformatf("  - Total Tests Executed: %0d", TOTAL_TEST_COUNT));
-        write_log($sformatf("  - Total Phases Completed: %0d", (TOTAL_TEST_COUNT / PHASE_TEST_COUNT)));
-        write_log("  - All Phases: PASS");
-        write_log("  - Test Status: COMPLETED SUCCESSFULLY");
-        write_log("=== AXI4 Testbench Log End ===");
-    end
+    // Wait for stimulus generation completion
+    wait(generate_stimulus_expected_done);
+    
+    // Wait for test execution completion
+    wait(test_execution_completed);
 end
 
 // Ready negate control logic
@@ -1881,14 +1773,14 @@ always_ff @(posedge clk or negedge rst_n) begin
         axi_r_ready <= 1'b1;
         axi_b_ready <= 1'b1;
     end else begin
-        // Update ready negate index
+        // Update ready negate index for cycling through pulse arrays
         if (ready_negate_index >= READY_NEGATE_ARRAY_LENGTH - 1) begin
-            ready_negate_index <= 0;  // Reset to 0 when reaching maximum
+            ready_negate_index <= 0;  // Reset to 0 when reaching maximum array length
         end else begin
             ready_negate_index <= ready_negate_index + 1;
         end
         
-        // Control ready signals based on pulse arrays
+        // Control ready signals based on pulse arrays for backpressure testing
         // Note: axi_aw_ready and axi_w_ready are controlled by DUT (wire signals)
         //       axi_r_ready and axi_b_ready are controlled by TB for testing purposes
         axi_r_ready <= !axi_r_ready_negate_pulses[ready_negate_index];
@@ -1896,82 +1788,11 @@ always_ff @(posedge clk or negedge rst_n) begin
     end
 end
 
-// Logging and monitoring
-// Phase execution logging
-always @(posedge clk) begin
-    if (LOG_ENABLE && write_addr_phase_start) begin
-        write_log($sformatf("Phase %0d: Write Address Channel started", current_phase));
-    end
-    if (LOG_ENABLE && read_addr_phase_start) begin
-        write_log($sformatf("Phase %0d: Read Address Channel started", current_phase));
-    end
-    if (LOG_ENABLE && write_data_phase_start) begin
-        write_log($sformatf("Phase %0d: Write Data Channel started", current_phase));
-    end
-    if (LOG_ENABLE && read_data_phase_start) begin
-        write_log($sformatf("Phase %0d: Read Data Channel started", current_phase));
-    end
-end
-
-// AXI4 transfer logging (debug)
-always @(posedge clk) begin
-    if (LOG_ENABLE && DEBUG_LOG_ENABLE) begin
-        // Write Address Channel transfer
-        if (axi_aw_valid && axi_aw_ready) begin
-            write_debug_log($sformatf("Write Addr Transfer: addr=0x%h, burst=%0d, size=%s, id=%0d, len=%0d", 
-                axi_aw_addr, axi_aw_burst, size_to_string(axi_aw_size), axi_aw_id, axi_aw_len));
-        end
-        
-        // Write Data Channel transfer
-        if (axi_w_valid && axi_w_ready) begin
-            write_debug_log($sformatf("Write Data Transfer: data=0x%h, strb=0x%h, last=%0d", 
-                axi_w_data, axi_w_strb, axi_w_last));
-        end
-        
-        // Read Address Channel transfer
-        if (axi_ar_valid && axi_ar_ready) begin
-            write_debug_log($sformatf("Read Addr Transfer: addr=0x%h, burst=%0d, size=%s, id=%0d, len=%0d", 
-                axi_ar_addr, axi_ar_burst, size_to_string(axi_ar_size), axi_ar_id, axi_ar_len));
-        end
-        
-        // Read Data Channel transfer
-        if (axi_r_valid && axi_r_ready) begin
-            write_debug_log($sformatf("Read Data Transfer: data=0x%h, resp=%0d, last=%0d", 
-                axi_r_data, axi_r_resp, axi_r_last));
-        end
-    end
-end
-
-// Stall cycle logging (debug)
-always @(posedge clk) begin
-    if (LOG_ENABLE && DEBUG_LOG_ENABLE) begin
-        // Write Address Channel stall
-        if (axi_aw_valid && !axi_aw_ready) begin
-            write_debug_log("Write Addr Channel: Stall detected");
-        end
-        
-        // Write Data Channel stall
-        if (axi_w_valid && !axi_w_ready) begin
-            write_debug_log("Write Data Channel: Stall detected");
-        end
-        
-        // Read Address Channel stall
-        if (axi_ar_valid && !axi_ar_ready) begin
-            write_debug_log("Read Addr Channel: Stall detected");
-        end
-        
-        // Read Data Channel stall
-        if (axi_r_valid && !axi_r_ready) begin
-            write_debug_log("Read Data Channel: Stall detected");
-        end
-    end
-end
-
 // Write Response Channel Control Circuit
 typedef enum logic [1:0] {
-    WRITE_RESP_IDLE,        // 待機状態
-    WRITE_RESP_ACTIVE,      // アクティブ状態（レスポンス検証も含む）
-    WRITE_RESP_FINISH       // 終了処理状態
+    WRITE_RESP_IDLE,        // Idle state waiting for phase start
+    WRITE_RESP_ACTIVE,      // Active state (includes response verification)
+    WRITE_RESP_FINISH       // Finish processing state
 } write_resp_state_t;
 
 write_resp_state_t write_resp_state = WRITE_RESP_IDLE;
@@ -1989,7 +1810,6 @@ always_ff @(posedge clk or negedge rst_n) begin
         write_resp_array_index <= 0;
         
         // AXI4 signals
-        // axi_b_ready is controlled by initial value (1'b1)
     end else begin
         case (write_resp_state)
             WRITE_RESP_IDLE: begin
@@ -1999,25 +1819,22 @@ always_ff @(posedge clk or negedge rst_n) begin
                     write_resp_phase_counter <= 8'd0;
                     write_resp_array_index <= 0;
                     write_resp_phase_done <= 1'b0;
-                    // axi_b_ready is controlled by initial value (1'b1)
                     
                     // Debug output
-                    if (LOG_ENABLE && DEBUG_LOG_ENABLE) begin
-                        write_debug_log("Phase 0: Write Response Channel started");
-                    end
+                    write_log("Phase 0: Write Response Channel started", LOG_ENABLE);
                 end
             end
             
             WRITE_RESP_ACTIVE: begin
                 // Debug output for state transition
                 if (LOG_ENABLE && DEBUG_LOG_ENABLE && !write_resp_phase_busy) begin
-                    write_debug_log("Write Resp Phase: State transition to ACTIVE");
+                    $display("[%0t] [DEBUG] Write Resp Phase: State transition to ACTIVE", $time);
                     write_resp_phase_busy <= 1'b1;
                 end
                 
-                // 最優先: Valid信号の判定
+                // Priority: Check valid signal first
                 if (axi_b_valid && axi_b_ready) begin
-                    // 期待値の検索（IDベース）
+                    // Search for expected value based on ID
                     automatic int found_index = -1;
                     automatic int i;
                     foreach (write_resp_expected[i]) begin
@@ -2028,44 +1845,43 @@ always_ff @(posedge clk or negedge rst_n) begin
                     end
                     
                     if (found_index >= 0) begin
-                        // 期待値の取得
+                        // Get expected value from array
                         automatic write_resp_expected_t expected = write_resp_expected[found_index];
                         
-                        // レスポンス検証
+                        // Verify response value
                         if (axi_b_resp !== expected.expected_resp) begin
                             $error("Write Response Mismatch: Expected %0d, Got %0d for ID %0d", 
                                    expected.expected_resp, axi_b_resp, axi_b_id);
                             $finish;
                         end
                         
-                        // Debug output
+                        // Debug output for response verification
                         if (LOG_ENABLE && DEBUG_LOG_ENABLE) begin
-                            write_debug_log($sformatf("Write Response: ID=%0d, Resp=%0d, Expected=%0d", 
-                                axi_b_id, axi_b_resp, expected.expected_resp));
+                            $display("[%0t] [DEBUG] Write Response: ID=%0d, Resp=%0d, Expected=%0d", 
+                                $time, axi_b_id, axi_b_resp, expected.expected_resp);
                         end
                         
-                        // 現在のカウンター値でPhase完了判定
+                        // Check phase completion using current counter value
                         if (write_resp_phase_counter < PHASE_TEST_COUNT - 1) begin
-                            // Phase継続: カウンターを増加
+                            // Phase continues: increment counter
                             write_resp_phase_counter <= write_resp_phase_counter + 8'd1;
-                            write_debug_log($sformatf("Write Resp Phase: Response received, counter=%0d/%0d", 
-                                write_resp_phase_counter + 1, PHASE_TEST_COUNT));
+                            $display("[%0t] [DEBUG] Write Resp Phase: Response received, counter=%0d/%0d", 
+                                $time, write_resp_phase_counter + 1, PHASE_TEST_COUNT);
                         end else begin
-                            // Phase完了: 全信号をクリア
-                            // axi_b_ready is controlled by initial value (1'b1)
+                            // Phase completed: clear all signals
                             
-                            // 状態遷移
+                            // State transition to finish
                             write_resp_state <= WRITE_RESP_FINISH;
                             write_resp_phase_done <= 1'b1;
                             
-                            write_debug_log("Write Resp Phase: Phase completed, all signals cleared");
+                            $display("[%0t] [DEBUG] Write Resp Phase: Phase completed, all signals cleared", $time);
                         end
                     end else begin
                         $error("Write Response: No expected value found for ID %0d", axi_b_id);
                         $finish;
                     end
                 end
-                // axi_b_valid = 0 または axi_b_ready = 0の場合は何もしない（現在の信号を保持）
+                // When axi_b_valid = 0 or axi_b_ready = 0, do nothing (maintain current signals)
             end
             
             WRITE_RESP_FINISH: begin
@@ -2073,15 +1889,17 @@ always_ff @(posedge clk or negedge rst_n) begin
                 write_resp_phase_done <= 1'b0;
                 write_resp_phase_busy <= 1'b0;
                 write_resp_state <= WRITE_RESP_IDLE;
-                // axi_b_ready is controlled by initial value (1'b1)
                 
                 // Debug output
                 if (LOG_ENABLE && DEBUG_LOG_ENABLE) begin
-                    write_debug_log("Write Resp Phase: State transition to FINISH");
+                    $display("[%0t] [DEBUG] Write Resp Phase: State transition to FINISH", $time);
                 end
             end
         endcase
     end
 end
+
+// AXI4 Logger module instantiation
+axi_logger logger_inst();
 
 endmodule
