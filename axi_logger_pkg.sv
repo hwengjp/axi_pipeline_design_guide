@@ -1,3 +1,4 @@
+// Licensed under the Apache License, Version 2.0 - see https://www.apache.org/licenses/LICENSE-2.0 for details.
 // AXI4 Logger Package
 // Common logging functions for AXI4 testbenches
 package axi_logger_pkg;

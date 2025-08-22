@@ -1,3 +1,4 @@
+// Licensed under the Apache License, Version 2.0 - see https://www.apache.org/licenses/LICENSE-2.0 for details.
 // axi_verification_functions.svh
 // Auto-generated from axi_simple_dual_port_ram_tb.sv
 // DO NOT MODIFY - This file is auto-generated
@@ -17,7 +18,7 @@ function automatic void generate_read_data_expected();
         read_data_expected[i] = '{
             test_count: write_data_payloads[i].test_count,
             expected_data: write_data_payloads[i].data,
-            expected_strobe: write_data_payloads[i].strb,  // ストローブ情報をコピー
+            expected_strobe: write_data_payloads[i].strb,  // Copy strobe information
             phase: write_data_payloads[i].phase
         };
     end

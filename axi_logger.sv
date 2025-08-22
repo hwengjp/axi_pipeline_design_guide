@@ -1,3 +1,4 @@
+// Licensed under the Apache License, Version 2.0 - see https://www.apache.org/licenses/LICENSE-2.0 for details.
 // AXI4 Logger Module
 // I/O-less module for logging and monitoring AXI4 protocol signals
 // Uses hierarchical signal names for signal observation

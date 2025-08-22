@@ -1,6 +1,6 @@
+// Licensed under the Apache License, Version 2.0 - see https://www.apache.org/licenses/LICENSE-2.0 for details.
 // AXI4 Simple Dual Port RAM Testbench
 // Generated from part08_axi4_bus_testbench_abstraction.md
-// Licensed under the Apache License, Version 2.0 - see https://www.apache.org/licenses/LICENSE-2.0 for details.
 
 `timescale 1ns/1ps
 
@@ -13,7 +13,6 @@ module axi_simple_dual_port_ram_tb;
 `include "axi_utility_functions.svh"
 `include "axi_random_generation.svh"
 `include "axi_monitoring_functions.svh"
-
 
 // Clock and Reset
 reg clk;
@@ -32,23 +31,6 @@ initial begin
     #1;
     rst_n = 1;
 end
-
-// Testbench parameters
-     // 32MB
-              // 32bit
-                 // 8bit ID
-          // Total test count
-           // Tests per phase
-//          // Total test count
-//           // Tests per phase
- // Address size per test count
-                  // 10ns period
-             // 5ns half period
-                // Reset cycles
-
-// Derived parameters
-
-
 
 // AXI4 Write Address Channel
 logic [AXI_ADDR_WIDTH-1:0] axi_aw_addr;
@@ -89,137 +71,7 @@ wire                       axi_r_last;
 wire                       axi_r_valid;
 logic                      axi_r_ready;
 
-// Test data generation completion flag
-
-
-// Test execution completion flag
-
-
 // Ready negate control parameters
-  // Length of ready negate pulse array
-
-// Ready negate pulse arrays for TB controlled channels
-// (moved to axi_common_defs.svh)
-
-// Weighted random generation structures
-// (moved to axi_common_defs.svh)
-
-// Weighted random generation arrays
-// (moved to axi_common_defs.svh)
-
-// Payload structures
-// (moved to axi_common_defs.svh)
-
-// Payload arrays
-// (moved to axi_common_defs.svh)
-
-// Expected value structures
-// (moved to axi_common_defs.svh)
-
-// Expected value arrays
-// (moved to axi_common_defs.svh)
-
-// Phase control signals
-// (moved to axi_common_defs.svh)
-
-
-
-
-
-  // Clear signal for phase completion latches
-
-// Phase completion signals
-
-
-
-
-
-
-// Phase completion signal latches
-
-
-
-
-
-
-// Log control parameters
-
-
-
-// Test data generation functions
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// (extract_weights_generic removed to avoid returning int[] which some tools reject)
-
-// Direct bubble weight helper functions (avoid packed arrays)
-
-
-
-
-
-
-// Helper functions
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// Weighted random generation functions
-
-
-
-
-// Ready negate pulse array initialization function
-
-
-// Log output functions
-
-
-
-
-// Array display functions
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 // DUT instantiation
 axi_simple_dual_port_ram #(
@@ -445,9 +297,9 @@ end
 
 // Write Address Channel Control Circuit
 typedef enum logic [1:0] {
-    WRITE_ADDR_IDLE,        // 待機状態
-    WRITE_ADDR_ACTIVE,      // アクティブ状態（ストール処理も含む）
-    WRITE_ADDR_FINISH       // 終了処理状態
+    WRITE_ADDR_IDLE,        // Idle state
+    WRITE_ADDR_ACTIVE,      // Active state (including stall processing)
+    WRITE_ADDR_FINISH       // Finish processing state
 } write_addr_state_t;
 
 write_addr_state_t write_addr_state = WRITE_ADDR_IDLE;
@@ -478,23 +330,23 @@ always_ff @(posedge clk or negedge rst_n) begin
                     write_addr_state <= WRITE_ADDR_ACTIVE;
                     write_addr_phase_busy <= 1'b1;
                     write_addr_phase_counter <= 8'd0;
-                    // write_addr_array_index <= 0;  // 削除: クリアしない
+                    // write_addr_array_index <= 0;  // Removed: Don't clear
                     write_addr_phase_done <= 1'b0;
                 end
             end
             
             WRITE_ADDR_ACTIVE: begin
-                // 最優先: Ready信号の判定
+                // Highest priority: Ready signal check
                 if (axi_aw_ready) begin
-                    // 配列の範囲チェック
+                    // Array range check
                     if (write_addr_array_index < write_addr_payloads_with_stall.size()) begin
-                        // ペイロードの取得
+                        // Get payload
                         automatic write_addr_payload_t payload = write_addr_payloads_with_stall[write_addr_array_index];
                         
                       
-                        // アドレス送信完了の判定（axi_aw_validの時）
+                        // Address transmission completion check (when axi_aw_valid)
                         if (axi_aw_valid) begin
-                            // 現在のカウンター値でPhase完了判定
+                            // Phase completion check based on current counter value
                             if (write_addr_phase_counter < PHASE_TEST_COUNT - 1) begin
                                 axi_aw_addr <= payload.addr;
                                 axi_aw_burst <= payload.burst;
@@ -510,15 +362,15 @@ always_ff @(posedge clk or negedge rst_n) begin
                                         payload.size, payload.id, payload.len, payload.valid));
                                 end
 
-                                // 配列インデックスを更新
+                                // Update array index
                                 write_addr_array_index <= write_addr_array_index + 1;
 
-                                // Phase継続: カウンターを増加
+                                // Phase continue: Increment counter
                                 write_addr_phase_counter <= write_addr_phase_counter + 8'd1;
                                 write_debug_log($sformatf("Write Addr Phase: Address sent, counter=%0d/%0d", 
                                     write_addr_phase_counter + 1, PHASE_TEST_COUNT));
                             end else begin
-                                // Phase完了: 全信号をクリア
+                                // Phase complete: Clear all signals
                                 axi_aw_addr <= '0;
                                 axi_aw_burst <= '0;
                                 axi_aw_size <= '0;
@@ -526,7 +378,7 @@ always_ff @(posedge clk or negedge rst_n) begin
                                 axi_aw_len <= '0;
                                 axi_aw_valid <= 1'b0;
                                 
-                                // 状態遷移
+                                // State transition
                                 write_addr_state <= WRITE_ADDR_FINISH;
                                 write_addr_phase_done <= 1'b1;
                                 
@@ -547,11 +399,11 @@ always_ff @(posedge clk or negedge rst_n) begin
                                     payload.size, payload.id, payload.len, payload.valid));
                             end
 
-                            // 配列インデックスを更新
+                            // Update array index
                             write_addr_array_index <= write_addr_array_index + 1;
                         end
                     end else begin
-                        // 配列終了: 全信号をクリアしてPhase完了
+                        // Array end: Clear all signals and complete phase
                         axi_aw_addr <= '0;
                         axi_aw_burst <= '0;
                         axi_aw_size <= '0;
@@ -565,7 +417,7 @@ always_ff @(posedge clk or negedge rst_n) begin
                         write_debug_log("Write Addr Phase: Array end reached, all signals cleared");
                     end
                 end
-                // axi_aw_ready = 0の場合は何もしない（現在の信号を保持）
+                // When axi_aw_ready = 0, do nothing (keep current signals)
             end
             
             WRITE_ADDR_FINISH: begin
@@ -580,9 +432,9 @@ end
 
 // Read Address Channel Control Circuit
 typedef enum logic [1:0] {
-    READ_ADDR_IDLE,        // 待機状態
-    READ_ADDR_ACTIVE,      // アクティブ状態（ストール処理も含む）
-    READ_ADDR_FINISH       // 終了処理状態
+    READ_ADDR_IDLE,        // Idle state
+    READ_ADDR_ACTIVE,      // Active state (including stall processing)
+    READ_ADDR_FINISH       // Finish processing state
 } read_addr_state_t;
 
 read_addr_state_t read_addr_state = READ_ADDR_IDLE;
@@ -613,22 +465,21 @@ always_ff @(posedge clk or negedge rst_n) begin
                     read_addr_state <= READ_ADDR_ACTIVE;
                     read_addr_phase_busy <= 1'b1;
                     read_addr_phase_counter <= 8'd0;
-                    // 配列インデックスはクリアしない（連続的に使用）
                     read_addr_phase_done <= 1'b0;
                 end
             end
             
             READ_ADDR_ACTIVE: begin
-                // 最優先: Ready信号の判定
+                // Highest priority: Ready signal check
                 if (axi_ar_ready) begin
-                    // 配列の範囲チェック
+                    // Array range check
                     if (read_addr_array_index < read_addr_payloads_with_stall.size()) begin
-                        // ペイロードの取得
+                        // Get payload
                         automatic read_addr_payload_t payload = read_addr_payloads_with_stall[read_addr_array_index];
                         
-                        // アドレス送信完了の判定（axi_ar_validの時）
+                        // Address transmission completion check (when axi_ar_valid)
                         if (axi_ar_valid) begin
-                            // 現在のカウンター値でPhase完了判定
+                            // Phase completion check based on current counter value
                             if (read_addr_phase_counter < PHASE_TEST_COUNT - 1) begin
                                 axi_ar_addr <= payload.addr;
                                 axi_ar_burst <= payload.burst;
@@ -644,15 +495,15 @@ always_ff @(posedge clk or negedge rst_n) begin
                                         payload.size, payload.id, payload.len, payload.valid));
                                 end
 
-                                // 配列インデックスを更新
+                                // Update array index
                                 read_addr_array_index <= read_addr_array_index + 1;
 
-                                // Phase継続: カウンターを増加
+                                // Phase continue: Increment counter
                                 read_addr_phase_counter <= read_addr_phase_counter + 8'd1;
                                 write_debug_log($sformatf("Read Addr Phase: Address sent, counter=%0d/%0d", 
                                     read_addr_phase_counter + 1, PHASE_TEST_COUNT));
                             end else begin
-                                // Phase完了: 全信号をクリア
+                                // Phase complete: Clear all signals
                                 axi_ar_addr <= '0;
                                 axi_ar_burst <= '0;
                                 axi_ar_size <= '0;
@@ -660,14 +511,14 @@ always_ff @(posedge clk or negedge rst_n) begin
                                 axi_ar_len <= '0;
                                 axi_ar_valid <= 1'b0;
                                 
-                                // 状態遷移
+                                // State transition
                                 read_addr_state <= READ_ADDR_FINISH;
                                 read_addr_phase_done <= 1'b1;
                                 
                                 write_debug_log("Read Addr Phase: Phase completed, all signals cleared");
                             end
                         end else begin
-                            // 次のペイロードを出力
+                            // Output next payload
                             axi_ar_addr <= payload.addr;
                             axi_ar_burst <= payload.burst;
                             axi_ar_size <= payload.size;
@@ -682,11 +533,11 @@ always_ff @(posedge clk or negedge rst_n) begin
                                     payload.size, payload.id, payload.len, payload.valid));
                             end
 
-                            // 配列インデックスを更新
+                            // Update array index
                             read_addr_array_index <= read_addr_array_index + 1;
                         end
                     end else begin
-                        // 配列終了: 全信号をクリアしてPhase完了
+                        // Array end: Clear all signals and complete phase
                         axi_ar_addr <= '0;
                         axi_ar_burst <= '0;
                         axi_ar_size <= '0;
@@ -700,7 +551,7 @@ always_ff @(posedge clk or negedge rst_n) begin
                         write_debug_log("Read Addr Phase: Array end reached, all signals cleared");
                     end
                 end
-                // axi_ar_ready = 0の場合は何もしない（現在の信号を保持）
+                // When axi_ar_ready = 0, do nothing (keep current signals)
             end
             
             READ_ADDR_FINISH: begin
@@ -715,9 +566,9 @@ end
 
 // Write Data Channel Control Circuit
 typedef enum logic [1:0] {
-    WRITE_DATA_IDLE,        // 待機状態
-    WRITE_DATA_ACTIVE,      // アクティブ状態（ストール処理も含む）
-    WRITE_DATA_FINISH       // 終了処理状態
+    WRITE_DATA_IDLE,        // Idle state
+    WRITE_DATA_ACTIVE,      // Active state (including stall processing)
+    WRITE_DATA_FINISH       // Finish processing state
 } write_data_state_t;
 
 write_data_state_t write_data_state = WRITE_DATA_IDLE;
@@ -746,22 +597,21 @@ always_ff @(posedge clk or negedge rst_n) begin
                     write_data_state <= WRITE_DATA_ACTIVE;
                     write_data_phase_busy <= 1'b1;
                     write_data_phase_counter <= 8'd0;
-                    // 配列インデックスはクリアしない（連続的に使用）
                     write_data_phase_done <= 1'b0;
                 end
             end
             
             WRITE_DATA_ACTIVE: begin
-                // 最優先: Ready信号の判定
+                // Highest priority: Ready signal check
                 if (axi_w_ready) begin
-                    // 配列の範囲チェック
+                    // Array range check
                     if (write_data_array_index < write_data_payloads_with_stall.size()) begin
-                        // ペイロードの取得（配列インデックス更新前）
+                        // Get payload (before updating array index)
                         automatic write_data_payload_t payload = write_data_payloads_with_stall[write_data_array_index];
                         
-                        // Phase完了判定（axi_w_lastの時）
+                        // Phase completion check (when axi_w_last)
                         if (axi_w_last) begin
-                            // 現在のカウンター値でPhase完了判定
+                            // Phase completion check based on current counter value
                             if (write_data_phase_counter < PHASE_TEST_COUNT - 1) begin
                                 axi_w_data <= payload.data;
                                 axi_w_strb <= payload.strb;
@@ -780,20 +630,20 @@ always_ff @(posedge clk or negedge rst_n) begin
                                 write_debug_log($sformatf("Write Data Phase: Burst completed, counter=%0d/%0d", 
                                     write_data_phase_counter + 1, PHASE_TEST_COUNT));
                             end else begin
-                                // Phase完了: 全信号をクリア
+                                // Phase complete: Clear all signals
                                 axi_w_data <= '0;
                                 axi_w_strb <= '0;
                                 axi_w_last <= 1'b0;
                                 axi_w_valid <= 1'b0;
                                 
-                                // 状態遷移
+                                // State transition
                                 write_data_state <= WRITE_DATA_FINISH;
                                 write_data_phase_done <= 1'b1;
                                 
                                 write_debug_log("Write Data Phase: Phase completed, all signals cleared");
                             end
                         end else begin
-                            // 次のペイロードを出力
+                            // Output next payload
                             axi_w_data <= payload.data;
                             axi_w_strb <= payload.strb;
                             axi_w_last <= payload.last;
@@ -809,7 +659,7 @@ always_ff @(posedge clk or negedge rst_n) begin
                             write_data_array_index <= write_data_array_index + 1;
                         end
                     end else begin
-                        // 配列終了: 全信号をクリアしてPhase完了
+                        // Array end: Clear all signals and complete phase
                         axi_w_data <= '0;
                         axi_w_strb <= '0;
                         axi_w_last <= 1'b0;
@@ -821,7 +671,7 @@ always_ff @(posedge clk or negedge rst_n) begin
                         write_debug_log("Write Data Phase: Array end reached, all signals cleared");
                     end
                 end
-                // axi_w_ready = 0の場合は何もしない（現在の信号を保持）
+                // When axi_w_ready = 0, do nothing (keep current signals)
             end
             
             WRITE_DATA_FINISH: begin
@@ -836,9 +686,9 @@ end
 
 // Read Data Channel Control Circuit
 typedef enum logic [1:0] {
-    READ_DATA_IDLE,        // 待機状態
-    READ_DATA_ACTIVE,      // アクティブ状態（期待値検証も含む）
-    READ_DATA_FINISH       // 終了処理状態
+    READ_DATA_IDLE,        // Idle state
+    READ_DATA_ACTIVE,      // Active state (including expected value verification)
+    READ_DATA_FINISH       // Finish processing state
 } read_data_state_t;
 
 read_data_state_t read_data_state = READ_DATA_IDLE;
@@ -854,9 +704,6 @@ always_ff @(posedge clk or negedge rst_n) begin
         read_data_phase_busy <= 1'b0;
         read_data_phase_done <= 1'b0;
         read_data_array_index <= 0;
-        
-        // AXI4 signals
-        // axi_r_ready is controlled by initial value (1'b1)
     end else begin
         case (read_data_state)
             READ_DATA_IDLE: begin
@@ -864,25 +711,23 @@ always_ff @(posedge clk or negedge rst_n) begin
                     read_data_state <= READ_DATA_ACTIVE;
                     read_data_phase_busy <= 1'b1;
                     read_data_phase_counter <= 8'd0;
-                    // 配列インデックスはクリアしない（連続的に使用）
                     read_data_phase_done <= 1'b0;
-                    // axi_r_ready is controlled by initial value (1'b1)
                 end
             end
             
             READ_DATA_ACTIVE: begin
-                // 最優先: Valid信号の判定
+                // Highest priority: Valid signal check
                 if (axi_r_valid && axi_r_ready) begin
-                    // 配列の範囲チェック
+                    // Array range check
                     if (read_data_array_index < read_data_expected.size()) begin
-                        // 期待値の取得
+                        // Get expected value
                         automatic read_data_expected_t expected = read_data_expected[read_data_array_index];
                         
-                        // バースト完了の判定（last=1の時）
+                        // Burst completion check (when last=1)
                         if (axi_r_last) begin
-                            // 現在のカウンター値でPhase完了判定
+                            // Phase completion check based on current counter value
                             if (read_data_phase_counter < PHASE_TEST_COUNT - 1) begin
-                                // データ検証（ストローブが有効なバイトのみ）
+                                // Data verification (only for valid strobe bytes)
                                 if (!check_read_data(axi_r_data, expected.expected_data, expected.expected_strobe)) begin
                                     $error("Read Data Mismatch at index %0d: Expected 0x%h, Got 0x%h", 
                                         read_data_array_index, expected.expected_data, axi_r_data);
@@ -895,28 +740,26 @@ always_ff @(posedge clk or negedge rst_n) begin
                                         read_data_array_index, expected.test_count, axi_r_data, expected.expected_data, expected.expected_strobe, axi_r_last));
                                 end
 
-                                // 配列インデックスを更新
+                                // Update array index
                                 read_data_array_index <= read_data_array_index + 1;
 
-                                // Phase継続: カウンターを増加
+                                // Phase continue: Increment counter
                                 read_data_phase_counter <= read_data_phase_counter + 8'd1;
                                 write_debug_log($sformatf("Read Data Phase: Burst completed, counter=%0d/%0d", 
                                     read_data_phase_counter + 1, PHASE_TEST_COUNT));
                             end else begin
-                                // Phase完了: 全信号をクリア
-                                // axi_r_ready is controlled by initial value (1'b1)
-
-                                // 配列インデックスを更新
+                                // Phase complete
+                                // Update array index
                                 read_data_array_index <= read_data_array_index + 1;
 
-                                // 状態遷移
+                                // State transition
                                 read_data_state <= READ_DATA_FINISH;
                                 read_data_phase_done <= 1'b1;
                                 
                                 write_debug_log("Read Data Phase: Phase completed, all signals cleared");
                             end
                         end else begin
-                            // データ検証（ストローブが有効なバイトのみ）
+                            // Data verification (only for bytes with valid strobe)
                             if (!check_read_data(axi_r_data, expected.expected_data, expected.expected_strobe)) begin
                                 $error("Read Data Mismatch at index %0d: Expected 0x%h, Got 0x%h", 
                                        read_data_array_index, expected.expected_data, axi_r_data);
@@ -929,20 +772,17 @@ always_ff @(posedge clk or negedge rst_n) begin
                                     read_data_array_index, expected.test_count, axi_r_data, expected.expected_data, expected.expected_strobe, axi_r_last));
                             end
 
-                            // 配列インデックスを更新
+                            // Update array index
                             read_data_array_index <= read_data_array_index + 1;
                         end
                     end else begin
-                        // 配列終了: 全信号をクリアしてPhase完了
-                        // axi_r_ready is controlled by initial value (1'b1)
-                        
                         read_data_state <= READ_DATA_FINISH;
                         read_data_phase_done <= 1'b1;
                         
                         write_debug_log("Read Data Phase: Array end reached, all signals cleared");
                     end
                 end
-                // axi_r_valid = 0 または axi_r_ready = 0の場合は何もしない（現在の信号を保持）
+                // When axi_r_valid = 0 or axi_r_ready = 0, do nothing (keep current signals)
             end
             
             READ_DATA_FINISH: begin
@@ -950,7 +790,6 @@ always_ff @(posedge clk or negedge rst_n) begin
                 read_data_phase_done <= 1'b0;
                 read_data_phase_busy <= 1'b0;
                 read_data_state <= READ_DATA_IDLE;
-                // axi_r_ready is controlled by initial value (1'b1)
             end
         endcase
     end
@@ -1306,9 +1145,9 @@ end
 
 // Write Response Channel Control Circuit
 typedef enum logic [1:0] {
-    WRITE_RESP_IDLE,        // 待機状態
-    WRITE_RESP_ACTIVE,      // アクティブ状態（レスポンス検証も含む）
-    WRITE_RESP_FINISH       // 終了処理状態
+    WRITE_RESP_IDLE,        // Idle state
+    WRITE_RESP_ACTIVE,      // Active state (including response verification)
+    WRITE_RESP_FINISH       // Finish processing state
 } write_resp_state_t;
 
 write_resp_state_t write_resp_state = WRITE_RESP_IDLE;
@@ -1324,9 +1163,6 @@ always_ff @(posedge clk or negedge rst_n) begin
         write_resp_phase_busy <= 1'b0;
         write_resp_phase_done <= 1'b0;
         write_resp_array_index <= 0;
-        
-        // AXI4 signals
-        // axi_b_ready is controlled by initial value (1'b1)
     end else begin
         case (write_resp_state)
             WRITE_RESP_IDLE: begin
@@ -1336,7 +1172,6 @@ always_ff @(posedge clk or negedge rst_n) begin
                     write_resp_phase_counter <= 8'd0;
                     write_resp_array_index <= 0;
                     write_resp_phase_done <= 1'b0;
-                    // axi_b_ready is controlled by initial value (1'b1)
                     
                     // Debug output
                     if (LOG_ENABLE && DEBUG_LOG_ENABLE) begin
@@ -1347,14 +1182,13 @@ always_ff @(posedge clk or negedge rst_n) begin
             
             WRITE_RESP_ACTIVE: begin
                 // Debug output for state transition
-                if (LOG_ENABLE && DEBUG_LOG_ENABLE && !write_resp_phase_busy) begin
+                if (LOG_ENABLE && DEBUG_LOG_ENABLE) begin
                     write_debug_log("Write Resp Phase: State transition to ACTIVE");
-                    write_resp_phase_busy <= 1'b1;
                 end
-                
-                // 最優先: Valid信号の判定
+
+                // Highest priority: Valid signal check
                 if (axi_b_valid && axi_b_ready) begin
-                    // 期待値の検索（IDベース）
+                    // Search for expected value (ID-based)
                     automatic int found_index = -1;
                     automatic int i;
                     foreach (write_resp_expected[i]) begin
@@ -1365,10 +1199,10 @@ always_ff @(posedge clk or negedge rst_n) begin
                     end
                     
                     if (found_index >= 0) begin
-                        // 期待値の取得
+                        // Get expected value
                         automatic write_resp_expected_t expected = write_resp_expected[found_index];
                         
-                        // レスポンス検証
+                        // Response verification
                         if (axi_b_resp !== expected.expected_resp) begin
                             $error("Write Response Mismatch: Expected %0d, Got %0d for ID %0d", 
                                    expected.expected_resp, axi_b_resp, axi_b_id);
@@ -1381,17 +1215,15 @@ always_ff @(posedge clk or negedge rst_n) begin
                                 axi_b_id, axi_b_resp, expected.expected_resp));
                         end
                         
-                        // 現在のカウンター値でPhase完了判定
+                        // Phase completion check based on current counter value
                         if (write_resp_phase_counter < PHASE_TEST_COUNT - 1) begin
-                            // Phase継続: カウンターを増加
+                            // Phase continue: Increment counter
                             write_resp_phase_counter <= write_resp_phase_counter + 8'd1;
                             write_debug_log($sformatf("Write Resp Phase: Response received, counter=%0d/%0d", 
                                 write_resp_phase_counter + 1, PHASE_TEST_COUNT));
                         end else begin
-                            // Phase完了: 全信号をクリア
-                            // axi_b_ready is controlled by initial value (1'b1)
-                            
-                            // 状態遷移
+                            // Phase complete
+                            // State transition
                             write_resp_state <= WRITE_RESP_FINISH;
                             write_resp_phase_done <= 1'b1;
                             
@@ -1402,7 +1234,7 @@ always_ff @(posedge clk or negedge rst_n) begin
                         $finish;
                     end
                 end
-                // axi_b_valid = 0 または axi_b_ready = 0の場合は何もしない（現在の信号を保持）
+                // When axi_b_valid = 0 or axi_b_ready = 0, do nothing (keep current signals)
             end
             
             WRITE_RESP_FINISH: begin
@@ -1410,7 +1242,6 @@ always_ff @(posedge clk or negedge rst_n) begin
                 write_resp_phase_done <= 1'b0;
                 write_resp_phase_busy <= 1'b0;
                 write_resp_state <= WRITE_RESP_IDLE;
-                // axi_b_ready is controlled by initial value (1'b1)
                 
                 // Debug output
                 if (LOG_ENABLE && DEBUG_LOG_ENABLE) begin

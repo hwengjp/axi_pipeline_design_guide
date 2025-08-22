@@ -1,3 +1,4 @@
+// Licensed under the Apache License, Version 2.0 - see https://www.apache.org/licenses/LICENSE-2.0 for details.
 // axi_random_generation.svh
 // Auto-generated from axi_simple_dual_port_ram_tb.sv
 // DO NOT MODIFY - This file is auto-generated

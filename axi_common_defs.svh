@@ -1,3 +1,4 @@
+// Licensed under the Apache License, Version 2.0 - see https://www.apache.org/licenses/LICENSE-2.0 for details.
 // AXI4 Common Definitions Header File
 // This file contains all common parameters and type definitions for the testbench
 

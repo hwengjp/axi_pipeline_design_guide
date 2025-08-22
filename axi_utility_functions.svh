@@ -1,3 +1,4 @@
+// Licensed under the Apache License, Version 2.0 - see https://www.apache.org/licenses/LICENSE-2.0 for details.
 // axi_utility_functions.svh
 // Auto-generated from axi_simple_dual_port_ram_tb.sv
 // DO NOT MODIFY - This file is auto-generated
@@ -50,11 +51,11 @@ function automatic logic [AXI_ADDR_WIDTH-1:0] align_address_to_boundary(
             aligned_addr = (address / wrap_boundary) * wrap_boundary;
         end
         "INCR", "FIXED": begin
-            int size_bytes = 2 ** size;  // SIZEに応じたバイト数
+            int size_bytes = 2 ** size;  // Byte count based on SIZE
             aligned_addr = (address / size_bytes) * size_bytes;
         end
         default: begin
-            int size_bytes = 2 ** size;  // SIZEに応じたバイト数
+            int size_bytes = 2 ** size;  // Byte count based on SIZE
             aligned_addr = (address / size_bytes) * size_bytes;
         end
     endcase
@@ -72,10 +73,10 @@ function automatic bit check_read_data(
     bit check_result = 1'b1;
     int byte_idx;
     
-    // ストローブが有効なバイトのみをチェック
+    // Check only bytes with valid strobe
     for (byte_idx = 0; byte_idx < AXI_STRB_WIDTH; byte_idx++) begin
         if (expected_strobe[byte_idx]) begin
-            // このバイトが有効な場合、データを比較
+            // If this byte is valid, compare data
             if (actual_data[byte_idx*8 +: 8] !== expected_data[byte_idx*8 +: 8]) begin
                 check_result = 1'b0;
                 $error("Byte %0d mismatch: expected=0x%02h, actual=0x%02h", 
@@ -113,7 +114,7 @@ function automatic logic [AXI_STRB_WIDTH-1:0] generate_strobe_pattern(
     int burst_size_bytes = size_to_bytes(size);
     
     if (burst_type == "FIXED") begin
-        // FIXED: アドレスオフセットから開始
+        // FIXED: Start from address offset
         int addr_offset = address % bus_width_bytes;
         int strobe_start = addr_offset;
         int strobe_end = strobe_start + burst_size_bytes - 1;
@@ -130,7 +131,7 @@ function automatic logic [AXI_STRB_WIDTH-1:0] generate_strobe_pattern(
             strobe_pattern[byte_idx] = 1'b1;
         end
     end else begin
-        // INCR/WRAP: アドレスの最下位ビットから開始
+        // INCR/WRAP: Start from least significant bits of address
         int addr_offset = address % bus_width_bytes;
         int strobe_start = addr_offset;
         int strobe_end = strobe_start + burst_size_bytes - 1;

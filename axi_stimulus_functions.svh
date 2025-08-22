@@ -1,3 +1,4 @@
+// Licensed under the Apache License, Version 2.0 - see https://www.apache.org/licenses/LICENSE-2.0 for details.
 // axi_stimulus_functions.svh
 // Auto-generated from axi_simple_dual_port_ram_tb.sv
 // DO NOT MODIFY - This file is auto-generated
@@ -148,9 +149,9 @@ function automatic void generate_write_data_payloads();
             random_data = $urandom();
             
             // Generate strobe pattern based on address, size, and burst type
-            // STROBEの乱数はFIXEDのシングルアクセスの時だけ
+            // Random STROBE only for FIXED single access
             if (get_burst_type_string(addr_payload.burst) == "FIXED" && addr_payload.len == 0) begin
-                // FIXEDシングルアクセス: 乱数STROBEを生成
+                // FIXED single access: Generate random STROBE
                 strobe_pattern = generate_strobe_pattern(
                     addr_payload.addr, 
                     addr_payload.size, 
@@ -158,8 +159,8 @@ function automatic void generate_write_data_payloads();
                     get_burst_type_string(addr_payload.burst)
                 );
             end else begin
-                // INCR/WRAPまたはFIXEDバースト: 全ビット1のSTROBEパターンを使用
-                strobe_pattern = '1;  // 全ビット1
+                // INCR/WRAP or FIXED burst: Use all-1 STROBE pattern
+                strobe_pattern = '1;  // All bits 1
             end
             
             // Create strobe mask for data masking
