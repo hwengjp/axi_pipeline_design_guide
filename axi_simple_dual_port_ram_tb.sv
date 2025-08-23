@@ -379,12 +379,12 @@ function automatic void generate_write_data_payloads();
             // Random STROBE only for FIXED single access, all-ones for others
             if (get_burst_type_string(addr_payload.burst) == "FIXED" && addr_payload.len == 0) begin
                 // FIXED single access: generate random STROBE pattern
-                strobe_pattern = generate_strobe_pattern(
-                    addr_payload.addr, 
-                    addr_payload.size, 
-                    AXI_DATA_WIDTH,
-                    get_burst_type_string(addr_payload.burst)
-                );
+            strobe_pattern = generate_strobe_pattern(
+                addr_payload.addr, 
+                addr_payload.size, 
+                AXI_DATA_WIDTH,
+                get_burst_type_string(addr_payload.burst)
+            );
             end else begin
                 // INCR/WRAP or FIXED burst: use all-ones STROBE pattern
                 strobe_pattern = '1;  // All bits set to 1
@@ -1516,7 +1516,7 @@ always_ff @(posedge clk or negedge rst_n) begin
                             if (LOG_ENABLE && DEBUG_LOG_ENABLE) begin
                                 write_debug_log($sformatf("Read Data[%0d]: test_count=%0d, data=0x%h, expected=0x%h, expected_strobe=0x%h, last=%0d", 
                                     read_data_array_index, expected.test_count, axi_r_data, expected.expected_data, expected.expected_strobe, axi_r_last), DEBUG_LOG_ENABLE);
-                                end
+                            end
 
                             // Update array index for next expected value
                             read_data_array_index <= read_data_array_index + 1;
@@ -1758,11 +1758,11 @@ end
 
 // Test completion monitoring
 initial begin
-    // Wait for stimulus generation completion
-    wait(generate_stimulus_expected_done);
-    
-    // Wait for test execution completion
-    wait(test_execution_completed);
+        // Wait for stimulus generation completion
+        wait(generate_stimulus_expected_done);
+        
+        // Wait for test execution completion
+        wait(test_execution_completed);
 end
 
 // Ready negate control logic

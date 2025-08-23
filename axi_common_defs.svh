@@ -5,6 +5,9 @@
 `ifndef AXI_COMMON_DEFS_SVH
 `define AXI_COMMON_DEFS_SVH
 
+// TOP hierarchy access definition for sub-modules
+`define TOP_TB axi_simple_dual_port_ram_tb
+
 // Testbench parameters
 parameter MEMORY_SIZE_BYTES = 33554432;     // 32MB
 parameter AXI_DATA_WIDTH = 32;              // 32bit
@@ -174,7 +177,9 @@ logic [READY_NEGATE_ARRAY_LENGTH-1:0] axi_w_ready_negate_pulses;
 logic [READY_NEGATE_ARRAY_LENGTH-1:0] axi_ar_ready_negate_pulses;
 
 // Ready negate array index counter
-logic [$clog2(READY_NEGATE_ARRAY_LENGTH):0] ready_negate_index = 0;
+// Ready negate control indices - separated for Read and Write channels
+logic [$clog2(READY_NEGATE_ARRAY_LENGTH):0] read_ready_negate_index = 0;   // Read channel pulse array index
+logic [$clog2(READY_NEGATE_ARRAY_LENGTH):0] write_ready_negate_index = 0;  // Write channel pulse array index
 
 // Test data generation completion flag
 logic generate_stimulus_expected_done = 1'b0;
@@ -208,5 +213,37 @@ logic read_data_phase_done_latched = 1'b0;
 // Log control parameters
 parameter LOG_ENABLE = 1'b1;
 parameter DEBUG_LOG_ENABLE = 1'b1;
+
+// State machine type definitions for Write channels
+typedef enum logic [1:0] {
+    WRITE_ADDR_IDLE,        // Idle state waiting for phase start
+    WRITE_ADDR_ACTIVE,      // Active state (includes stall handling)
+    WRITE_ADDR_FINISH       // Finish processing state
+} write_addr_state_t;
+
+typedef enum logic [1:0] {
+    WRITE_DATA_IDLE,        // Idle state waiting for phase start
+    WRITE_DATA_ACTIVE,      // Active state (includes stall handling)
+    WRITE_DATA_FINISH       // Finish processing state
+} write_data_state_t;
+
+typedef enum logic [1:0] {
+    WRITE_RESP_IDLE,        // Idle state waiting for phase start
+    WRITE_RESP_ACTIVE,      // Active state (includes stall handling)
+    WRITE_RESP_FINISH       // Finish processing state
+} write_resp_state_t;
+
+// State machine type definitions for Read channels
+typedef enum logic [1:0] {
+    READ_ADDR_IDLE,         // Idle state waiting for phase start
+    READ_ADDR_ACTIVE,       // Active state (includes stall handling)
+    READ_ADDR_FINISH        // Finish processing state
+} read_addr_state_t;
+
+typedef enum logic [1:0] {
+    READ_DATA_IDLE,         // Idle state waiting for phase start
+    READ_DATA_ACTIVE,       // Active state (includes stall handling)
+    READ_DATA_FINISH        // Finish processing state
+} read_data_state_t;
 
 `endif // AXI_COMMON_DEFS_SVH
