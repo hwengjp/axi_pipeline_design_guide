@@ -8,12 +8,13 @@
   - [2. 機能分類によるファイル分割の設計方針](#2-機能分類によるファイル分割の設計方針)
     - [2.1 ファイル分割の基本方針](#21-ファイル分割の基本方針)
     - [2.2 分割ファイルの名称と役割](#22-分割ファイルの名称と役割)
-    - [2.3 分割と検証のスクリプト](#23-分割と検証のスクリプト)
-    - [2.4 実行時に発生した問題](#24-実行時に発生した問題)
-  - [3. まとめ](#3-まとめ)
-    - [3.1 機能分類によるファイル分割](#31-機能分類によるファイル分割)
-    - [3.2 段階的リファクタリング](#32-段階的リファクタリング)
-    - [3.3 include文による依存関係管理](#33-include文による依存関係管理)
+  - [3. 実行時に発生した問題](#3-実行時に発生した問題)
+    - [3.1 コード分割時の指示と問題](#31-コード分割時の指示と問題)
+    - [3.2 分割と検証のスクリプト](#32-分割と検証のスクリプト)
+  - [4. まとめ](#4-まとめ)
+    - [4.1 機能分類によるファイル分割](#41-機能分類によるファイル分割)
+    - [4.2 段階的リファクタリング](#42-段階的リファクタリング)
+    - [4.3 include文による依存関係管理](#43-include文による依存関係管理)
   - [ライセンス](#ライセンス)
 
 ## 1. はじめに
@@ -49,24 +50,31 @@
 - **例**: `axi_common_defs.svh`, `axi_stimulus_functions.svh`
 
 ### 2.2 分割ファイルの名称と役割
-[axi_simple_dual_port_ram_tb.sv](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/axi_simple_dual_port_ram_tb.sv)              ← 既存ファイル（変更なし）
-[axi_simple_dual_port_ram_tb_refactored.sv](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/axi_simple_dual_port_ram_tb_refactored.sv)   ← 新規作成（include文で分割ファイルを統合）
-├── [axi_common_defs.svh](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/axi_common_defs.svh)                     ← 共通定義
-├── [axi_utility_functions.svh](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/axi_utility_functions.svh)               ← ユーティリティ関数
-├── [axi_random_generation.svh](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/axi_random_generation.svh)               ← 乱数生成
-├── [axi_stimulus_functions.svh](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/axi_stimulus_functions.svh)              ← テスト刺激生成
-├── [axi_verification_functions.svh](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/axi_verification_functions.svh)          ← 検証・期待値生成
-└── [axi_monitoring_functions.svh](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/axi_monitoring_functions.svh)            ← ログ・監視・表示
 
-### 2.3 分割と検証のスクリプト
+#### **メインテストベンチ**
+- **[axi_simple_dual_port_ram_tb_refactored.sv](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/part09_axi4_testbench_refactoring/axi_simple_dual_port_ram_tb_refactored.sv)** ← リファクタリングされたメインテストベンチ
 
-ファイル分割の自動化を実現するため、以下のPythonスクリプトを開発しました：
+#### **共通定義・パラメータ**
+- **[axi_common_defs.svh](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/part09_axi4_testbench_refactoring/axi_common_defs.svh)** ← 共通定義、パラメータ、typedef
 
-- **[自動分割スクリプト（auto_split_functions.py）](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/auto_split_functions.py)**: 元のファイルから関数を正確に抽出して、新しいヘッダファイルに自動生成
-- **[自動更新スクリプト（auto_update_main_file.py）](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/auto_update_main_file.py)**: メインファイルを自動更新して、分割されたヘッダファイルを使用するように変更
-- **[品質保証スクリプト（function_check_list.py）](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/function_check_list.py)**: 分割された関数の正確性を自動検証
+#### **機能別モジュール（always ブロック分割）**
+- **[axi_protocol_verification_module.sv](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/part09_axi4_testbench_refactoring/axi_protocol_verification_module.sv)** ← プロトコル検証（Payload hold check等）
+- **[axi_monitoring_module.sv](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/part09_axi4_testbench_refactoring/axi_monitoring_module.sv)** ← モニタリング・ログ出力・テストサマリー
+- **[axi_write_channel_control_module.sv](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/part09_axi4_testbench_refactoring/axi_write_channel_control_module.sv)** ← Write Channel制御（Address/Data/Response）
+- **[axi_read_channel_control_module.sv](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/part09_axi4_testbench_refactoring/axi_read_channel_control_module.sv)** ← Read Channel制御（Address/Data）
 
-### 2.4 実行時に発生した問題
+#### **関数ライブラリ（include 分割）**
+- **[axi_utility_functions.svh](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/part09_axi4_testbench_refactoring/axi_utility_functions.svh)** ← ユーティリティ関数
+- **[axi_random_generation.svh](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/part09_axi4_testbench_refactoring/axi_random_generation.svh)** ← 乱数生成関数
+- **[axi_stimulus_functions.svh](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/part09_axi4_testbench_refactoring/axi_stimulus_functions.svh)** ← テスト刺激生成関数
+- **[axi_verification_functions.svh](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/part09_axi4_testbench_refactoring/axi_verification_functions.svh)** ← 検証・期待値生成関数
+- **[axi_monitoring_functions.svh](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/part09_axi4_testbench_refactoring/axi_monitoring_functions.svh)** ← ログ・監視・表示関数
+
+**分割方式**: 初期は`include`による関数分割、後期は`always`ブロックのモジュール分割を実施。TOPレベル信号への直接アクセスにより構造体型不一致エラーを解決。
+
+## 3 実行時に発生した問題
+
+### 3.1 コード分割時の指示と問題
 
 以下のような指示をAIに与えてファイル分割を試みましたができませんでした。
 ```
@@ -79,11 +87,19 @@
 
 Cursorが使用しているAIは関数をファイルAから読み込んで、そのままファイルBに書くということがでないようです。読み込んだ関数を読解して、理解した内容で変換されてちょっと違う関数になります。そのため、AIにファイル分割をさせるという作業は断念して、ファイル分割をするスクリプトを作成させました。
 
-## 3. まとめ
+### 3.2 分割と検証のスクリプト
+
+ファイル分割の自動化を実現するため、以下のPythonスクリプトを開発しました：
+
+- **[自動分割スクリプト（auto_split_functions.py）](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/part09_axi4_testbench_refactoring/auto_split_functions.py)**: 元のファイルから関数を正確に抽出して、新しいヘッダファイルに自動生成
+- **[自動更新スクリプト（auto_update_main_file.py）](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/part09_axi4_testbench_refactoring/auto_update_main_file.py)**: メインファイルを自動更新して、分割されたヘッダファイルを使用するように変更
+- **[品質保証スクリプト（function_check_list.py）](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/part09_axi4_testbench_refactoring/function_check_list.py)**: 分割された関数の正確性を自動検証
+
+## 4. まとめ
 
 今回の第9回では、第8回で作成したAXI4バス・テストベンチの機能分類とファイル分割を実現しました。以下、3つの重要な視点から成果をまとめます。
 
-### 3.1 機能分類によるファイル分割
+### 4.1 機能分類によるファイル分割
 
 **論理的な機能グループ化の実現**
 - **共通定義・パラメータ系**: `axi_common_defs.svh`に集約し、テストベンチ全体で使用される設定値を一元管理
@@ -92,10 +108,15 @@ Cursorが使用しているAIは関数をファイルAから読み込んで、�
 - **ログ・監視系**: `axi_monitoring_functions.svh`に集約し、テスト実行中の状態監視とログ出力機能を統合
 - **ユーティリティ関数系**: `axi_utility_functions.svh`に集約し、汎用的なヘルパー関数を整理
 
+**モジュール分割による高度な構造化**
+- **プロトコル検証モジュール**: AXI4プロトコル準拠性の検証機能を独立したモジュールとして分離
+- **チャネル制御モジュール**: Write/Read Channel制御を独立したモジュールとして分離し、状態管理の独立性を確保
+- **モニタリングモジュール**: ログ出力とテストサマリー機能を独立したモジュールとして分離
+
 **単一責任の原則の適用**
 各ファイルが明確な責任を持つことで、コードの可読性と保守性が大幅に向上しました。開発者が特定の機能を修正する際、関連するファイルのみを確認すれば良くなり、開発効率が向上しています。
 
-### 3.2 段階的リファクタリング
+### 4.2 段階的リファクタリング
 
 **リスク最小化アプローチ**
 - **Phase 1**: 共通定義の分離により、パラメータ管理の基盤を確立
@@ -103,11 +124,12 @@ Cursorが使用しているAIは関数をファイルAから読み込んで、�
 - **Phase 3**: 検証・期待値生成関数の分離により、テスト結果検証の信頼性を向上
 - **Phase 4**: ログ・監視機能の分離により、デバッグ・トラブルシューティングの効率化
 - **Phase 5**: ユーティリティ関数の分離により、再利用可能な機能の整理
+- **Phase 6**: モジュール分割による高度なリファクタリングにより、`always`ブロックの独立性を確保
 
 **自動化による品質保証**
 Pythonスクリプトによる自動分割により、手動作業によるエラーを排除し、100%の正確性を実現しました。`function_check_list.py`による自動検証により、分割前後の機能同一性を保証しています。
 
-### 3.3 include文による依存関係管理
+### 4.3 include文による依存関係管理
 
 **シンプルな依存関係の実現**
 - **パッケージ化の回避**: 複雑なスコープルールやパラメータ引き渡しの問題を回避

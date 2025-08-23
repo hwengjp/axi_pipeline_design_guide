@@ -1,7 +1,5 @@
 // Licensed under the Apache License, Version 2.0 - see https://www.apache.org/licenses/LICENSE-2.0 for details.
-// axi_read_channel_control_module.sv
 // AXI4 Read Channel Control Module
-// Auto-generated from axi_simple_dual_port_ram_tb_refactored.sv
 
 `timescale 1ns/1ps
 

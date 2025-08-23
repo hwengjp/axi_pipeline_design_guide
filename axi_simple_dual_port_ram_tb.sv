@@ -1,3 +1,4 @@
+// Licensed under the Apache License, Version 2.0 - see https://www.apache.org/licenses/LICENSE-2.0 for details.
 // AXI4 Simple Dual Port RAM Testbench
 // Comprehensive testbench for AXI4 bus protocol verification with weighted random stimulus
 

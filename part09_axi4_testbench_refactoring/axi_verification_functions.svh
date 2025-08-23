@@ -1,7 +1,5 @@
 // Licensed under the Apache License, Version 2.0 - see https://www.apache.org/licenses/LICENSE-2.0 for details.
-// axi_verification_functions.svh
-// Auto-generated from axi_simple_dual_port_ram_tb.sv
-// DO NOT MODIFY - This file is auto-generated
+// AXI4 Verification and Checking Functions
 
 `ifndef AXI_VERIFICATION_FUNCTIONS_SVH
 `define AXI_VERIFICATION_FUNCTIONS_SVH
@@ -10,8 +8,6 @@
 `include "axi_common_defs.svh"
 
 // Function: generate_read_data_expected
-// Extracted from original testbench
-
 function automatic void generate_read_data_expected();
     int i;
     foreach (write_data_payloads[i]) begin
@@ -25,8 +21,6 @@ function automatic void generate_read_data_expected();
 endfunction
 
 // Function: generate_write_resp_expected
-// Extracted from original testbench
-
 function automatic void generate_write_resp_expected();
     int i;
     foreach (write_addr_payloads[i]) begin
@@ -40,8 +34,6 @@ function automatic void generate_write_resp_expected();
 endfunction
 
 // Function: initialize_ready_negate_pulses
-// Extracted from original testbench
-
 function automatic void initialize_ready_negate_pulses();
     int i;
     int total_weight;

@@ -1,7 +1,5 @@
 // Licensed under the Apache License, Version 2.0 - see https://www.apache.org/licenses/LICENSE-2.0 for details.
-// axi_stimulus_functions.svh
-// Auto-generated from axi_simple_dual_port_ram_tb.sv
-// DO NOT MODIFY - This file is auto-generated
+// AXI4 Test Stimulus Generation Functions
 
 `ifndef AXI_STIMULUS_FUNCTIONS_SVH
 `define AXI_STIMULUS_FUNCTIONS_SVH
@@ -10,8 +8,6 @@
 `include "axi_common_defs.svh"
 
 // Function: generate_write_addr_payloads
-// Extracted from original testbench
-
 function automatic void generate_write_addr_payloads();
     int test_count = 0;
     int i;
@@ -86,8 +82,6 @@ function automatic void generate_write_addr_payloads();
 endfunction
 
 // Function: generate_write_addr_payloads_with_stall
-// Extracted from original testbench
-
 function automatic void generate_write_addr_payloads_with_stall();
     int stall_index = 0;
     int i;
@@ -125,8 +119,6 @@ function automatic void generate_write_addr_payloads_with_stall();
 endfunction
 
 // Function: generate_write_data_payloads
-// Extracted from original testbench
-
 function automatic void generate_write_data_payloads();
     int data_index = 0;
     int i;
@@ -191,8 +183,6 @@ function automatic void generate_write_data_payloads();
 endfunction
 
 // Function: generate_write_data_payloads_with_stall
-// Extracted from original testbench
-
 function automatic void generate_write_data_payloads_with_stall();
     int stall_index = 0;
     int i;
@@ -228,8 +218,6 @@ function automatic void generate_write_data_payloads_with_stall();
 endfunction
 
 // Function: generate_read_addr_payloads
-// Extracted from original testbench
-
 function automatic void generate_read_addr_payloads();
     int i;
     foreach (write_addr_payloads[i]) begin
@@ -247,8 +235,6 @@ function automatic void generate_read_addr_payloads();
 endfunction
 
 // Function: generate_read_addr_payloads_with_stall
-// Extracted from original testbench
-
 function automatic void generate_read_addr_payloads_with_stall();
     int stall_index = 0;
     int i;

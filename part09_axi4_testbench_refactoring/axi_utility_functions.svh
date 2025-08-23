@@ -1,7 +1,5 @@
 // Licensed under the Apache License, Version 2.0 - see https://www.apache.org/licenses/LICENSE-2.0 for details.
-// axi_utility_functions.svh
-// Auto-generated from axi_simple_dual_port_ram_tb.sv
-// DO NOT MODIFY - This file is auto-generated
+// AXI4 Utility and Helper Functions
 
 `ifndef AXI_UTILITY_FUNCTIONS_SVH
 `define AXI_UTILITY_FUNCTIONS_SVH
@@ -10,8 +8,6 @@
 `include "axi_common_defs.svh"
 
 // Function: get_burst_type_value
-// Extracted from original testbench
-
 function automatic logic [1:0] get_burst_type_value(input string burst_type);
     case (burst_type)
         "FIXED": return 2'b00;
@@ -22,22 +18,16 @@ function automatic logic [1:0] get_burst_type_value(input string burst_type);
 endfunction
 
 // Function: size_to_bytes
-// Extracted from original testbench
-
 function automatic int size_to_bytes(input logic [2:0] size);
     return (1 << size);
 endfunction
 
 // Function: size_to_string
-// Extracted from original testbench
-
 function automatic string size_to_string(input logic [2:0] size);
     return $sformatf("%0d(%0d bytes)", size, size_to_bytes(size));
 endfunction
 
 // Function: align_address_to_boundary
-// Extracted from original testbench
-
 function automatic logic [AXI_ADDR_WIDTH-1:0] align_address_to_boundary(
     input logic [AXI_ADDR_WIDTH-1:0] address,
     input int burst_size_bytes,
@@ -63,8 +53,6 @@ function automatic logic [AXI_ADDR_WIDTH-1:0] align_address_to_boundary(
 endfunction
 
 // Function: check_read_data
-// Extracted from original testbench
-
 function automatic bit check_read_data(
     input logic [AXI_DATA_WIDTH-1:0] actual_data,
     input logic [AXI_DATA_WIDTH-1:0] expected_data,
@@ -89,8 +77,6 @@ function automatic bit check_read_data(
 endfunction
 
 // Function: get_burst_type_string
-// Extracted from original testbench
-
 function automatic string get_burst_type_string(input logic [1:0] burst);
     case (burst)
         2'b00: return "FIXED";
@@ -101,8 +87,6 @@ function automatic string get_burst_type_string(input logic [1:0] burst);
 endfunction
 
 // Function: generate_strobe_pattern
-// Extracted from original testbench
-
 function automatic logic [AXI_STRB_WIDTH-1:0] generate_strobe_pattern(
     input logic [AXI_ADDR_WIDTH-1:0] address,
     input logic [2:0] size,
@@ -160,8 +144,6 @@ function automatic logic [AXI_STRB_WIDTH-1:0] generate_strobe_pattern(
 endfunction
 
 // Function: generate_fixed_strobe_pattern
-// Extracted from original testbench
-
 function automatic logic [AXI_STRB_WIDTH-1:0] generate_fixed_strobe_pattern(
     input logic [AXI_ADDR_WIDTH-1:0] address,
     input logic [2:0] size,

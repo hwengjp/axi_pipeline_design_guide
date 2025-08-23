@@ -1,7 +1,5 @@
 // Licensed under the Apache License, Version 2.0 - see https://www.apache.org/licenses/LICENSE-2.0 for details.
-// axi_monitoring_functions.svh
-// Auto-generated from axi_simple_dual_port_ram_tb.sv
-// DO NOT MODIFY - This file is auto-generated
+// AXI4 Monitoring and Logging Functions
 
 `ifndef AXI_MONITORING_FUNCTIONS_SVH
 `define AXI_MONITORING_FUNCTIONS_SVH
@@ -19,8 +17,6 @@ function automatic void write_log(input string message);
 endfunction
 
 // Function: write_debug_log
-// Extracted from original testbench
-
 function automatic void write_debug_log(input string message);
     if (LOG_ENABLE && DEBUG_LOG_ENABLE) begin
         $display("[%0t] [DEBUG] %s", $time, message);
@@ -28,8 +24,6 @@ function automatic void write_debug_log(input string message);
 endfunction
 
 // Function: display_write_addr_payloads
-// Extracted from original testbench
-
 function automatic void display_write_addr_payloads();
     write_debug_log("=== Write Address Payloads ===");
     foreach (write_addr_payloads[i]) begin
@@ -40,8 +34,6 @@ function automatic void display_write_addr_payloads();
 endfunction
 
 // Function: display_write_addr_payloads_with_stall
-// Extracted from original testbench
-
 function automatic void display_write_addr_payloads_with_stall();
     write_debug_log("=== Write Address Payloads with Stall ===");
     foreach (write_addr_payloads_with_stall[i]) begin
@@ -52,8 +44,6 @@ function automatic void display_write_addr_payloads_with_stall();
 endfunction
 
 // Function: display_write_data_payloads
-// Extracted from original testbench
-
 function automatic void display_write_data_payloads();
     write_debug_log("=== Write Data Payloads ===");
     foreach (write_data_payloads[i]) begin
@@ -64,8 +54,6 @@ function automatic void display_write_data_payloads();
 endfunction
 
 // Function: display_write_data_payloads_with_stall
-// Extracted from original testbench
-
 function automatic void display_write_data_payloads_with_stall();
     write_debug_log("=== Write Data Payloads with Stall ===");
     foreach (write_data_payloads_with_stall[i]) begin
@@ -76,8 +64,6 @@ function automatic void display_write_data_payloads_with_stall();
 endfunction
 
 // Function: display_read_addr_payloads
-// Extracted from original testbench
-
 function automatic void display_read_addr_payloads();
     write_debug_log("=== Read Address Payloads ===");
     foreach (read_addr_payloads[i]) begin
@@ -88,8 +74,6 @@ function automatic void display_read_addr_payloads();
 endfunction
 
 // Function: display_read_addr_payloads_with_stall
-// Extracted from original testbench
-
 function automatic void display_read_addr_payloads_with_stall();
     write_debug_log("=== Read Address Payloads with Stall ===");
     foreach (read_addr_payloads_with_stall[i]) begin
@@ -100,8 +84,6 @@ function automatic void display_read_addr_payloads_with_stall();
 endfunction
 
 // Function: display_read_data_expected
-// Extracted from original testbench
-
 function automatic void display_read_data_expected();
     write_debug_log("=== Read Data Expected ===");
     foreach (read_data_expected[i]) begin
@@ -112,8 +94,6 @@ function automatic void display_read_data_expected();
 endfunction
 
 // Function: display_write_resp_expected
-// Extracted from original testbench
-
 function automatic void display_write_resp_expected();
     write_debug_log("=== Write Response Expected ===");
     foreach (write_resp_expected[i]) begin
@@ -124,8 +104,6 @@ function automatic void display_write_resp_expected();
 endfunction
 
 // Function: display_all_arrays
-// Extracted from original testbench
-
 function automatic void display_all_arrays();
     write_debug_log("=== Displaying All Generated Arrays ===");
     display_write_addr_payloads();
