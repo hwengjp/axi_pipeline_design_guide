@@ -27,7 +27,7 @@
       - [2.5.1 基本ログ機能](#251-基本ログ機能)
       - [2.5.2 ログ機能の特徴](#252-ログ機能の特徴)
     - [2.6 重み付き乱数発生系](#26-重み付き乱数発生系)
-  - [3. テストベンチのサンプルコード](#3-テストベンチのサンプルコード)
+  - [3. コード](#3-コード)
   - [ライセンス](#ライセンス)
 
 ---
@@ -2185,9 +2185,9 @@ endtask
 
 この統一された重み付き乱数システムにより、テストベンチの動作を詳細に制御し、効率的なテストシナリオの実行が可能になります。
 
-## 3. テストベンチのサンプルコード
+## 3. テストベンチのコード
 
-**サンプルコード**: [axi_simple_dual_port_ram_tb.v](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/axi_simple_dual_port_ram_tb.v)
+**テストベンチのコード**: [axi_simple_dual_port_ram_tb.v](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/axi_simple_dual_port_ram_tb.v)
 
 ## ライセンス
 
