@@ -26,6 +26,7 @@ update:
 publish:
   auto_publish: true               # 更新後に自動publishするか
   publish_delay: 5                 # publish実行前の待機時間（秒）
+  script_path: "publish_to_qiita.sh"  # publishスクリプトのパス
 
 # ログ設定
 logging:

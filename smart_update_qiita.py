@@ -344,7 +344,8 @@ class SmartQiitaUpdater:
         
         try:
             # publish_to_qiita.shスクリプトを実行
-            script_path = Path('publish_to_qiita.sh')
+            # スクリプトのディレクトリからの相対パスを使用
+            script_path = Path(__file__).parent / 'publish_to_qiita.sh'
             if script_path.exists():
                 result = subprocess.run(
                     [str(script_path), str(qiita_file)],
