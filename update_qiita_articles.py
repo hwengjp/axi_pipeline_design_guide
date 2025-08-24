@@ -14,6 +14,16 @@ import sys
 from pathlib import Path
 import glob
 
+def extract_title_from_md(content):
+    """Markdownファイルからタイトルを抽出する（# で始まる行）"""
+    lines = content.split('\n')
+    for line in lines:
+        if line.strip().startswith('# '):
+            # # を除去してタイトルを取得
+            title = line.strip()[2:].strip()
+            return title
+    return None
+
 def extract_qiita_header(content):
     """Qiitaのヘッダ部分を抽出する"""
     lines = content.split('\n')
@@ -41,6 +51,79 @@ def extract_qiita_header(content):
     
     return header, body
 
+def update_qiita_header(header, title):
+    """Qiitaヘッダを更新する（titleとtagsを更新）"""
+    lines = header.split('\n')
+    new_lines = []
+    title_updated = False
+    tags_updated = False
+    in_tags_section = False
+    
+    for i, line in enumerate(lines):
+        if line.strip() == '---':
+            new_lines.append(line)
+        elif line.strip().startswith('title:'):
+            # titleを更新
+            new_lines.append(f'title: {title}')
+            title_updated = True
+        elif line.strip().startswith('tags:'):
+            # tagsセクションの開始
+            new_lines.append('tags:')
+            new_lines.append('  - Verilog')
+            new_lines.append('  - FPGA')
+            new_lines.append('  - AXI')
+            new_lines.append('  - テストベンチ')
+            new_lines.append('  - ハードウェア設計')
+            tags_updated = True
+            in_tags_section = True
+        elif in_tags_section and (line.strip().startswith('  - ') or line.strip().startswith('- ')):
+            # tagsセクション内の既存のタグ行をスキップ（スペース2つまたはスペースなし）
+            continue
+        elif in_tags_section and not (line.strip().startswith('  - ') or line.strip().startswith('- ')):
+            # tagsセクション終了（次のフィールド開始）
+            in_tags_section = False
+            new_lines.append(line)
+        else:
+            new_lines.append(line)
+    
+    # titleが更新されていない場合は追加
+    if not title_updated:
+        # ---の直後にtitleを追加
+        for i, line in enumerate(new_lines):
+            if line.strip() == '---':
+                new_lines.insert(i + 1, f'title: {title}')
+                break
+    
+    # tagsが更新されていない場合は追加
+    if not tags_updated:
+        # titleの後にtagsを追加
+        for i, line in enumerate(new_lines):
+            if line.strip().startswith('title:'):
+                new_lines.insert(i + 1, 'tags:')
+                new_lines.insert(i + 2, '  - Verilog')
+                new_lines.insert(i + 3, '  - FPGA')
+                new_lines.insert(i + 4, '  - AXI')
+                new_lines.insert(i + 5, '  - テストベンチ')
+                new_lines.insert(i + 6, '  - ハードウェア設計')
+                break
+    
+    return '\n'.join(new_lines)
+
+def remove_title_from_body(content):
+    """本文からタイトル行（# で始まる行）を削除する"""
+    lines = content.split('\n')
+    new_lines = []
+    title_removed = False
+    
+    for line in lines:
+        if not title_removed and line.strip().startswith('# '):
+            # 最初の# で始まる行（タイトル）をスキップ
+            title_removed = True
+            continue
+        new_lines.append(line)
+    
+    return '\n'.join(new_lines)
+
 def get_git_content(filename):
     """Gitのメインファイルから内容を取得する"""
     git_file = Path(filename)
@@ -62,11 +145,20 @@ def update_qiita_article(qiita_file, git_content):
         print(f"警告: {qiita_file} にQiitaヘッダが見つかりません")
         return False
     
-    # Gitファイルの内容全体を本文として使用（Gitファイルにはヘッダがないため）
-    git_body = git_content
+    # Gitファイルからタイトルを抽出
+    title = extract_title_from_md(git_content)
+    if title is None:
+        print(f"警告: {qiita_file} の対応するGitファイルにタイトルが見つかりません")
+        return False
+    
+    # Qiitaヘッダを更新（titleとtags）
+    updated_header = update_qiita_header(header, title)
+    
+    # Gitファイルの本文からタイトルを削除
+    git_body = remove_title_from_body(git_content)
     
     # 新しい内容を作成
-    new_content = header + '\n' + git_body
+    new_content = updated_header + '\n' + git_body
     
     # ファイルを更新
     with open(qiita_file, 'w', encoding='utf-8') as f:

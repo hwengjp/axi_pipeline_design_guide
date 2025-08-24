@@ -1,0 +1,48 @@
+# Smart Qiita Update 設定ファイル
+# このファイルは、smart_update_qiita.pyスクリプトの動作を制御します
+
+# ディレクトリ設定
+directories:
+  qiita_dir: "QiitaDocs/public"    # Qiitaファイルの場所
+  git_dir: "."                      # Gitファイルの場所（カレントディレクトリ）
+
+# 対象ファイルパターン
+file_patterns:
+  - "part*.md"                      # partで始まるMarkdownファイル
+  - "rule*.md"                      # ruleで始まるMarkdownファイル
+
+# 比較設定
+comparison:
+  ignore_headers: true              # ヘッダ部分を比較から除外
+  ignore_whitespace: true           # 空白文字の違いを無視
+  ignore_line_endings: true         # 改行コードの違いを無視
+
+# 更新設定
+update:
+  backup_enabled: true              # バックアップを作成するか
+  backup_dir: "QiitaDocs/backup"   # バックアップディレクトリ
+
+# Publish設定
+publish:
+  auto_publish: true               # 更新後に自動publishするか
+  publish_delay: 5                 # publish実行前の待機時間（秒）
+
+# ログ設定
+logging:
+  level: "INFO"                    # ログレベル（DEBUG, INFO, WARNING, ERROR）
+  file: "smart_qiita_update.log"   # ログファイル名
+  console_output: true             # コンソール出力するか
+
+# 環境設定例
+# 開発環境用の設定例（コメントアウト）
+# development:
+#   dry_run: true                  # 実際の更新を行わず確認のみ
+#   log_level: "DEBUG"
+#   backup_enabled: false
+
+# 本番環境用の設定例（コメントアウト）
+# production:
+#   dry_run: false                 # 実際に更新を実行
+#   log_level: "INFO"
+#   backup_enabled: true
+#   auto_publish: true
