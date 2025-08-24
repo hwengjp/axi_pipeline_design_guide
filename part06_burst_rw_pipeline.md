@@ -89,12 +89,12 @@ T1ステージで5つのステートを使用して状態管理を行います�
 - **Readパイプライン**: 3段構成（T0 → T1 → T2）
   - T0: データ増幅とアドレス生成
   - T1: ステートマシン制御（Read/Write優先度制御）
-  - T2: メモリアクセスとデータ出力
+  - T2: メモリアクセスとデータ出力（Ready && VALID制御）
 - **Writeパイプライン**: 5段構成（T0A → T0D → T1 → T2 → T3）
   - T0A: アドレス生成とバースト制御
   - T0D: データパイプライン処理
   - T1: ステートマシン制御（Read/Write優先度制御）**共通ステートマシン**
-  - T2: メモリアクセス（メモリへの書き込み）
+  - T2: メモリアクセス（メモリへの書き込み、Ready && VALID制御）
   - T3: レスポンス生成
 - **統合制御**: T1ステージでの優先度制御とステート管理
 
@@ -110,10 +110,10 @@ T1ステージで5つのステートを使用して状態管理を行います�
 
 **優先度制御**:
 
-1. **アイドル状態**: 書き込み要求を優先（`d_w_ready && (w_t0a_valid && w_t0d_valid)`）
-2. **リード状態**: 書き込み要求を優先（`d_w_ready && (w_t0a_valid && w_t0d_valid)`）
+1. **アイドル状態**: 書き込み要求を優先（`d_b_ready && (w_t0a_valid && w_t0d_valid)`）
+2. **リード状態**: 書き込み要求を優先（`d_b_ready && (w_t0a_valid && w_t0d_valid)`）
 3. **ライト状態**: リード要求を優先（`d_r_ready && r_t0_valid`）
-4. **パイプライン制御**: `d_r_ready`、`d_w_ready`、`t1_r_ready`、`t1_w_ready`が各状態の遷移を制御
+4. **パイプライン制御**: `d_r_ready`、`d_b_ready`、`t1_r_ready`、`t1_w_ready`が各状態の遷移を制御
 
 この方式により、書き込み優先の制御が実現され、データの整合性が保たれます。
 
@@ -193,7 +193,7 @@ u_w_Ready_D   <-[AND]---+   ||
 u_w_Payload_A=> [T0A] ===> [T1] => [T2] => [T3] => d_w_Payload
                  ^      |   ^       ^       ^   
                  |      |   |       |       |   
-u_w_Ready_A   <-[AND]<--+---+-------+-------+--- <- d_w_Ready
+u_w_Ready_A   <-[AND]<--+---+-------+-------+--- <- d_b_Ready
                  ^ ^                     
                  | |        
        [T0A_Ready] |        
@@ -214,7 +214,7 @@ u_w_Ready_A   <-[AND]<--+---+-------+-------+--- <- d_w_Ready
 
 - T1ステージでリード・ライトの優先度制御を実行（**共通ステートマシン**）
 - RE（Read Enable）とWE（Write Enable）は排他的にアサート可能
-- 6つの制御信号（`d_r_ready`, `r_t0_valid`, `d_w_ready`, `w_t0a_valid && w_t0d_valid`, `t1_r_ready`, `t1_w_ready`）で状態遷移を制御
+- 6つの制御信号（`d_r_ready`, `r_t0_valid`, `d_b_ready`, `w_t0a_valid && w_t0d_valid`, `t1_r_ready`, `t1_w_ready`）で状態遷移を制御
 - Read・Write両方のパイプラインが同一のT1ステージで統合制御
 
 **優先度制御**:
@@ -222,16 +222,37 @@ u_w_Ready_A   <-[AND]<--+---+-------+-------+--- <- d_w_Ready
 - T1ステージで5つのステート（`STATE_IDLE`, `STATE_R_NLAST`, `STATE_R_LAST`, `STATE_W_NLAST`, `STATE_W_LAST`）による状態管理
 - アイドル状態とリード状態では書き込み要求を優先
 - ライト状態ではリード要求を優先
-- 各状態で`d_r_ready`と`d_w_ready`によるパイプライン制御
+- 各状態で`d_r_ready`と`d_b_ready`によるパイプライン制御
 
 **制御の統合**:
 
 - リードパイプラインは`d_r_ready`と`t1_r_ready`信号で制御
-- ライトパイプラインは`d_w_ready`と`t1_w_ready`信号で制御
+- ライトパイプラインは`d_b_ready`と`t1_w_ready`信号で制御
 - T1ステージでステート遷移ロジックを統合管理
 - 各ステージの動作はReadyがHの時のみ実行
 - if文ベースの優先度制御による明確な制御構造
 - 優先度制御信号（`t1_r_ready`, `t1_w_ready`）によるパイプライン制御の統合
+
+**READY && VALID制御の詳細**:
+
+T2ステージでは、T1ステートの状態に基づいてメモリアクセスのイネーブル制御を行います。重要なのは、**Ready && VALIDの条件**が使用されていることです。
+
+**Read T2ステージの制御**:
+- **Ready条件**: `d_r_ready`がHの時のみ動作
+- **T1ステート依存**: `t1_current_state`が`STATE_R_NLAST`または`STATE_R_LAST`の時のみメモリアクセス実行
+- **Valid制御**: `r_t1_valid`に基づくデータ更新制御
+
+**Write T2ステージの制御**:
+- **Ready条件**: `d_b_ready`がHの時のみ動作
+- **T1ステート依存**: `t1_current_state`が`STATE_W_NLAST`または`STATE_W_LAST`の時のみメモリアクセス実行
+- **Valid制御**: `w_t1_valid`に基づくデータ更新制御
+
+**Write T3ステージの制御**:
+- **Ready条件**: `d_b_ready`がHの時のみ動作
+- **T2からの信号転送**: `w_t2_valid`と`w_t2_last`をそのまま転送
+- **レスポンス生成**: カスタムロジックによるレスポンス生成
+
+
 
 ## 4. シーケンス - リードとライトが混在するバーストアクセスのシーケンス
 ```
@@ -307,7 +328,7 @@ AIに以下のように指示してコードを作成してください：
 
 ```verilog
     always @(*) begin
-        casez ({t1_current_state, d_r_ready, r_t0_valid, d_w_ready, (w_t0a_valid && w_t0d_valid)})
+        casez ({t1_current_state, d_r_ready, r_t0_valid, d_b_ready, (w_t0a_valid && w_t0d_valid)})
             // Idle state - no execution
             {STATE_IDLE, 1'b0, 1'b?, 1'b0, 1'b?}: t1_next_state = t1_current_state; 
             {STATE_IDLE, 1'b1, 1'b0, 1'b0, 1'b?}: t1_next_state = t1_current_state;
@@ -320,7 +341,7 @@ AIに以下のように指示してコードを作成してください：
             {STATE_IDLE, 1'b1, 1'b1, 1'b1, 1'b0}: t1_next_state = (r_t0_last) ? STATE_R_LAST : STATE_R_NLAST;
             //{STATE_IDLE, 1'b1, 1'b1, 1'b1, 1'b1}: t1_next_state = (r_t0_last) ? STATE_R_LAST : STATE_R_NLAST;
                 
-            // Write execution from idle (d_w_ready && w_t0a_valid && w_t0d_valid)
+            // Write execution from idle (d_b_ready && w_t0a_valid && w_t0d_valid)
             {STATE_IDLE, 1'b0, 1'b0, 1'b1, 1'b1}: t1_next_state = (w_t0a_last) ? STATE_W_LAST : STATE_W_NLAST;
             {STATE_IDLE, 1'b0, 1'b1, 1'b1, 1'b1}: t1_next_state = (w_t0a_last) ? STATE_W_LAST : STATE_W_NLAST;
             {STATE_IDLE, 1'b1, 1'b0, 1'b1, 1'b1}: t1_next_state = (w_t0a_last) ? STATE_W_LAST : STATE_W_NLAST;
@@ -374,7 +395,7 @@ always @(*) begin
     case (t1_current_state)
         STATE_IDLE: begin
             // 4つの制御信号の全組み合わせ
-            if (d_w_ready && (w_t0a_valid && w_t0d_valid)) begin
+            if (d_b_ready && (w_t0a_valid && w_t0d_valid)) begin
                 t1_next_state = (w_t0a_last) ? STATE_W_LAST : STATE_W_NLAST;
             end else if (d_r_ready && r_t0_valid) begin
                 t1_next_state = (r_t0_last) ? STATE_R_LAST : STATE_R_NLAST;
@@ -386,7 +407,7 @@ always @(*) begin
         STATE_R_NLAST, STATE_R_LAST: begin
             // リード状態での全条件
             if (d_r_ready) begin
-                if (d_w_ready && (w_t0a_valid && w_t0d_valid)) begin
+                if (d_b_ready && (w_t0a_valid && w_t0d_valid)) begin
                     t1_next_state = (w_t0a_last) ? STATE_W_LAST : STATE_W_NLAST;
                 end else if (r_t0_valid) begin
                     t1_next_state = (r_t0_last) ? STATE_R_LAST : STATE_R_NLAST;
@@ -400,13 +421,13 @@ always @(*) begin
         
         STATE_W_NLAST, STATE_W_LAST: begin
             // ライト状態での全条件
-            if (d_w_ready) begin
+            if (d_b_ready) begin
                 if (d_r_ready && r_t0_valid) begin
                     t1_next_state = (r_t0_last) ? STATE_R_LAST : STATE_R_NLAST;
                 end else if ((w_t0a_valid && w_t0d_valid)) begin
                     t1_next_state = (w_t0a_last) ? STATE_W_LAST : STATE_W_NLAST;
                 end else begin
-                    t1_next_state = STATE_IDLE;
+                    t1_next_state = t1_current_state;
                 end
             end else begin
                 t1_next_state = t1_current_state;

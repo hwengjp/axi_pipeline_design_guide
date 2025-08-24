@@ -43,8 +43,8 @@ module burst_rw_pipeline_tb #(
     reg                     test_w_data_valid_array [$];
     
     // Expected response arrays
-    reg  [ADDR_WIDTH-1:0]  expected_w_response_array [$];
-    reg                     expected_w_valid_array [$];
+    reg  [ADDR_WIDTH-1:0]  expected_b_response_array [$];
+    reg                     expected_b_valid_array [$];
     
     // Stall control arrays
     reg  [2:0]             r_stall_cycles_array [$];
@@ -56,7 +56,7 @@ module burst_rw_pipeline_tb #(
     integer                 w_data_array_index;
     integer                 array_size;
     integer                 expected_r_data_index;
-    integer                 expected_w_response_index;
+    integer                 expected_b_response_index;
     integer                 r_stall_index;
     integer                 w_stall_index;
     
@@ -65,18 +65,18 @@ module burst_rw_pipeline_tb #(
     wire                    dut_r_valid;
     wire                    dut_r_last;
     wire                    dut_r_ready;
-    wire [ADDR_WIDTH-1:0]  dut_w_response;
-    wire                    dut_w_valid;
-    wire                    dut_w_ready;
+    wire [ADDR_WIDTH-1:0]  dut_b_response;
+    wire                    dut_b_valid;
+    wire                    dut_b_ready;
     
     // Test control signals
     reg                     final_r_ready;
-    reg                     final_w_ready;
+    reg                     final_b_ready;
     integer                 test_count;
     integer                 r_burst_count;
     integer                 w_burst_count;
     integer                 r_data_count;
-    integer                 w_response_count;
+    integer                 b_response_count;
     integer                 valid_r_address_count;
     integer                 valid_w_address_count;
     integer                 valid_w_data_count;
@@ -123,9 +123,9 @@ module burst_rw_pipeline_tb #(
         .u_w_data(test_w_data),
         .u_w_data_valid(test_w_data_valid),
         .u_w_data_ready(test_w_data_ready),
-        .d_w_response(dut_w_response),
-        .d_w_valid(dut_w_valid),
-        .d_w_ready(dut_w_ready)
+        .d_b_response(dut_b_response),
+        .d_b_valid(dut_b_valid),
+        .d_b_ready(dut_b_ready)
     );
     
     // Clock generation (10ns cycle, 100MHz)
@@ -154,7 +154,7 @@ module burst_rw_pipeline_tb #(
         // Initialize test pattern arrays
         array_size = 0;
         expected_r_data_index = 0;
-        expected_w_response_index = 0;
+        expected_b_response_index = 0;
         valid_r_address_count = 0;
         valid_w_address_count = 0;
         valid_w_data_count = 0;
@@ -179,12 +179,12 @@ module burst_rw_pipeline_tb #(
         
         // Initialize other control signals
         final_r_ready = 0;
-        final_w_ready = 0;
+        final_b_ready = 0;
         test_count = 0;
         r_burst_count = 0;
         w_burst_count = 0;
         r_data_count = 0;
-        w_response_count = 0;
+        b_response_count = 0;
         valid_r_address_count = 0;
         valid_w_address_count = 0;
         valid_w_data_count = 0;
@@ -231,9 +231,9 @@ module burst_rw_pipeline_tb #(
                 valid_w_data_count = valid_w_data_count + 1;
                 
                 // Expected response (address value for successful write)
-                expected_w_response_array.push_back(data_value);
-                expected_w_valid_array.push_back(1);
-                expected_w_response_index = expected_w_response_index + 1;
+                expected_b_response_array.push_back(data_value);
+                expected_b_valid_array.push_back(1);
+                expected_b_response_index = expected_b_response_index + 1;
             end
             
             // Generate bubble cycles for Read interface
@@ -284,7 +284,7 @@ module burst_rw_pipeline_tb #(
         $display("  Valid Write data patterns: %0d", valid_w_data_count);
         $display("  Bubble patterns: %0d", bubble_count);
         $display("  Expected Read data: %0d", expected_r_data_index);
-        $display("  Expected Write responses: %0d", expected_w_response_index);
+        $display("  Expected Write responses: %0d", expected_b_response_index);
     end
     
     // Test pattern generator - Read interface
@@ -402,13 +402,13 @@ module burst_rw_pipeline_tb #(
     
     always @(posedge clk) begin
         if (!rst_n) begin
-            final_w_ready <= 0;
+            final_b_ready <= 0;
             w_stall_counter <= 0;
             w_stall_active <= 0;
             w_current_stall_cycles <= 0;
         end else begin
             // Default to ready unless stall is active
-            final_w_ready <= 1;
+            final_b_ready <= 1;
             
             if (w_stall_counter == 0 && !w_stall_active) begin
                 if (w_stall_index < w_stall_cycles_array.size()) begin
@@ -418,7 +418,7 @@ module burst_rw_pipeline_tb #(
                 end
                 
                 if (w_current_stall_cycles > 0) begin
-                    final_w_ready <= 0;
+                    final_b_ready <= 0;
                     w_stall_counter <= w_current_stall_cycles;
                     w_stall_active <= 1;
                     w_stall_index <= w_stall_index + 1;
@@ -426,9 +426,9 @@ module burst_rw_pipeline_tb #(
             end else if (w_stall_active) begin
                 if (w_stall_counter > 1) begin
                     w_stall_counter <= w_stall_counter - 1;
-                    final_w_ready <= 0;
+                    final_b_ready <= 0;
                 end else begin
-                    final_w_ready <= 1;
+                    final_b_ready <= 1;
                     w_stall_counter <= 0;
                     w_stall_active <= 0;
                 end
@@ -438,7 +438,7 @@ module burst_rw_pipeline_tb #(
     
     // Connect final ready to dut ready
     assign dut_r_ready = final_r_ready;
-    assign dut_w_ready = final_w_ready;
+    assign dut_b_ready = final_b_ready;
     
     // Burst queue tracking circuit - Read
     always @(posedge clk) begin
@@ -527,24 +527,24 @@ module burst_rw_pipeline_tb #(
     always @(posedge clk) begin
         if (!rst_n) begin
             w_burst_count <= 0;
-            w_response_count <= 0;
+            b_response_count <= 0;
             w_burst_response_count <= 0;
         end else begin
             // Check final output response for Write
-            if (dut_w_valid && dut_w_ready) begin
+            if (dut_b_valid && dut_b_ready) begin
                 w_burst_response_count <= w_burst_response_count + 1;
                 
                 // Check if response matches expected value from array
-                if (dut_w_response !== expected_w_response_array[w_response_count]) begin
-                    $display("ERROR: Write response mismatch at response count %0d", w_response_count);
+                if (dut_b_response !== expected_b_response_array[b_response_count]) begin
+                    $display("ERROR: Write response mismatch at response count %0d", b_response_count);
                     $display("  Time: %0t", $time);
-                    $display("  Signal: dut_w_response");
-                    $display("  Expected: 0x%0h, Got: 0x%0h", expected_w_response_array[w_response_count], dut_w_response);
+                    $display("  Signal: dut_b_response");
+                    $display("  Expected: 0x%0h, Got: 0x%0h", expected_b_response_array[b_response_count], dut_b_response);
                     repeat (1) @(posedge clk);
                     $finish;
                 end
                 
-                w_response_count <= w_response_count + 1;
+                b_response_count <= b_response_count + 1;
                 
                 // Count bursts and report burst information
                 if (dut.w_t3_last) begin
@@ -578,7 +578,7 @@ module burst_rw_pipeline_tb #(
             test_count <= 0;
         end else begin
             // Check if both Read and Write tests completed
-            if (r_data_count >= expected_r_data_index && w_response_count >= expected_w_response_index) begin
+            if (r_data_count >= expected_r_data_index && b_response_count >= expected_b_response_index) begin
                 test_count <= test_count + 1;
                 $display("Test completed:");
                 $display("  Total Read address patterns: %0d", test_r_addr_array.size());
@@ -589,7 +589,7 @@ module burst_rw_pipeline_tb #(
                 $display("  Valid Write data patterns: %0d", valid_w_data_count);
                 $display("  Bubble patterns: %0d", bubble_count);
                 $display("  Total Read data: %0d", r_data_count);
-                $display("  Total Write responses: %0d", w_response_count);
+                $display("  Total Write responses: %0d", b_response_count);
                 $display("  Read bursts: %0d", r_burst_count);
                 $display("  Write bursts: %0d", w_burst_count);
                 $display("  Max burst length: %0d", MAX_BURST_LENGTH);
@@ -679,15 +679,15 @@ module burst_rw_pipeline_tb #(
     end
     
     // Sequence checker circuit - Write Output side
-    reg prev_final_w_ready;
+    reg prev_final_b_ready;
     
     always @(posedge clk) begin
         if (!rst_n) begin
-            prev_final_w_ready <= 0;
+            prev_final_b_ready <= 0;
         end else begin
             // Check if data is held when ready is low
-            if (!prev_final_w_ready && dut_w_valid) begin
-                if (dut_w_response !== dut_w_response || dut_w_valid != dut_w_valid) begin
+            if (!prev_final_b_ready && dut_b_valid) begin
+                if (dut_b_response !== dut_b_response || dut_b_valid != dut_b_valid) begin
                     $display("ERROR: Write output data not held during stall");
                     $display("  Time: %0t", $time);
                     repeat (1) @(posedge clk);
@@ -695,7 +695,7 @@ module burst_rw_pipeline_tb #(
                 end
             end
             
-            prev_final_w_ready <= dut_w_ready;
+            prev_final_b_ready <= dut_b_ready;
         end
     end
     
@@ -705,7 +705,7 @@ module burst_rw_pipeline_tb #(
             $display("Time %0t: Read T2 Debug - data: %0d, last: %0d", 
                      $time, dut.r_t2_data, dut.r_t2_last);
         end
-        if (dut.w_t3_valid && dut.d_w_ready) begin
+        if (dut.w_t3_valid && dut.d_b_ready) begin
             $display("Time %0t: Write T3 Debug - response: %0d, valid: %0d, last: %0d", 
                      $time, dut.w_t3_response, dut.w_t3_valid, dut.w_t3_last);
         end

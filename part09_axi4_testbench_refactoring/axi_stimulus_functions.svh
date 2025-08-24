@@ -45,8 +45,14 @@ function automatic void generate_write_addr_payloads();
         selected_length = $urandom_range(burst_cfg.length_min, burst_cfg.length_max);
         selected_type = burst_cfg.burst_type;
         
-        // Generate random SIZE (0=1byte, 1=2bytes, 2=4bytes for 32-bit bus)
-        selected_size = $urandom_range(0, $clog2(AXI_DATA_WIDTH / 8));
+        // Generate SIZE based on burst length
+        if (selected_length > 0) begin
+            // Burst access (LEN > 0): SIZE fixed to bus width for efficiency
+            selected_size = $clog2(AXI_DATA_WIDTH / 8);  // 32-bit bus = 2 (4 bytes), 64-bit bus = 3 (8 bytes)
+        end else begin
+            // Single access (LEN = 0): Random SIZE for flexibility
+            selected_size = $urandom_range(0, $clog2(AXI_DATA_WIDTH / 8));
+        end
         
         // Calculate phase for logging purposes (not used in address calculation)
         phase = test_count / PHASE_TEST_COUNT;

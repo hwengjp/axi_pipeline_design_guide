@@ -1,5 +1,5 @@
 // Licensed under the Apache License, Version 2.0 - see https://www.apache.org/licenses/LICENSE-2.0 for details.
-// AXI4 Simple Dual Port RAM Testbench - Refactored Version
+// AXI4 Simple Single Port RAM Testbench - Refactored Version
 // This testbench has been refactored to use modular architecture with separate modules for:
 // - Protocol verification
 // - Monitoring and logging
@@ -15,17 +15,17 @@ module top_tb;
 // Header Files and Function Libraries
 // =============================================================================
 // Common definitions and parameters
-`include "axi_common_defs.svh"
+`include "part09_axi4_testbench_refactoring/axi_common_defs.svh"
 // Test stimulus generation functions
-`include "axi_stimulus_functions.svh"
+`include "part09_axi4_testbench_refactoring/axi_stimulus_functions.svh"
 // Verification and checking functions
-`include "axi_verification_functions.svh"
+`include "part09_axi4_testbench_refactoring/axi_verification_functions.svh"
 // Utility and helper functions
-`include "axi_utility_functions.svh"
+`include "part09_axi4_testbench_refactoring/axi_utility_functions.svh"
 // Random data generation functions
-`include "axi_random_generation.svh"
+`include "part09_axi4_testbench_refactoring/axi_random_generation.svh"
 // Monitoring and logging functions
-`include "axi_monitoring_functions.svh"
+`include "part09_axi4_testbench_refactoring/axi_monitoring_functions.svh"
 
 // =============================================================================
 // Clock and Reset Generation
@@ -92,8 +92,8 @@ logic                      axi_r_ready;   // Read data ready
 // =============================================================================
 // Device Under Test (DUT) Instantiation
 // =============================================================================
-// Instantiate the AXI4 Simple Dual Port RAM module with parameterized configuration
-axi_simple_dual_port_ram #(
+// Instantiate the AXI4 Simple Single Port RAM module with parameterized configuration
+axi_simple_single_port_ram #(
     .MEMORY_SIZE_BYTES(MEMORY_SIZE_BYTES),  // Total memory size in bytes
     .AXI_DATA_WIDTH(AXI_DATA_WIDTH),        // AXI4 data bus width
     .AXI_ID_WIDTH(AXI_ID_WIDTH)            // AXI4 transaction ID width

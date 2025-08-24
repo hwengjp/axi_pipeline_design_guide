@@ -33,9 +33,9 @@ module burst_rw_pipeline #(
     input  wire                     d_r_ready,
     
     // Write Downstream Response Interface (Output)
-    output wire [ADDR_WIDTH-1:0]   d_w_response,
-    output wire                     d_w_valid,
-    input  wire                     d_w_ready
+    output wire [ADDR_WIDTH-1:0]   d_b_response,
+    output wire                     d_b_valid,
+    input  wire                     d_b_ready
 );
 
     // State definitions
@@ -110,8 +110,8 @@ module burst_rw_pipeline #(
     assign d_r_valid = r_t2_valid;
     assign d_r_last  = r_t2_last;
     
-    assign d_w_response = w_t3_response;
-    assign d_w_valid = w_t3_valid;
+    assign d_b_response = w_t3_response;
+    assign d_b_valid = w_t3_valid;
     
     // T1 and T2 write enable assignment
     assign w_t1_we = w_t1_valid;
@@ -139,8 +139,8 @@ module burst_rw_pipeline #(
 
     // Ready signal assignments
     assign u_r_ready = r_t0_state_ready && t1_r_ready && d_r_ready;           // Read upstream ready
-    assign u_w_addr_ready = w_t0a_state_ready && w_t0a_m_ready && t1_w_ready && d_w_ready; // Write address upstream ready
-    assign u_w_data_ready = w_t0d_m_ready && t1_w_ready && d_w_ready;         // Write data upstream ready
+    assign u_w_addr_ready = w_t0a_state_ready && w_t0a_m_ready && t1_w_ready && d_b_ready; // Write address upstream ready
+    assign u_w_data_ready = w_t0d_m_ready && t1_w_ready && d_b_ready;         // Write data upstream ready
     
     // Merge ready generation for Write pipeline
     assign w_t0a_m_ready = (w_t0d_valid && !w_t0a_valid) || (!w_t0d_valid && !w_t0a_valid) || (w_t0d_valid && w_t0a_valid);
@@ -152,8 +152,8 @@ module burst_rw_pipeline #(
         case (t1_current_state)
             STATE_IDLE: begin
                 // IDLE state transitions with priority order
-                if (d_w_ready && (w_t0a_valid && w_t0d_valid)) begin
-                    // Write priority: d_w_ready && (w_t0a_valid && w_t0d_valid)
+                if (d_b_ready && (w_t0a_valid && w_t0d_valid)) begin
+                    // Write priority: d_b_ready && (w_t0a_valid && w_t0d_valid)
                     t1_next_state = (w_t0a_last) ? STATE_W_LAST : STATE_W_NLAST;
                 end else if (d_r_ready && r_t0_valid) begin
                     // Read execution: d_r_ready && r_t0_valid
@@ -168,7 +168,7 @@ module burst_rw_pipeline #(
                 // READ states transitions - d_r_ready controls state changes
                 if (d_r_ready) begin
                     // d_r_ready is HIGH - evaluate state transitions
-                    if (d_w_ready && (w_t0a_valid && w_t0d_valid)) begin
+                    if (d_b_ready && (w_t0a_valid && w_t0d_valid)) begin
                         // Write request - priority to write
                         t1_next_state = (w_t0a_last) ? STATE_W_LAST : STATE_W_NLAST;
                     end else if (r_t0_valid) begin
@@ -185,9 +185,9 @@ module burst_rw_pipeline #(
             end
 
             STATE_W_NLAST, STATE_W_LAST: begin
-                // WRITE states transitions - d_w_ready controls state changes
-                if (d_w_ready) begin
-                    // d_w_ready is HIGH - evaluate state transitions
+                // WRITE states transitions - d_b_ready controls state changes
+                if (d_b_ready) begin
+                    // d_b_ready is HIGH - evaluate state transitions
                     if (d_r_ready && r_t0_valid) begin
                         // Read request - priority to read
                         t1_next_state = (r_t0_last) ? STATE_R_LAST : STATE_R_NLAST;
@@ -199,7 +199,7 @@ module burst_rw_pipeline #(
                         t1_next_state = STATE_IDLE;
                     end
                 end else begin
-                    // d_w_ready is LOW - hold current state
+                    // d_b_ready is LOW - hold current state
                     t1_next_state = t1_current_state;
                 end
             end
@@ -279,7 +279,7 @@ module burst_rw_pipeline #(
             w_t0a_count <= 8'hFF;                        // Initialize to idle state
             w_t0a_mem_addr <= {ADDR_WIDTH{1'b0}};        // Initialize address to 0
             w_t0a_valid <= 1'b0;                         // Initialize valid to 0
-        end else if (d_w_ready && t1_w_ready) begin
+        end else if (d_b_ready && t1_w_ready) begin
             if (w_t0a_m_ready) begin
                 case (w_t0a_state_ready)
                     1'b1: begin // Ready state (Idle or last cycle)
@@ -302,7 +302,7 @@ module burst_rw_pipeline #(
         if (!rst_n) begin
             w_t0d_data <= {DATA_WIDTH{1'b0}};             // Initialize data to 0
             w_t0d_valid <= 1'b0;                          // Initialize valid to 0
-        end else if (d_w_ready && t1_w_ready) begin
+        end else if (d_b_ready && t1_w_ready) begin
             if (w_t0d_m_ready) begin
                 w_t0d_data <= u_w_data;                     // Update data from upstream
                 w_t0d_valid <= u_w_data_valid;              // Set valid based on upstream
@@ -317,7 +317,7 @@ module burst_rw_pipeline #(
             w_t1_data <= {DATA_WIDTH{1'b0}};              // Initialize data to 0
             w_t1_valid <= 1'b0;                           // Initialize valid to 0
             w_t1_last <= 1'b0;                            // Initialize last to 0
-        end else if (d_w_ready && t1_w_ready) begin
+        end else if (d_b_ready && t1_w_ready) begin
             w_t1_addr <= w_t0a_mem_addr;                    // Forward T0A address
             w_t1_data <= w_t0d_data;                        // Forward T0D data
             w_t1_valid <= (w_t0a_valid && w_t0d_valid);     // Valid when both T0A and T0D are valid
@@ -332,7 +332,7 @@ module burst_rw_pipeline #(
             w_t2_data <= {DATA_WIDTH{1'b0}};              // Initialize data to 0
             w_t2_valid <= 1'b0;                           // Initialize valid to 0
             w_t2_last <= 1'b0;                            // Initialize last to 0
-        end else if (d_w_ready) begin
+        end else if (d_b_ready) begin
             if (t1_current_state==STATE_W_NLAST || t1_current_state==STATE_W_LAST) begin
                 w_t2_addr <= w_t1_addr;                         // Forward T1 address
                 w_t2_data <= w_t1_data;                         // Forward T1 data
@@ -353,7 +353,7 @@ module burst_rw_pipeline #(
             w_t3_response <= {ADDR_WIDTH{1'b0}};           // Initialize response to 0
             w_t3_valid <= 1'b0;                           // Initialize valid to 0
             w_t3_last <= 1'b0;                            // Initialize last to 0
-        end else if (d_w_ready) begin
+        end else if (d_b_ready) begin
             w_t3_valid <= w_t2_valid;                       // Forward T2 valid signal
             w_t3_last <= w_t2_last;                         // Forward T2 last signal
             w_t3_response <= ((w_t2_addr == w_t2_data) && w_t2_we) ? w_t2_addr : {ADDR_WIDTH{1'bx}}; // Generate response based on condition
