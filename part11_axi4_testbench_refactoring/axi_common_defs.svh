@@ -44,7 +44,7 @@ typedef struct {
     int length_min;                            // Minimum burst length
     int length_max;                            // Maximum burst length
     string burst_type;                         // Burst type (INCR, WRAP, FIXED)
-    string strobe_strategy;                    // Strobe strategy: "FULL" or "RANDOM"
+    string size_strategy;                      // Size strategy: "FULL" or "RANDOM"
 } burst_config_t;
 
 typedef struct {
@@ -55,12 +55,19 @@ typedef struct {
 // =============================================================================
 // Weighted random generation arrays
 // =============================================================================
-burst_config_t burst_config_weights[] = '{     // Burst configuration weights array (total_weight=11)
-    '{weight: 4, length_min: 1, length_max: 3, burst_type: "INCR", strobe_strategy: "FULL"},   // probability: 4/11 = 36.4%
-    '{weight: 3, length_min: 4, length_max: 7, burst_type: "INCR", strobe_strategy: "RANDOM"}, // probability: 3/11 = 27.3%
-    '{weight: 2, length_min: 8, length_max: 15, burst_type: "INCR", strobe_strategy: "RANDOM"}, // probability: 2/11 = 18.2%
-    '{weight: 1, length_min: 15, length_max: 31, burst_type: "WRAP", strobe_strategy: "RANDOM"}, // probability: 1/11 = 9.1%
-    '{weight: 1, length_min: 0, length_max: 0, burst_type: "FIXED", strobe_strategy: "FULL"}   // probability: 1/11 = 9.1%
+burst_config_t burst_config_weights[] = '{     // Burst configuration weights array (total_weight=18)
+    '{weight: 4, length_min: 1, length_max: 5, burst_type: "INCR", size_strategy: "FULL"},   // probability: 4/18 = 22.2%
+    '{weight: 3, length_min: 4, length_max: 7, burst_type: "INCR", size_strategy: "RANDOM"}, // probability: 3/18 = 16.7%
+    '{weight: 2, length_min: 8, length_max: 15, burst_type: "INCR", size_strategy: "RANDOM"}, // probability: 2/18 = 11.1%
+    '{weight: 1, length_min: 1, length_max: 1, burst_type: "WRAP", size_strategy: "FULL"},     // LEN=0 (2 transfers) - AXI4 compliant
+    '{weight: 1, length_min: 3, length_max: 3, burst_type: "WRAP", size_strategy: "FULL"},     // LEN=2 (4 transfers) - AXI4 compliant
+    '{weight: 1, length_min: 7, length_max: 7, burst_type: "WRAP", size_strategy: "FULL"},     // LEN=6 (8 transfers) - AXI4 compliant
+    '{weight: 1, length_min: 15, length_max: 15, burst_type: "WRAP", size_strategy: "FULL"},     // LEN=14 (16 transfers) - AXI4 compliant
+    '{weight: 1, length_min: 1, length_max: 1, burst_type: "WRAP", size_strategy: "RANDOM"},     // LEN=0 (2 transfers) - AXI4 compliant
+    '{weight: 1, length_min: 3, length_max: 3, burst_type: "WRAP", size_strategy: "RANDOM"},     // LEN=2 (4 transfers) - AXI4 compliant
+    '{weight: 1, length_min: 7, length_max: 7, burst_type: "WRAP", size_strategy: "RANDOM"},     // LEN=6 (8 transfers) - AXI4 compliant
+    '{weight: 1, length_min: 15, length_max: 15, burst_type: "WRAP", size_strategy: "RANDOM"},     // LEN=14 (16 transfers) - AXI4 compliant
+    '{weight: 1, length_min: 0, length_max: 0, burst_type: "FIXED", size_strategy: "RANDOM"}   // probability: 1/18 = 5.6%
 };
 
 bubble_param_t write_addr_bubble_weights[] = '{ // Write address bubble weights array (total_weight=104)
@@ -137,7 +144,7 @@ typedef struct {
     logic [7:0]                len;           // Burst length
     logic                      valid;         // Valid signal
     int                         phase;         // Test phase number
-    string                     strobe_strategy; // Strobe strategy: "FULL" or "RANDOM"
+    string                     size_strategy;  // Size strategy: "FULL" or "RANDOM"
 } write_addr_payload_t;
 
 typedef struct {
@@ -158,7 +165,7 @@ typedef struct {
     logic [7:0]                len;           // Burst length
     logic                      valid;         // Valid signal
     int                         phase;         // Test phase number
-    string                     strobe_strategy; // Strobe strategy: "FULL" or "RANDOM"
+    string                     size_strategy;  // Size strategy: "FULL" or "RANDOM"
 } read_addr_payload_t;
 
 // =============================================================================

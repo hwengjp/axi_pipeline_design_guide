@@ -45,13 +45,22 @@ function automatic void generate_write_addr_payloads();
         selected_length = $urandom_range(burst_cfg.length_min, burst_cfg.length_max);
         selected_type = burst_cfg.burst_type;
         
-        // Generate SIZE based on burst length
-        if (selected_length > 0) begin
-            // Burst access (LEN > 0): SIZE fixed to bus width for efficiency
-            selected_size = $clog2(AXI_DATA_WIDTH / 8);  // 32-bit bus = 2 (4 bytes), 64-bit bus = 3 (8 bytes)
-        end else begin
-            // Single access (LEN = 0): Random SIZE for flexibility
-            selected_size = $urandom_range(0, $clog2(AXI_DATA_WIDTH / 8));
+        // Generate SIZE based on size_strategy
+        selected_size = generate_size_by_strategy(burst_cfg.size_strategy, AXI_DATA_WIDTH);
+        
+        // Constraint check: SIZE must not exceed bus width
+        if (size_to_bytes(selected_size) > AXI_DATA_WIDTH / 8) begin
+            $error("SIZE constraint violation: SIZE %0d exceeds bus width %0d bytes", 
+                   size_to_bytes(selected_size), AXI_DATA_WIDTH / 8);
+            $finish;
+        end
+        
+        // WRAP burst constraint check: burst length must be 2, 4, 8, or 16
+        if (selected_type == "WRAP") begin
+            if (!((selected_length + 1) inside {2, 4, 8, 16})) begin
+                $error("WRAP burst constraint violation: burst length %0d must be 2, 4, 8, or 16", selected_length + 1);
+                $finish;
+            end
         end
         
         // Calculate phase for logging purposes (not used in address calculation)
@@ -69,6 +78,15 @@ function automatic void generate_write_addr_payloads();
         // Add test_count offset to avoid address overlap within same phase
         base_addr = aligned_offset + (test_count * TEST_COUNT_ADDR_SIZE_BYTES);
         
+        // WRAP burst address alignment check: start address must be aligned to transfer size
+        if (selected_type == "WRAP") begin
+            int size_bytes = size_to_bytes(selected_size);
+            if (base_addr % size_bytes != 0) begin
+                $error("WRAP burst address alignment violation: start address 0x%x not aligned to transfer size %0d bytes", base_addr, size_bytes);
+                $finish;
+            end
+        end
+        
         write_addr_payloads[test_count] = '{
             test_count: test_count,
             addr: base_addr,
@@ -78,7 +96,7 @@ function automatic void generate_write_addr_payloads();
             len: selected_length,
             valid: 1'b1,
             phase: phase,
-            strobe_strategy: burst_cfg.strobe_strategy
+            size_strategy: burst_cfg.size_strategy
         };
         
         write_debug_log($sformatf("Generated payload[%0d]: config_index=%0d, weight=%0d, type=%s, len=%0d, size=%0d(%0d bytes)", 
@@ -119,7 +137,7 @@ function automatic void generate_write_addr_payloads_with_stall();
                 len: '0,         // Clear length to 0 when valid=0
                 valid: 1'b0,
                 phase: payload.phase,
-                strobe_strategy: payload.strobe_strategy
+                size_strategy: payload.size_strategy
             };
             stall_index++;
         end
@@ -160,21 +178,8 @@ function automatic void generate_write_data_payloads();
                 );
             end else begin
                 // INCR/WRAP or FIXED burst: Use configured strobe strategy
-                if (addr_payload.strobe_strategy == "RANDOM") begin
-                    if (get_burst_type_string(addr_payload.burst) == "FIXED") begin
-                        // FIXEDでRANDOM設定はエラー
-                        $error("Configuration Error: FIXED burst type cannot use RANDOM strobe strategy");
-                        $error("Address: 0x%h, Burst Type: %s, Strobe Strategy: %s", 
-                               addr_payload.addr, get_burst_type_string(addr_payload.burst), addr_payload.strobe_strategy);
-                        $finish;
-                    end else begin
-                        // INCR/WRAP: ランダムストローブ（アドレス丸めなし）
-                        strobe_pattern = generate_random_strobe_no_alignment(addr_payload.addr, addr_payload.size, AXI_DATA_WIDTH);
-                    end
-                end else begin
-                    // FULL strategy: 全てのストローブを1
-                    strobe_pattern = '1;  // All bits 1
-                end
+                // 新しいsize_strategyベースのSTROBE生成（バースト内ビート位置考慮）
+                strobe_pattern = generate_strobe_by_size_strategy(addr_payload.addr, addr_payload.size, addr_payload.size_strategy, AXI_DATA_WIDTH, transfer);
             end
             
             // Create strobe mask for data masking
@@ -252,7 +257,7 @@ function automatic void generate_read_addr_payloads();
             len: write_addr_payloads[i].len,
             valid: 1'b1,
             phase: write_addr_payloads[i].phase,
-            strobe_strategy: write_addr_payloads[i].strobe_strategy
+            size_strategy: write_addr_payloads[i].size_strategy
         };
     end
 endfunction
@@ -288,7 +293,7 @@ function automatic void generate_read_addr_payloads_with_stall();
                 len: '0,         // Clear length to 0 when valid=0
                 valid: 1'b0,
                 phase: payload.phase,
-                strobe_strategy: payload.strobe_strategy
+                size_strategy: payload.size_strategy
             };
             stall_index++;
         end

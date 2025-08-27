@@ -28,8 +28,8 @@ function automatic void display_write_addr_payloads();
     write_debug_log("=== Write Address Payloads ===");
     foreach (write_addr_payloads[i]) begin
         write_addr_payload_t payload = write_addr_payloads[i];
-        write_debug_log($sformatf("[%0d] test_count=%0d, addr=0x%h, burst=%0d, size=%s, id=%0d, len=%0d, valid=%0d, phase=%0d, strobe_strategy=%s",
-            i, payload.test_count, payload.addr, payload.burst, size_to_string(payload.size), payload.id, payload.len, payload.valid, payload.phase, payload.strobe_strategy));
+        write_debug_log($sformatf("[%0d] test_count=%0d, addr=0x%h, burst=%0d, size=%s, id=%0d, len=%0d, valid=%0d, phase=%0d, size_strategy=%s",
+            i, payload.test_count, payload.addr, payload.burst, size_to_string(payload.size), payload.id, payload.len, payload.valid, payload.phase, payload.size_strategy));
     end
 endfunction
 
@@ -38,8 +38,8 @@ function automatic void display_write_addr_payloads_with_stall();
     write_debug_log("=== Write Address Payloads with Stall ===");
     foreach (write_addr_payloads_with_stall[i]) begin
         write_addr_payload_t payload = write_addr_payloads_with_stall[i];
-        write_debug_log($sformatf("[%0d] test_count=%0d, addr=0x%h, burst=%0d, size=%s, id=%0d, len=%0d, valid=%0d, phase=%0d, strobe_strategy=%s",
-            i, payload.test_count, payload.addr, payload.burst, size_to_string(payload.size), payload.id, payload.len, payload.valid, payload.phase, payload.strobe_strategy));
+        write_debug_log($sformatf("[%0d] test_count=%0d, addr=0x%h, burst=%0d, size=%s, id=%0d, len=%0d, valid=%0d, phase=%0d, size_strategy=%s",
+            i, payload.test_count, payload.addr, payload.burst, size_to_string(payload.size), payload.id, payload.len, payload.valid, payload.phase, payload.size_strategy));
     end
 endfunction
 
@@ -68,8 +68,8 @@ function automatic void display_read_addr_payloads();
     write_debug_log("=== Read Address Payloads ===");
     foreach (read_addr_payloads[i]) begin
         read_addr_payload_t payload = read_addr_payloads[i];
-        write_debug_log($sformatf("[%0d] test_count=%0d, addr=0x%h, burst=%0d, size=%s, id=%0d, len=%0d, valid=%0d, phase=%0d, strobe_strategy=%s",
-            i, payload.test_count, payload.addr, payload.burst, size_to_string(payload.size), payload.id, payload.len, payload.valid, payload.phase, payload.strobe_strategy));
+        write_debug_log($sformatf("[%0d] test_count=%0d, addr=0x%h, burst=%0d, size=%s, id=%0d, len=%0d, valid=%0d, phase=%0d, size_strategy=%s",
+            i, payload.test_count, payload.addr, payload.burst, size_to_string(payload.size), payload.id, payload.len, payload.valid, payload.phase, payload.size_strategy));
     end
 endfunction
 
@@ -78,8 +78,8 @@ function automatic void display_read_addr_payloads_with_stall();
     write_debug_log("=== Read Address Payloads with Stall ===");
     foreach (read_addr_payloads_with_stall[i]) begin
         read_addr_payload_t payload = read_addr_payloads_with_stall[i];
-        write_debug_log($sformatf("[%0d] test_count=%0d, addr=0x%h, burst=%0d, size=%s, id=%0d, len=%0d, valid=%0d, phase=%0d, strobe_strategy=%s",
-            i, payload.test_count, payload.addr, payload.burst, size_to_string(payload.size), payload.id, payload.len, payload.valid, payload.phase, payload.strobe_strategy));
+        write_debug_log($sformatf("[%0d] test_count=%0d, addr=0x%h, burst=%0d, size=%s, id=%0d, len=%0d, valid=%0d, phase=%0d, size_strategy=%s",
+            i, payload.test_count, payload.addr, payload.burst, size_to_string(payload.size), payload.id, payload.len, payload.valid, payload.phase, payload.size_strategy));
     end
 endfunction
 

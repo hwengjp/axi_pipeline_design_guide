@@ -13,6 +13,7 @@ transcript
 # Temporary files
 *.tmp
 *.log
+*.txt
 
 # OS generated files
 .DS_Store

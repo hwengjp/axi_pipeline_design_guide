@@ -202,4 +202,137 @@ function automatic logic [AXI_STRB_WIDTH-1:0] generate_random_strobe_no_alignmen
     return strobe_pattern;
 endfunction
 
+// Function: calculate_strobe_by_size_and_address_with_transfer
+// SIZEとアドレスに基づく有効バイト位置の計算（バースト内ビート位置考慮）
+function automatic logic [AXI_STRB_WIDTH-1:0] calculate_strobe_by_size_and_address_with_transfer(
+    input logic [AXI_ADDR_WIDTH-1:0] address,
+    input logic [2:0] size,
+    input int bus_width_bits,
+    input int transfer_index
+);
+    logic [AXI_STRB_WIDTH-1:0] strobe = '0;
+    int bus_width_bytes = bus_width_bits / 8;
+    int size_bytes = size_to_bytes(size);
+    
+    // 初期アドレスに基づく基本オフセット
+    int base_offset = address % bus_width_bytes;
+    
+    // バースト内ビート位置に基づくオフセット
+    int transfer_offset = (transfer_index * size_bytes) % bus_width_bytes;
+    
+    // 合計オフセット（バス幅で循環）
+    int total_offset = (base_offset + transfer_offset) % bus_width_bytes;
+    
+    // 有効バイト位置の計算
+    for (int byte_idx = 0; byte_idx < size_bytes; byte_idx++) begin
+        int strobe_pos = (total_offset + byte_idx) % bus_width_bytes;
+        strobe[strobe_pos] = 1'b1;
+    end
+    
+    return strobe;
+endfunction
+
+// Function: generate_size_by_strategy
+// SIZE生成関数（size_strategy対応）
+function automatic logic [2:0] generate_size_by_strategy(
+    input string size_strategy,
+    input int bus_width_bits
+);
+    int bus_width_bytes = bus_width_bits / 8;
+    
+    case (size_strategy)
+        "FULL": begin
+            // バス幅に一致するSIZE
+            return $clog2(bus_width_bytes);
+        end
+        "RANDOM": begin
+            // バス幅以下の範囲でランダム
+            return $urandom_range(0, $clog2(bus_width_bytes));
+        end
+        default: begin
+            // デフォルトはFULL
+            return $clog2(bus_width_bytes);
+        end
+    endcase
+endfunction
+
+// Function: align_address_by_size
+// アドレス丸め関数（SIZE対応）
+function automatic logic [AXI_ADDR_WIDTH-1:0] align_address_by_size(
+    input logic [AXI_ADDR_WIDTH-1:0] address,
+    input logic [2:0] size,
+    input string size_strategy
+);
+    case (size_strategy)
+        "FULL": begin
+            // バス幅境界での丸め
+            int bus_width_bytes = AXI_DATA_WIDTH / 8;
+            return (address / bus_width_bytes) * bus_width_bytes;
+        end
+        "RANDOM": begin
+            // SIZEに基づく境界での丸め
+            int size_bytes = size_to_bytes(size);
+            return (address / size_bytes) * size_bytes;
+        end
+        default: begin
+            // デフォルトはバス幅境界
+            int bus_width_bytes = AXI_DATA_WIDTH / 8;
+            return (address / bus_width_bytes) * bus_width_bytes;
+        end
+    endcase
+endfunction
+
+// Function: calculate_strobe_by_size_and_address
+// SIZEとアドレスに基づく有効バイト位置の計算
+function automatic logic [AXI_STRB_WIDTH-1:0] calculate_strobe_by_size_and_address(
+    input logic [AXI_ADDR_WIDTH-1:0] address,
+    input logic [2:0] size,
+    input int bus_width_bits
+);
+    logic [AXI_STRB_WIDTH-1:0] strobe = '0;
+    int bus_width_bytes = bus_width_bits / 8;
+    int size_bytes = size_to_bytes(size);
+    
+    // SIZEに基づくアドレス境界での丸め
+    int aligned_addr = (address / size_bytes) * size_bytes;
+    
+    // 丸められたアドレスと元のアドレスの差分
+    int offset = address - aligned_addr;
+    
+    // 有効バイト位置の計算
+    for (int byte_idx = 0; byte_idx < size_bytes; byte_idx++) begin
+        int strobe_pos = offset + byte_idx;
+        if (strobe_pos < bus_width_bytes) begin
+            strobe[strobe_pos] = 1'b1;
+        end
+    end
+    
+    return strobe;
+endfunction
+
+// Function: generate_strobe_by_size_strategy
+// STROBE生成関数（SIZE対応、バースト内ビート位置考慮）
+function automatic logic [AXI_STRB_WIDTH-1:0] generate_strobe_by_size_strategy(
+    input logic [AXI_ADDR_WIDTH-1:0] address,
+    input logic [2:0] size,
+    input string size_strategy,
+    input int bus_width_bits,
+    input int transfer_index
+);
+    case (size_strategy)
+        "FULL": begin
+            // 全ビット有効
+            return '1;
+        end
+        "RANDOM": begin
+            // SIZEとアドレスに基づく計算（バースト内ビート位置考慮）
+            return calculate_strobe_by_size_and_address_with_transfer(address, size, bus_width_bits, transfer_index);
+        end
+        default: begin
+            // デフォルトは全ビット有効
+            return '1;
+        end
+    endcase
+endfunction
+
 `endif // AXI_UTILITY_FUNCTIONS_SVH

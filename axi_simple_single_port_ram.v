@@ -5,7 +5,10 @@ module axi_simple_single_port_ram #(
     parameter AXI_DATA_WIDTH = 64,                    // AXI data width in bits
     parameter AXI_ID_WIDTH = 8,                      // AXI ID width in bits
     parameter AXI_STRB_WIDTH = AXI_DATA_WIDTH/8,     // AXI strobe width (calculated)
-    parameter AXI_ADDR_WIDTH = $clog2(MEMORY_SIZE_BYTES)  // AXI address width in bits (auto-calculated)
+    parameter AXI_ADDR_WIDTH = $clog2(MEMORY_SIZE_BYTES), // AXI address width in bits (auto-calculated)
+    parameter MEMORY_SIZE_WORDS = MEMORY_SIZE_BYTES / (AXI_DATA_WIDTH/8), // Memory size in words (auto-calculated)
+    parameter MEMORY_ADDR_WIDTH = $clog2(MEMORY_SIZE_WORDS), // Memory address width in bits (auto-calculated)
+    parameter ADDR_SHIFT_WIDTH = $clog2(AXI_DATA_WIDTH/8)  // Address shift width for byte to word conversion (auto-calculated)
 )(
     // Clock and Reset
     input                   axi_clk,
@@ -53,7 +56,10 @@ module axi_simple_single_port_ram #(
 
     // Read pipeline internal signals
     reg [AXI_ADDR_WIDTH-1:0] r_t0_addr;        // T0 stage address register (full byte address)
+    reg [AXI_ADDR_WIDTH-1:0] r_t0_start_addr;  // T0 stage start address for WRAP calculation
+    reg [7:0]                 r_t0_len;         // T0 stage burst length for WRAP calculation
     reg [1:0]                 r_t0_burst;       // T0 stage burst type
+    reg [2:0]                 r_t0_size;        // T0 stage SIZE signal
     reg [AXI_ID_WIDTH-1:0]   r_t0_id;          // T0 stage ID
     reg                       r_t0_valid;       // T0 stage valid
     reg [7:0]                 r_t0_count;       // T0 stage burst counter
@@ -94,7 +100,10 @@ module axi_simple_single_port_ram #(
 
     // Write pipeline internal signals
     reg [AXI_ADDR_WIDTH-1:0] w_t0a_addr;        // T0A stage address register (full byte address)
+    reg [AXI_ADDR_WIDTH-1:0] w_t0a_start_addr;  // T0A stage start address for WRAP calculation
+    reg [7:0]                 w_t0a_len;         // T0A stage burst length for WRAP calculation
     reg [1:0]                 w_t0a_burst;       // T0A stage burst type
+    reg [2:0]                 w_t0a_size;        // T0A stage SIZE signal
     reg [AXI_ID_WIDTH-1:0]   w_t0a_id;          // T0A stage ID
     reg                       w_t0a_valid;       // T0A stage valid
     reg [7:0]                 w_t0a_count;       // T0A stage burst counter
@@ -115,8 +124,7 @@ module axi_simple_single_port_ram #(
     wire w_t0a_m_ready;      // T0A merge ready signal
     wire w_t0d_m_ready;      // T0D merge ready signal
 
-    // Memory size calculation
-    localparam MEMORY_SIZE_WORDS = MEMORY_SIZE_BYTES / (AXI_DATA_WIDTH/8);
+
     
     // State definitions (based on burst_rw_pipeline.v)
     localparam STATE_IDLE           = 3'b000;  // Idle state - waiting for read/write requests
@@ -130,16 +138,16 @@ module axi_simple_single_port_ram #(
     reg [2:0]                      t1_next_state;     // Next state for combinational logic
     
     // Memory access control signals
-    wire [$clog2(MEMORY_SIZE_WORDS)-1:0] mem_addr;   // Memory address (word address)
+    wire [MEMORY_ADDR_WIDTH-1:0] mem_addr;   // Memory address (word address)
     wire                           mem_read_en;       // Memory read enable
     wire [AXI_STRB_WIDTH-1:0]     mem_write_en;      // Memory write enable (byte strobe)
     wire [AXI_DATA_WIDTH-1:0]     mem_read_data;     // Memory read data (to T2 stage)
     
     // Memory access control assignments
     assign mem_addr = ((t1_current_state==STATE_R_NLAST || t1_current_state==STATE_R_LAST) && r_t1_valid) ? 
-                      (r_t1_addr >> $clog2(AXI_DATA_WIDTH/8)) : 
+                      (r_t1_addr >> ADDR_SHIFT_WIDTH) : 
                       ((t1_current_state==STATE_W_NLAST || t1_current_state==STATE_W_LAST) && w_t1_valid) ? 
-                      (w_t1_addr >> $clog2(AXI_DATA_WIDTH/8)) : 
+                      (w_t1_addr >> ADDR_SHIFT_WIDTH) : 
                       '0;
     assign mem_read_en = (t1_current_state==STATE_R_NLAST || t1_current_state==STATE_R_LAST) && axi_r_ready && r_t1_valid;
     assign mem_write_en = ((t1_current_state==STATE_W_NLAST || t1_current_state==STATE_W_LAST) && axi_b_ready && w_t1_valid) ? w_t1_strb : '0;
@@ -160,7 +168,7 @@ module axi_simple_single_port_ram #(
     single_port_ram #(
         .DATA_WIDTH(AXI_DATA_WIDTH),
         .MEM_DEPTH(MEMORY_SIZE_WORDS),
-        .ADDR_WIDTH($clog2(MEMORY_SIZE_WORDS))
+        .ADDR_WIDTH(MEMORY_ADDR_WIDTH)
     ) memory_inst (
         .clk(axi_clk),
         .addr(mem_addr),
@@ -278,7 +286,10 @@ module axi_simple_single_port_ram #(
     always @(posedge axi_clk or negedge axi_resetn) begin
         if (!axi_resetn) begin
             r_t0_addr <= 0;
+            r_t0_start_addr <= 0;
+            r_t0_len <= 0;
             r_t0_burst <= 0;
+            r_t0_size <= 0;      // Add SIZE signal
             r_t0_id <= 0;
             r_t0_valid <= 0;
             r_t0_count <= 0;
@@ -288,9 +299,12 @@ module axi_simple_single_port_ram #(
                 1'b1: begin // Ready state (Idle or last cycle)
                     if (axi_ar_valid) begin
                         r_t0_count <= axi_ar_len;  // Load burst length
+                        r_t0_len <= axi_ar_len;    // Store burst length for WRAP calculation
                         r_t0_addr <= axi_ar_addr;  // Load start address
+                        r_t0_start_addr <= axi_ar_addr; // Store start address for WRAP calculation
                         r_t0_valid <= 1'b1;        // Set valid
                         r_t0_burst <= axi_ar_burst; // Load burst type
+                        r_t0_size <= axi_ar_size;   // Load SIZE signal
                         r_t0_id <= axi_ar_id;       // Load ID
                         r_t0_idle <= 1'b0;          // Clear idle flag
                     end else begin
@@ -306,19 +320,13 @@ module axi_simple_single_port_ram #(
                             r_t0_addr <= r_t0_addr;  // Address remains fixed
                         end
                         2'b01: begin // INCR
-                            r_t0_addr <= r_t0_addr + (AXI_DATA_WIDTH/8);  // Increment by data size (bytes)
+                            r_t0_addr <= r_t0_addr + size_to_bytes(r_t0_size);  // Increment by SIZE-based byte address
                         end
                         2'b10: begin // WRAP
-                            // Calculate wrap boundary
-                            if (r_t0_count == 0) begin
-                                // Reset to start address for next burst
-                                r_t0_addr <= axi_ar_addr;
-                            end else begin
-                                r_t0_addr <= r_t0_addr + (AXI_DATA_WIDTH/8);
-                            end
+                            r_t0_addr <= calculate_wrap_address(r_t0_start_addr, r_t0_len, r_t0_count, r_t0_size);
                         end
                         default: begin
-                            r_t0_addr <= r_t0_addr + (AXI_DATA_WIDTH/8);  // Default to INCR
+                            r_t0_addr <= r_t0_addr + size_to_bytes(r_t0_size);  // Increment by SIZE-based byte address
                         end
                     endcase
                 end
@@ -366,7 +374,10 @@ module axi_simple_single_port_ram #(
     always @(posedge axi_clk or negedge axi_resetn) begin
         if (!axi_resetn) begin
             w_t0a_addr <= 0;
+            w_t0a_start_addr <= 0;
+            w_t0a_len <= 0;
             w_t0a_burst <= 0;
+            w_t0a_size <= 0;      // Add SIZE signal
             w_t0a_id <= 0;
             w_t0a_valid <= 0;
             w_t0a_count <= 0;
@@ -377,10 +388,13 @@ module axi_simple_single_port_ram #(
                     1'b1: begin // Ready state (Idle or last cycle)
                         if (axi_aw_valid) begin
                             w_t0a_addr <= axi_aw_addr;  // Load start address
+                            w_t0a_start_addr <= axi_aw_addr; // Store start address for WRAP calculation
                             w_t0a_burst <= axi_aw_burst;  // Load burst type
+                            w_t0a_size <= axi_aw_size;    // Load SIZE signal
                             w_t0a_id <= axi_aw_id;        // Load ID
                             w_t0a_valid <= 1'b1;          // Set valid
                             w_t0a_count <= axi_aw_len;    // Load burst length
+                            w_t0a_len <= axi_aw_len;      // Store burst length for WRAP calculation
                             w_t0a_idle <= 1'b0;           // Clear idle flag
                         end else begin
                             w_t0a_valid <= 1'b0;
@@ -395,19 +409,13 @@ module axi_simple_single_port_ram #(
                                 w_t0a_addr <= w_t0a_addr;  // Address remains fixed
                             end
                             2'b01: begin // INCR
-                                w_t0a_addr <= w_t0a_addr + (AXI_DATA_WIDTH/8);  // Increment by data size (bytes)
+                                w_t0a_addr <= w_t0a_addr + size_to_bytes(w_t0a_size);  // Increment by SIZE-based byte address
                             end
                             2'b10: begin // WRAP
-                                // Calculate wrap boundary
-                                if (w_t0a_count == 0) begin
-                                    // Reset to start address for next burst
-                                    w_t0a_addr <= axi_aw_addr;
-                                end else begin
-                                    w_t0a_addr <= w_t0a_addr + (AXI_DATA_WIDTH/8);
-                                end
+                                w_t0a_addr <= calculate_wrap_address(w_t0a_start_addr, w_t0a_len, w_t0a_count, w_t0a_size);
                             end
                             default: begin
-                                w_t0a_addr <= w_t0a_addr + (AXI_DATA_WIDTH/8);  // Default to INCR
+                                w_t0a_addr <= w_t0a_start_addr + size_to_bytes(w_t0a_size);  // Increment by SIZE-based byte address
                             end
                         endcase
                     end
@@ -487,5 +495,49 @@ module axi_simple_single_port_ram #(
     assign axi_b_id = w_t3_id;
     assign axi_b_resp = 2'b00;  // OKAY response
     assign axi_b_valid = w_t3_valid;
+
+    // Utility function: Convert SIZE to bytes
+    function automatic int size_to_bytes(input logic [2:0] size);
+        return (1 << size);
+    endfunction
+
+    // Function: Calculate WRAP address according to AXI4 specification
+    function automatic logic [AXI_ADDR_WIDTH-1:0] calculate_wrap_address(
+        input logic [AXI_ADDR_WIDTH-1:0] start_addr,
+        input logic [7:0] len,
+        input logic [7:0] count,
+        input logic [2:0] size
+    );
+        logic [AXI_ADDR_WIDTH-1:0] wrap_boundary;
+        logic [AXI_ADDR_WIDTH-1:0] boundary_start;
+        logic [7:0] current_transfer;
+        logic [AXI_ADDR_WIDTH-1:0] transfer_offset;
+        logic [AXI_ADDR_WIDTH-1:0] absolute_addr;
+        logic [AXI_ADDR_WIDTH-1:0] relative_offset;
+        logic [AXI_ADDR_WIDTH-1:0] wrapped_addr;
+        
+        // Calculate current transfer number (1-based)
+        current_transfer = (len - count + 1'b1);
+        
+        // Calculate wrap boundary
+        wrap_boundary = size_to_bytes(size) * (len + 1);
+        
+        // Calculate boundary start address
+        boundary_start = (start_addr / wrap_boundary) * wrap_boundary;
+        
+        // Calculate transfer offset
+        transfer_offset = current_transfer * size_to_bytes(size);
+        
+        // Calculate absolute address
+        absolute_addr = start_addr + transfer_offset;
+        
+        // Calculate relative offset from boundary
+        relative_offset = absolute_addr - boundary_start;
+        
+        // Calculate final wrapped address
+        wrapped_addr = boundary_start + (relative_offset % wrap_boundary);
+        
+        return wrapped_addr;
+    endfunction
 
 endmodule
