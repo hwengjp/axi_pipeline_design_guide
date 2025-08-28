@@ -27,15 +27,19 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+# Get the absolute path to QiitaDocs directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+QIITA_DOCS_DIR="$SCRIPT_DIR/QiitaDocs"
+
 # Check if QiitaDocs directory exists
-if [ ! -d "QiitaDocs" ]; then
-    print_error "QiitaDocs directory not found. Please run this script from the project root."
+if [ ! -d "$QIITA_DOCS_DIR" ]; then
+    print_error "QiitaDocs directory not found: $QIITA_DOCS_DIR"
     exit 1
 fi
 
 # Check if QiitaDocs/public directory exists
-if [ ! -d "QiitaDocs/public" ]; then
-    print_error "QiitaDocs/public directory not found."
+if [ ! -d "$QIITA_DOCS_DIR/public" ]; then
+    print_error "QiitaDocs/public directory not found: $QIITA_DOCS_DIR/public"
     exit 1
 fi
 
@@ -56,45 +60,46 @@ publish_file() {
     
     print_status "Publishing $filename to Qiita as '$filename_without_ext'..."
     
-    # Change to QiitaDocs directory
-    cd QiitaDocs
+    # Get the absolute path to QiitaDocs directory
+    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local qiita_docs_dir="$script_dir/QiitaDocs"
     
     # Check if file exists in public directory
-    if [ ! -f "public/$filename" ]; then
-        print_error "File not found: public/$filename"
-        cd ..
+    if [ ! -f "$qiita_docs_dir/public/$filename" ]; then
+        print_error "File not found: $qiita_docs_dir/public/$filename"
         return 1
     fi
     
-    print_status "File exists: public/$filename"
+    print_status "File exists: $qiita_docs_dir/public/$filename"
     
-    if npx qiita publish "$filename_without_ext"; then
+    # Change to QiitaDocs directory and execute publish
+    if (cd "$qiita_docs_dir" && npx qiita publish "$filename_without_ext"); then
         print_success "Successfully published $filename as '$filename_without_ext'"
     else
         print_error "Failed to publish $filename"
-        cd ..
         return 1
     fi
-    
-    # Return to original directory
-    cd ..
 }
 
 # Main execution
 main() {
     print_status "Starting Qiita publish process from QiitaDocs/public..."
     
+    # Get the absolute path to QiitaDocs directory
+    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local qiita_docs_dir="$script_dir/QiitaDocs"
+    
     # Find all part*.md files in QiitaDocs/public
-    part_files=$(find QiitaDocs/public -name "part*.md" -type f)
+    part_files=$(find "$qiita_docs_dir/public" -name "part*.md" -type f)
     
     # Find all rule*.md files in QiitaDocs/public
-    rule_files=$(find QiitaDocs/public -name "rule*.md" -type f)
+    rule_files=$(find "$qiita_docs_dir/public" -name "rule*.md" -type f)
     
     # Combine all files to publish
     all_files="$part_files $rule_files"
     
     if [ -z "$all_files" ]; then
-        print_error "No part*.md or rule*.md files found in QiitaDocs/public"
+        print_error "No part*.md or rule*.md files found in $qiita_docs_dir/public"
         exit 1
     fi
     

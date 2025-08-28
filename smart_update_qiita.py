@@ -45,7 +45,7 @@ class SmartQiitaUpdater:
             },
             'publish': {
                 'auto_publish': True,
-                'publish_delay': 5
+                'publish_delay': 1
             },
             'logging': {
                 'level': 'INFO',
@@ -347,11 +347,14 @@ class SmartQiitaUpdater:
             # スクリプトのディレクトリからの相対パスを使用
             script_path = Path(__file__).parent / 'publish_to_qiita.sh'
             if script_path.exists():
+                # スクリプトのディレクトリに移動してから実行
+                script_dir = script_path.parent
                 result = subprocess.run(
                     [str(script_path), str(qiita_file)],
                     capture_output=True,
                     text=True,
-                    timeout=300
+                    timeout=300,
+                    cwd=str(script_dir)
                 )
                 
                 if result.returncode == 0:

@@ -95,7 +95,7 @@ main() {
     print_status "Found file to publish:"
     filename=$(basename "$readme_file")
     filename_without_ext="${filename%.md}"
-    echo "  - $filename -> '$filename_without_ext'"
+    echo "  - $filename -> 'AXIバスのパイプライン回路設計ガイド'"
     
     # Publish README.md
     if ! publish_file "$readme_file"; then

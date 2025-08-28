@@ -18,6 +18,11 @@
 - **特徴**: 個別ファイルのpublish処理
 - **用途**: 特定ファイルのpublishが必要な場合
 
+#### `publish_to_qiita_README.sh`
+- **目的**: README.mdファイルをQiitaにpublish
+- **特徴**: README.md専用のpublish処理、タイトルを「AXIバスのパイプライン回路設計ガイド」として設定
+- **用途**: README.mdファイルのpublishが必要な場合
+
 ### 2. 新規スクリプト
 
 #### `smart_update_qiita.py`
@@ -46,6 +51,9 @@ python3 update_qiita_articles.py
 
 # 特定ファイルをpublish
 ./publish_to_qiita.sh QiitaDocs/public/part01_pipeline_principles.md
+
+# README.mdをpublish
+./publish_to_qiita_README.sh
 ```
 
 #### 2. 変更ファイルのみ更新（日常運用）
@@ -75,6 +83,34 @@ python3 update_qiita_articles.py --help
 1. QiitaDocs/public内のpart*.md、rule*.mdファイルを検索
 2. 対応するルートディレクトリのファイルと比較
 3. すべてのファイルを更新（変更の有無に関わらず）
+
+#### `publish_to_qiita.sh`
+```bash
+# 基本的な実行
+./publish_to_qiita.sh
+
+# 特定ファイルをpublish
+./publish_to_qiita.sh QiitaDocs/public/part01_pipeline_principles.md
+```
+
+**処理内容**:
+1. 指定されたファイルまたは全part*.md、rule*.mdファイルを検索
+2. 各ファイルをQiitaにpublish
+3. エラーハンドリングと結果レポート
+
+#### `publish_to_qiita_README.sh`
+```bash
+# 基本的な実行
+./publish_to_qiita_README.sh
+
+# 注意: このスクリプトはオプションを受け付けません
+# README.mdファイルを「AXIバスのパイプライン回路設計ガイド」としてpublishします
+```
+
+**処理内容**:
+1. QiitaDocs/public/README.mdファイルを検索
+2. README.mdを「AXIバスのパイプライン回路設計ガイド」としてQiitaにpublish
+3. エラーハンドリングと結果レポート
 
 #### `smart_update_qiita.py`
 ```bash
@@ -240,11 +276,13 @@ logging:
 .
 ├── update_qiita_articles.py          # 既存: 全ファイル更新スクリプト
 ├── publish_to_qiita.sh              # 既存: publishスクリプト
+├── publish_to_qiita_README.sh       # 既存: README用publishスクリプト
 ├── smart_update_qiita.py            # 新規: 選択的更新スクリプト
 ├── smart_publish_to_qiita.sh        # 新規: Smart Update実行スクリプト
 ├── qiita_update_config.yaml         # 新規: 設定ファイル
 ├── QiitaDocs/
 │   ├── public/                      # Qiita用ファイル
+│   │   ├── README.md                # メインREADME
 │   │   ├── part01_pipeline_principles.md
 │   │   ├── part02_pipeline_insert.md
 │   │   └── ...
