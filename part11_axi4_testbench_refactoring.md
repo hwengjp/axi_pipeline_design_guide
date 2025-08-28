@@ -22,7 +22,9 @@
     - [6.1 基本テスト](#61-基本テスト)
     - [6.2 境界値テスト](#62-境界値テスト)
     - [6.3 組み合わせテスト](#63-組み合わせテスト)
-  - [7. まとめ](#7-まとめ)
+  - [7. コード](#7-コード)
+    - [7.1 主要ファイル](#71-主要ファイル)
+  - [8. まとめ](#8-まとめ)
   - [ライセンス](#ライセンス)
 
 ## 1. はじめに
@@ -269,9 +271,33 @@
 2. **中程度バースト**: 8-15転送での動作
 3. **長いバースト**: 16-255転送での動作
 
+## 7. コード
 
+- **[part11_axi4_testbench_refactoring](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/part11_axi4_testbench_refactoring/)**
 
-## 7. まとめ
+### 7.1 主要ファイル
+
+#### **共通定義・パラメータ系**
+- **`axi_common_defs.svh`**: テストベンチの基本パラメータと構造体定義
+- **`burst_config_weights[]`**: 重み付きバースト設定配列
+- **`size_strategy`**: SIZE生成戦略（FULL/RANDOM）の制御
+
+#### **テスト刺激生成系**
+- **`axi_stimulus_functions.svh`**: テストデータ生成と制御関数
+- **`generate_burst_config()`**: 重み付き乱数によるバースト設定生成
+- **`generate_size_by_strategy()`**: 戦略に基づくSIZE値生成
+
+#### **検証・期待値生成系**
+- **`axi_monitoring_functions.svh`**: プロトコル監視とログ出力
+- **`write_debug_log()`**: 統一されたログ出力関数
+- **`monitor_write_address()`**: ライトアドレスチャネルの監視
+
+#### **ユーティリティ関数系**
+- **`axi_utility_functions.svh`**: 汎用ユーティリティ関数
+- **`generate_strobe_by_size_strategy()`**: 戦略に基づくストローブ生成
+- **`align_address_by_size()`**: SIZEに基づくアドレスアライメント
+
+## 8. まとめ
 
 今回の第11回では、第9回で実装したAXI4バス・テストベンチの機能分類とファイル分割を基盤として、拡張ストローブ制御機能を実現しました。
 

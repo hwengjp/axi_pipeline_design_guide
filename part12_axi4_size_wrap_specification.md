@@ -1,0 +1,431 @@
+# AXIバス設計ガイド 第12回 AXI4 SIZEとWRAPの仕様
+
+## 目次
+
+1. [はじめに](#はじめに)
+2. [AXI4 SIZE制約の基本概念](#axi4-size制約の基本概念)
+3. [SIZE制約の詳細仕様](#size制約の詳細仕様)
+4. [WRAPバーストの基本概念](#wrapバーストの基本概念)
+5. [WRAPバーストのアドレス計算](#wrapバーストのアドレス計算)
+6. [SIZEとWRAPの組み合わせ制約](#sizeとwrapの組み合わせ制約)
+7. [実装上の注意点](#実装上の注意点)
+8. [まとめ](#まとめ)
+9. [ライセンス](#ライセンス)
+
+## はじめに
+
+このドキュメントはAXI4の仕様書をAIに読み込ませAIが書いた解説書です。
+
+本記事では、AXI4仕様書のWRAPとSIZEについてAIが解説します。
+
+## AXI4 SIZE制約の基本概念
+
+### 2.1 SIZE信号の定義
+
+AXI4プロトコルにおけるSIZE信号は、各転送で転送されるバイト数を指定する重要な制御信号です。
+
+#### 基本仕様
+- **信号幅**: 3ビット（`[2:0]`）
+- **値の範囲**: 0〜7（1〜128バイト）
+- **計算式**: `転送バイト数 = 2^SIZE`
+
+#### SIZE値とバイト数の対応
+| SIZE値 | バイト数 | 用途例 |
+|--------|----------|--------|
+| 0      | 1バイト  | 8ビットデータ転送 |
+| 1      | 2バイト  | 16ビットデータ転送 |
+| 2      | 4バイト  | 32ビットデータ転送 |
+| 3      | 8バイト  | 64ビットデータ転送 |
+| 4      | 16バイト | 128ビットデータ転送 |
+| 5      | 32バイト | 256ビットデータ転送 |
+| 6      | 64バイト | 512ビットデータ転送 |
+| 7      | 128バイト| 1024ビットデータ転送 |
+
+### 2.2 バス幅との関係
+
+#### 重要な制約
+**「転送サイズはバス幅を超えてはいけないが、小さい分には問題ない」**
+
+これは、AXI4仕様書のChapter 4.3「Burst size」で明記されている重要な制約です。
+
+#### 具体例
+- **64ビットバス（8バイト）の場合**
+  - ✅ SIZE=3（8バイト）: 許可
+  - ✅ SIZE=2（4バイト）: 許可
+  - ✅ SIZE=1（2バイト）: 許可
+  - ✅ SIZE=0（1バイト）: 許可
+  - ❌ SIZE=4（16バイト）: 禁止（バス幅を超過）
+
+## SIZE制約の詳細仕様
+
+### 3.1 Narrow Transfers（狭い転送）
+
+#### 定義
+転送サイズがバス幅より小さい場合の転送を「Narrow Transfer」と呼びます。
+
+#### 動作原理
+1. **部分転送**: バス幅の一部のみを使用
+2. **バイトレーン制御**: アドレスと制御情報による使用バイトレーンの決定
+3. **STROBE制御**: 有効なバイトのみを指定
+
+#### 実装例（64ビットバス、SIZE=1）
+```systemverilog
+// アドレス0x01での2バイト転送
+aligned_addr = (0x01 / 2) * 2 = 0x00;  // 2バイト境界で丸め
+offset = 0x01 - 0x00 = 1;
+
+// 有効バイト位置: bit0~1（2バイト連続）
+strobe = 8'b0000_0011;  // bit0,1が1
+```
+
+### 3.2 アドレスアライメント
+
+#### アライメント要件
+各SIZE値に対して、開始アドレスは適切にアライメントされている必要があります。
+
+#### アライメント計算
+```systemverilog
+// SIZE値に基づくアライメント境界
+alignment_boundary = 2^SIZE;
+
+// アライメントされたアドレス
+aligned_address = (address / alignment_boundary) * alignment_boundary;
+
+// オフセット計算
+offset = address - aligned_address;
+```
+
+### 3.3 STROBE信号の制御
+
+#### WSTRB（ライトストローブ）の役割
+- **有効バイト指定**: 使用するバイトの明示
+- **部分書き込み**: バス幅の一部のみを使用した転送
+- **アドレスアライメント**: 正しい境界でのアクセス
+
+#### STROBE計算例
+```systemverilog
+// SIZE=2（4バイト）の場合
+case (size)
+    2'b00: strobe = 8'b0000_0001;  // 1バイト
+    2'b01: strobe = 8'b0000_0011;  // 2バイト
+    2'b10: strobe = 8'b0000_1111;  // 4バイト
+    2'b11: strobe = 8'b1111_1111;  // 8バイト
+endcase
+```
+
+## WRAPバーストの基本概念
+
+### 4.1 WRAPバーストの定義
+
+#### 基本動作
+WRAPバーストは、アドレスが一定の境界を超えると、下位アドレスに巻き戻る（wrap）動作をします。
+
+#### 動作原理
+1. **連続増加**: 各転送でアドレスが増加
+2. **境界到達**: ラップ境界に達すると巻き戻し
+3. **循環アクセス**: 境界内での循環的なアクセス
+
+#### 用途
+- **キャッシュラインアクセス**: 効率的なメモリアクセス
+- **リングバッファ**: 境界内での連続アクセス
+- **メモリ最適化**: 境界を越えない連続アクセス
+
+### 4.2 WRAPバーストの制約
+
+#### 必須制約
+- **開始アドレス**: 転送サイズにアラインされている必要がある
+- **バースト長**: 2, 4, 8, 16 のいずれかでなければならない
+- **Wrap_Boundary**: `Number_Bytes × Burst_Length`
+
+#### 具体例
+```
+転送サイズ: 4バイト（SIZE=2）
+バースト長: 4転送（LEN=3）
+Wrap_Boundary: 4 × 4 = 16バイト
+```
+
+### 4.3 バーストタイプの比較
+
+| バーストタイプ | アドレス動作 | 用途 |
+|----------------|--------------|------|
+| **FIXED**      | アドレス固定 | 同一レジスタへの連続アクセス |
+| **INCR**       | 単調増加    | 連続メモリアクセス |
+| **WRAP**       | 境界内循環   | キャッシュライン、リングバッファ |
+
+## WRAPバーストのアドレス計算
+
+### 5.1 基本計算式
+
+#### 公式仕様書の式
+AXI4仕様書（Chapter 4.5）で定義されている公式：
+
+```
+Wrap_Boundary = INT(Start_Address / (Number_Bytes × Burst_Length)) × (Number_Bytes × Burst_Length)
+Address_N = Wrap_Boundary + ((Start_Address + (N – 1) × Number_Bytes) MOD (Number_Bytes × Burst_Length))
+```
+
+#### 計算の流れ
+1. **ラップ境界の計算**: 開始アドレスが含まれる境界の開始アドレス
+2. **絶対アドレスの計算**: 線形増分による仮想的なアドレス
+3. **境界内への巻き戻し**: MOD演算による境界内への調整
+4. **最終アドレス**: 境界開始アドレス + 相対オフセット
+
+### 5.2 具体例
+
+#### 例1: 4バイト転送、4転送バースト
+```
+開始アドレス: 0x04
+転送サイズ: 4バイト（SIZE=2）
+バースト長: 4転送（LEN=3）
+Wrap_Boundary: 4 × 4 = 16バイト
+
+計算結果:
+- 転送1: 0x04（開始アドレス）
+- 転送2: 0x08
+- 転送3: 0x0C
+- 転送4: 0x00（16バイト境界で巻き戻し）
+```
+
+#### 例2: 2バイト転送、2転送バースト
+```
+開始アドレス: 0x02
+転送サイズ: 2バイト（SIZE=1）
+バースト長: 2転送（LEN=1）
+Wrap_Boundary: 2 × 2 = 4バイト
+
+計算結果:
+- 転送1: 0x02（開始アドレス）
+- 転送2: 0x00（4バイト境界で巻き戻し）
+```
+
+### 5.3 実装上の最適化
+
+#### ビットマスク方式
+効率的な実装のため、変化するビットのみをマスクして処理：
+
+```systemverilog
+// 変化するビットの計算
+changing_bits = size + $clog2(len + 1);
+
+// ビットマスクの作成
+bit_mask = (1 << changing_bits) - 1;
+
+// アドレス計算
+upper_bits = start_addr & ~bit_mask;  // 変化しない上位ビット
+lower_bits = (start_addr + offset) & bit_mask;  // 変化する下位ビット
+wrapped_addr = upper_bits | lower_bits;  // 合成
+```
+
+## SIZEとWRAPの組み合わせ制約
+
+### 6.1 基本的な組み合わせルール
+
+#### 制約の概要
+SIZEとWRAPの組み合わせには、以下の制約が適用されます：
+
+1. **SIZE制約**: 転送サイズはバス幅を超えてはいけない
+2. **WRAP制約**: バースト長は2, 4, 8, 16のいずれか
+3. **アライメント制約**: 開始アドレスは転送サイズにアライン
+
+#### 有効な組み合わせ例
+| SIZE | バイト数 | 有効なLEN値 | 用途 |
+|------|----------|-------------|------|
+| 0    | 1バイト  | 1, 3, 7, 15 | 8ビットデータの連続アクセス |
+| 1    | 2バイト  | 1, 3, 7, 15 | 16ビットデータの連続アクセス |
+| 2    | 4バイト  | 1, 3, 7, 15 | 32ビットデータの連続アクセス |
+| 3    | 8バイト  | 1, 3, 7, 15 | 64ビットデータの連続アクセス |
+
+### 6.2 境界計算の詳細
+
+#### Wrap_Boundaryの計算
+```systemverilog
+// 基本計算
+wrap_boundary = size_to_bytes(size) * (len + 1);
+
+// 境界開始アドレス
+boundary_start = (start_addr / wrap_boundary) * wrap_boundary;
+
+// 各転送のオフセット
+transfer_offset = current_transfer * size_to_bytes(size);
+
+// 絶対アドレス
+absolute_addr = start_addr + transfer_offset;
+
+// 相対オフセット
+relative_offset = absolute_addr - boundary_start;
+
+// 最終アドレス
+wrapped_addr = boundary_start + (relative_offset % wrap_boundary);
+```
+
+### 6.3 エラーケース
+
+#### 無効な組み合わせ
+- **SIZE値**: バス幅を超える値
+- **LEN値**: 2, 4, 8, 16以外の値
+- **アライメント**: 開始アドレスが転送サイズにアラインされていない
+
+#### エラー処理
+```systemverilog
+// 無効なLEN値のチェック
+if (len != 1 && len != 3 && len != 7 && len != 15) begin
+    $error("Invalid WRAP burst LEN: %0d. Only LEN=1,3,7,15 are supported.", len);
+    $finish;
+end
+```
+
+## 実装上の注意点
+
+### 7.1 パフォーマンス最適化
+
+#### ビットマスク方式の利点
+1. **計算効率**: ビット演算による高速処理
+2. **ハードウェア効率**: 論理合成での最適化
+3. **検証容易性**: 従来方式との比較検証
+
+#### 実装例
+```systemverilog
+// 効率的なビットマスク計算
+function automatic logic [AXI_ADDR_WIDTH-1:0] create_wrap_bit_mask(
+    input logic [2:0] size,
+    input logic [7:0] len
+);
+    logic [7:0] changing_bits;
+    
+    case (len)
+        8'd1:  changing_bits = size + 1;  // LEN=1 (2 transfers): log2(2)=1
+        8'd3:  changing_bits = size + 2;  // LEN=3 (4 transfers): log2(4)=2
+        8'd7:  changing_bits = size + 3;  // LEN=7 (8 transfers): log2(8)=3
+        8'd15: changing_bits = size + 4;  // LEN=15 (16 transfers): log2(16)=4
+        default: begin
+            $error("Invalid WRAP burst LEN: %0d", len);
+            $finish;
+        end
+    endcase
+    
+    return (1 << changing_bits) - 1;
+endfunction
+```
+
+### 7.2 検証とデバッグ
+
+#### 検証機能の重要性
+1. **方式比較**: ビットマスク方式と従来方式の結果一致確認
+2. **境界条件**: ラップ境界での正確な動作確認
+3. **エラー検出**: 無効なパラメータでの適切なエラー処理
+
+#### 検証コード例
+```systemverilog
+// 検証機能（論理合成から除外）
+// synthesis translate_off
+if (calculate_wrap_address_bit_mask(start_addr, len, count, size) !=
+    calculate_wrap_address(start_addr, len, count, size)) begin
+    $error("WRAP address mismatch: BitMask=0x%x, Legacy=0x%x",
+           calculate_wrap_address_bit_mask(start_addr, len, count, size),
+           calculate_wrap_address(start_addr, len, count, size));
+    $finish;
+end
+// synthesis translate_on
+```
+
+### 7.3 テストケース設計
+
+#### size_strategyによるテスト戦略の違い
+
+テストベンチでは`size_strategy`パラメータにより、SIZE値の生成戦略を制御します。これにより、異なるテストシナリオを効率的に生成できます。
+
+##### **FULL戦略（size_strategy = "FULL"）**
+
+**目的**: バス幅を最大限活用した転送のテスト
+
+**動作**:
+- SIZE値は常にバス幅に一致する値に固定
+- 64ビットバス（8バイト）の場合、SIZE=3（8バイト）固定
+- 全バイトレーンが常に有効
+
+**具体例**:
+```systemverilog
+// burst_config_weightsでの設定例
+'{weight: 4, length_min: 1, length_max: 5, burst_type: "INCR", size_strategy: "FULL"}
+// 確率: 4/18 = 22.2%
+
+// 生成されるSIZE値
+// 64ビットバス: SIZE=3（8バイト）固定
+// 32ビットバス: SIZE=2（4バイト）固定
+
+// テスト効果
+// - 最大スループットの検証
+// - 全バイトレーンの動作確認
+// - 境界条件での動作確認
+```
+
+**用途**:
+- パフォーマンステスト
+- 境界条件テスト
+- 全機能テスト
+
+##### **RANDOM戦略（size_strategy = "RANDOM"）**
+
+**目的**: 様々なSIZE値での動作の包括的テスト
+
+**動作**:
+- SIZE値は0からバス幅までの範囲でランダム生成
+- 64ビットバス（8バイト）の場合、SIZE=0〜3（1〜8バイト）をランダム
+- 部分転送（Narrow Transfer）の動作確認
+
+**具体例**:
+```systemverilog
+// burst_config_weightsでの設定例
+'{weight: 3, length_min: 4, length_max: 7, burst_type: "INCR", size_strategy: "RANDOM"}
+// 確率: 3/18 = 16.7%
+
+// 生成されるSIZE値（64ビットバスの場合）
+// SIZE=0: 1バイト転送
+// SIZE=1: 2バイト転送  
+// SIZE=2: 4バイト転送
+// SIZE=3: 8バイト転送
+
+// テスト効果
+// - 部分転送の動作確認
+// - STROBE信号の正確性確認
+// - アドレスアライメントの検証
+```
+
+**用途**:
+- 機能テスト
+- エッジケーステスト
+- 実用性テスト
+
+##### **テスト戦略の使い分け**
+
+| 戦略 | 使用場面 | テスト目的 | 生成されるSIZE値 |
+|------|----------|------------|------------------|
+| **FULL** | 初期段階 | 基本動作確認 | バス幅最大値固定 |
+| **RANDOM** | 詳細テスト | 包括的動作確認 | 全範囲ランダム |
+
+この戦略により、AXI4プロトコルのSIZE制約に関する包括的なテストが可能になり、実装の品質と信頼性を向上させることができます。
+
+## まとめ
+
+### 8.1 主要なポイント
+
+#### SIZE制約
+- 転送サイズはバス幅を超えてはいけない
+- 小さいサイズでの転送は許可される
+- 適切なアドレスアライメントが必要
+
+#### WRAPバースト
+- バースト長は2, 4, 8, 16のいずれか
+- ラップ境界での正確な巻き戻し処理
+- 効率的なビットマスク方式の実装
+
+#### 実装品質
+- 公式仕様書との完全準拠
+- 効率的なハードウェア実装
+- 包括的な検証機能
+
+このドキュメントにより、AXI4プロトコルのSIZE制約とWRAPバーストの実装について、包括的な理解を得ることができます。実装時には、公式仕様書との整合性を保ちながら、効率的で信頼性の高いシステムを構築することが重要です。
+
+## ライセンス
+
+Licensed under the Apache License, Version 2.0 - see [LICENSE](https://www.apache.org/licenses/LICENSE-2.0) file for details.

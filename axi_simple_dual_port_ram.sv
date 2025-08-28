@@ -166,7 +166,16 @@ module axi_simple_dual_port_ram #(
                             r_t0_addr <= r_t0_addr + size_to_bytes(r_t0_size);
                         end
                         2'b10: begin // WRAP burst
-                            r_t0_addr <= calculate_wrap_address(r_t0_start_addr, r_t0_len, r_t0_count, r_t0_size);
+                            r_t0_addr <= calculate_wrap_address_bit_mask(r_t0_start_addr, r_t0_len, r_t0_count, r_t0_size);
+                            // synthesis translate_off
+                            if (calculate_wrap_address_bit_mask(r_t0_start_addr, r_t0_len, r_t0_count, r_t0_size) != 
+                                calculate_wrap_address(r_t0_start_addr, r_t0_len, r_t0_count, r_t0_size)) begin
+                                $error("WRAP address mismatch in READ pipeline: BitMask=0x%x, Legacy=0x%x", 
+                                       calculate_wrap_address_bit_mask(r_t0_start_addr, r_t0_len, r_t0_count, r_t0_size),
+                                       calculate_wrap_address(r_t0_start_addr, r_t0_len, r_t0_count, r_t0_size));
+                                $finish;
+                            end
+                            // synthesis translate_on
                         end
                         default: begin // Default to INCR behavior
                             r_t0_addr <= r_t0_addr + size_to_bytes(r_t0_size);
@@ -247,7 +256,16 @@ module axi_simple_dual_port_ram #(
                                 w_t0a_addr <= w_t0a_addr + size_to_bytes(w_t0a_size);
                             end
                             2'b10: begin // WRAP burst
-                                w_t0a_addr <= calculate_wrap_address(w_t0a_start_addr, w_t0a_len, w_t0a_count, w_t0a_size);
+                                w_t0a_addr <= calculate_wrap_address_bit_mask(w_t0a_start_addr, w_t0a_len, w_t0a_count, w_t0a_size);
+                                // synthesis translate_off
+                                if (calculate_wrap_address_bit_mask(w_t0a_start_addr, w_t0a_len, w_t0a_count, w_t0a_size) != 
+                                    calculate_wrap_address(w_t0a_start_addr, w_t0a_len, w_t0a_count, w_t0a_size)) begin
+                                    $error("WRAP address mismatch in WRITE pipeline: BitMask=0x%x, Legacy=0x%x", 
+                                           calculate_wrap_address_bit_mask(w_t0a_start_addr, w_t0a_len, w_t0a_count, w_t0a_size),
+                                           calculate_wrap_address(w_t0a_start_addr, w_t0a_len, w_t0a_count, w_t0a_size));
+                                    $finish;
+                                end
+                                // synthesis translate_on
                             end
                             default: begin // Default to INCR behavior
                                 w_t0a_addr <= w_t0a_start_addr + size_to_bytes(w_t0a_size);
@@ -318,7 +336,69 @@ module axi_simple_dual_port_ram #(
         return (1 << size);
     endfunction
 
-    // Function: Calculate WRAP address according to AXI4 specification
+    // Function: Create WRAP bit mask for address calculation (synthesis-friendly)
+    function automatic logic [AXI_ADDR_WIDTH-1:0] create_wrap_bit_mask(
+        input logic [2:0] size,
+        input logic [7:0] len
+    );
+        int changing_bits;
+        logic [AXI_ADDR_WIDTH-1:0] bit_mask;
+        
+        // Calculate changing bits: SIZE + log2(LEN + 1)
+        // WRAP burst LEN is limited to 2, 4, 8, 16 (1, 3, 7, 15)
+        // log2(LEN + 1) values: log2(2)=1, log2(4)=2, log2(8)=3, log2(16)=4
+        case (len)
+            8'd1:  changing_bits = size + 1;  // LEN=1 (2 transfers): log2(2)=1
+            8'd3:  changing_bits = size + 2;  // LEN=3 (4 transfers): log2(4)=2
+            8'd7:  changing_bits = size + 3;  // LEN=7 (8 transfers): log2(8)=3
+            8'd15: changing_bits = size + 4;  // LEN=15 (16 transfers): log2(16)=4
+            default: begin
+                // synthesis translate_off
+                $error("Invalid WRAP burst LEN: %0d. Only LEN=1,3,7,15 are supported for WRAP bursts.", len);
+                $finish;
+                // synthesis translate_on
+                changing_bits = size + 1; // This line will never be reached in simulation
+            end
+        endcase
+        
+        // Create bit mask: (1 << changing_bits) - 1
+        bit_mask = (1 << changing_bits) - 1;
+        
+        return bit_mask;
+    endfunction
+
+    // Function: Calculate WRAP address using bit mask method
+    function automatic logic [AXI_ADDR_WIDTH-1:0] calculate_wrap_address_bit_mask(
+        input logic [AXI_ADDR_WIDTH-1:0] start_addr,
+        input logic [7:0] len,
+        input logic [7:0] count,
+        input logic [2:0] size
+    );
+        logic [AXI_ADDR_WIDTH-1:0] bit_mask;
+        logic [AXI_ADDR_WIDTH-1:0] upper_bits;
+        logic [AXI_ADDR_WIDTH-1:0] lower_bits;
+        logic [AXI_ADDR_WIDTH-1:0] calculated_addr;
+        logic [AXI_ADDR_WIDTH-1:0] wrapped_addr;
+        
+        // Create bit mask for changing bits
+        bit_mask = create_wrap_bit_mask(size, len);
+        
+        // Extract upper bits (unchanged part)
+        upper_bits = start_addr & ~bit_mask;
+        
+        // Calculate address with transfer offset
+        calculated_addr = start_addr + ((len - count + 1'b1) * size_to_bytes(size));
+        
+        // Extract lower bits (changing part) and apply mask
+        lower_bits = calculated_addr & bit_mask;
+        
+        // Combine upper and lower bits
+        wrapped_addr = upper_bits | lower_bits;
+        
+        return wrapped_addr;
+    endfunction
+
+    // Function: Calculate WRAP address according to AXI4 specification (legacy method for verification)
     function automatic logic [AXI_ADDR_WIDTH-1:0] calculate_wrap_address(
         input logic [AXI_ADDR_WIDTH-1:0] start_addr,
         input logic [7:0] len,
@@ -365,5 +445,7 @@ module axi_simple_dual_port_ram #(
     assign axi_b_id = w_t2_id;
     assign axi_b_resp = 2'b00;  // OKAY response
     assign axi_b_valid = w_t2_valid;
+
+
 
 endmodule
