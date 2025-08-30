@@ -1,14 +1,17 @@
 # ModelSim simulation files
 work/
+*.vstf
 transcript
 *.wlf
-*.do
 *.vstf
-*/work
+wave.do
+
+*/work/
+*/*.vstf
 */transcript
 */*.wlf
-*/*.do
 */*.vstf
+*/wave.do
 
 # Temporary files
 *.tmp

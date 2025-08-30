@@ -215,7 +215,7 @@ Ready    : HHHHHH__HHHHHHHH
 
 ここまでの説明を読み込ませてAIに自動生成させたコードです。非常にシンプルで難しいところはありません。AXIバスの基本シーケンスはこのようなReadyを使用したシフトレジスタ構造なのです。
 
-**コード**: [pipeline.v](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/pipeline.v)
+**コード**: [pipeline.v](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/part01_pipeline_principles/pipeline.v)
 
 このファイルには、パイプライン回路の基本的な実装が含まれています。Ready/Validハンドシェイクを使用した4段パイプラインの設計例です。
 ## 6. 帰納法的設計

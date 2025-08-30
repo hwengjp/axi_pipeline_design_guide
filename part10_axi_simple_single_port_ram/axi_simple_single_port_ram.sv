@@ -251,10 +251,10 @@ module axi_simple_single_port_ram #(
     // Read T1 stage - Memory access control
     always @(posedge axi_clk or negedge axi_resetn) begin
         if (!axi_resetn) begin
-            r_t1_id <= 0;
-            r_t1_valid <= 0;
-            r_t1_last <= 0;
-            r_t1_addr <= 0;
+            r_t1_id <= '0;
+            r_t1_valid <= 1'b0;
+            r_t1_last <= 1'b0;
+            r_t1_addr <= '0;
         end else if (axi_r_ready && t1_r_ready) begin
             r_t1_id <= r_t0_id;
             r_t1_valid <= r_t0_valid;
@@ -266,12 +266,12 @@ module axi_simple_single_port_ram #(
     // Write T1 stage - Merge control
     always @(posedge axi_clk or negedge axi_resetn) begin
         if (!axi_resetn) begin
-            w_t1_id <= 0;
-            w_t1_valid <= 0;
-            w_t1_last <= 0;
-            w_t1_addr <= 0;
-            w_t1_data <= 0;
-            w_t1_strb <= 0;
+            w_t1_id <= '0;
+            w_t1_valid <= 1'b0;
+            w_t1_last <= 1'b0;
+            w_t1_addr <= '0;
+            w_t1_data <= '0;
+            w_t1_strb <= '0;
         end else if (axi_b_ready && t1_w_ready) begin
             w_t1_id <= w_t0a_id;
             w_t1_valid <= (w_t0a_valid && w_t0d_valid);
@@ -285,14 +285,14 @@ module axi_simple_single_port_ram #(
     // Read pipeline T0 stage - Address counter and burst control
     always @(posedge axi_clk or negedge axi_resetn) begin
         if (!axi_resetn) begin
-            r_t0_addr <= 0;
-            r_t0_start_addr <= 0;
-            r_t0_len <= 0;
-            r_t0_burst <= 0;
-            r_t0_size <= 0;      // Add SIZE signal
-            r_t0_id <= 0;
-            r_t0_valid <= 0;
-            r_t0_count <= 0;
+            r_t0_addr <= '0;
+            r_t0_start_addr <= '0;
+            r_t0_len <= '0;
+            r_t0_burst <= '0;
+            r_t0_size <= '0;      // Add SIZE signal
+            r_t0_id <= '0;
+            r_t0_valid <= 1'b0;
+            r_t0_count <= '0;
             r_t0_idle <= 1'b1;
         end else if (axi_r_ready && t1_r_ready) begin
             case (r_t0_state_ready)
@@ -309,7 +309,7 @@ module axi_simple_single_port_ram #(
                         r_t0_idle <= 1'b0;          // Clear idle flag
                     end else begin
                         r_t0_valid <= 1'b0;
-                        r_t0_count <= 0;
+                        r_t0_count <= '0;
                         r_t0_idle <= 1'b1;          // Set idle flag
                     end
                 end
@@ -346,9 +346,9 @@ module axi_simple_single_port_ram #(
     // Read T2 stage - Memory access (based on burst_rw_pipeline.v)
     always @(posedge axi_clk or negedge axi_resetn) begin
         if (!axi_resetn) begin
-            r_t2_id <= 0;
-            r_t2_valid <= 0;
-            r_t2_last <= 0;
+            r_t2_id <= '0;
+            r_t2_valid <= 1'b0;
+            r_t2_last <= 1'b0;
         end else if (axi_r_ready) begin
             if (t1_current_state==STATE_R_NLAST || t1_current_state==STATE_R_LAST) begin
                 // Memory access with enable control
@@ -356,7 +356,7 @@ module axi_simple_single_port_ram #(
                 r_t2_valid <= r_t1_valid;                              // Forward T1 valid signal
                 r_t2_last <= r_t1_last;                                // Forward T1 last signal
             end else begin
-                r_t2_id <= 0;
+                r_t2_id <= '0;
                 r_t2_valid <= 1'b0;
                 r_t2_last <= 1'b0;
             end
@@ -382,14 +382,14 @@ module axi_simple_single_port_ram #(
     // Write pipeline T0A stage - Address counter and burst control
     always @(posedge axi_clk or negedge axi_resetn) begin
         if (!axi_resetn) begin
-            w_t0a_addr <= 0;
-            w_t0a_start_addr <= 0;
-            w_t0a_len <= 0;
-            w_t0a_burst <= 0;
-            w_t0a_size <= 0;      // Add SIZE signal
-            w_t0a_id <= 0;
-            w_t0a_valid <= 0;
-            w_t0a_count <= 0;
+            w_t0a_addr <= '0;
+            w_t0a_start_addr <= '0;
+            w_t0a_len <= '0;
+            w_t0a_burst <= '0;
+            w_t0a_size <= '0;      // Add SIZE signal
+            w_t0a_id <= '0;
+            w_t0a_valid <= 1'b0;
+            w_t0a_count <= '0;
             w_t0a_idle <= 1'b1;
         end else if (axi_b_ready && t1_w_ready) begin
             if (w_t0a_m_ready) begin
@@ -406,13 +406,13 @@ module axi_simple_single_port_ram #(
                             w_t0a_len <= axi_aw_len;      // Store burst length for WRAP calculation
                             w_t0a_idle <= 1'b0;           // Clear idle flag
                         end else begin
-                            w_t0a_valid <= 1'b0;
-                            w_t0a_count <= 0;
+                                                    w_t0a_valid <= 1'b0;
+                                                    w_t0a_count <= '0;
                             w_t0a_idle <= 1'b1;           // Set idle flag
                         end
                     end
                     1'b0: begin // Not ready state (Bursting)
-                        w_t0a_count <= w_t0a_count - 1;
+                        w_t0a_count <= w_t0a_count - 1'b1;
                         case (w_t0a_burst)
                             2'b00: begin // FIXED
                                 w_t0a_addr <= w_t0a_addr;  // Address remains fixed
@@ -445,10 +445,10 @@ module axi_simple_single_port_ram #(
     // Write pipeline T0D stage - Data pipeline
     always @(posedge axi_clk or negedge axi_resetn) begin
         if (!axi_resetn) begin
-            w_t0d_data <= 0;
-            w_t0d_strb <= 0;
-            w_t0d_valid <= 0;
-            w_t0d_last <= 0;
+            w_t0d_data <= '0;
+            w_t0d_strb <= '0;
+            w_t0d_valid <= 1'b0;
+            w_t0d_last <= 1'b0;
         end else if (axi_b_ready && t1_w_ready) begin
             if (w_t0d_m_ready) begin
                 w_t0d_data <= axi_w_data;
@@ -462,11 +462,11 @@ module axi_simple_single_port_ram #(
     // Write T2 stage - Memory access and response generation (matching burst_rw_pipeline.v)
     always @(posedge axi_clk or negedge axi_resetn) begin
         if (!axi_resetn) begin
-            w_t2_id <= 0;
-            w_t2_valid <= 0;
-            w_t2_addr <= 0;
-            w_t2_data <= 0;
-            w_t2_last <= 0;
+            w_t2_id <= '0;
+            w_t2_valid <= 1'b0;
+            w_t2_addr <= '0;
+            w_t2_data <= '0;
+            w_t2_last <= 1'b0;
         end else if (axi_b_ready) begin
             if (t1_current_state==STATE_W_NLAST || t1_current_state==STATE_W_LAST) begin
                 w_t2_id <= w_t1_id;                         // Forward T1 ID
@@ -475,11 +475,11 @@ module axi_simple_single_port_ram #(
                 w_t2_data <= w_t1_data;                      // Forward T1 data
                 w_t2_last <= w_t1_last;                      // Forward T1 last signal
             end else begin
-                w_t2_id <= 0;
-                w_t2_valid <= 0;
-                w_t2_addr <= 0;
-                w_t2_data <= 0;
-                w_t2_last <= 0;
+                w_t2_id <= '0;
+                w_t2_valid <= 1'b0;
+                w_t2_addr <= '0;
+                w_t2_data <= '0;
+                w_t2_last <= 1'b0;
             end
         end
     end
@@ -487,9 +487,9 @@ module axi_simple_single_port_ram #(
     // Write T3 stage - Response generation (AXI4 compliant)
     always @(posedge axi_clk or negedge axi_resetn) begin
         if (!axi_resetn) begin
-            w_t3_id <= 0;
-            w_t3_valid <= 0;
-            w_t3_last <= 0;
+            w_t3_id <= '0;
+            w_t3_valid <= 1'b0;
+            w_t3_last <= 1'b0;
         end else if (axi_b_ready) begin
             w_t3_id <= w_t2_id;                             // Forward T2 ID
             w_t3_valid <= w_t2_valid;                       // Forward T2 valid signal

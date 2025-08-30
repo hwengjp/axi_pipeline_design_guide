@@ -15,17 +15,17 @@ module top_tb;
 // Header Files and Function Libraries
 // =============================================================================
 // Common definitions and parameters
-`include "part09_axi4_testbench_refactoring/axi_common_defs.svh"
+`include "../part09_axi4_testbench_refactoring/axi_common_defs.svh"
 // Test stimulus generation functions
-`include "part09_axi4_testbench_refactoring/axi_stimulus_functions.svh"
+`include "../part09_axi4_testbench_refactoring/axi_stimulus_functions.svh"
 // Verification and checking functions
-`include "part09_axi4_testbench_refactoring/axi_verification_functions.svh"
+`include "../part09_axi4_testbench_refactoring/axi_verification_functions.svh"
 // Utility and helper functions
-`include "part09_axi4_testbench_refactoring/axi_utility_functions.svh"
+`include "../part09_axi4_testbench_refactoring/axi_utility_functions.svh"
 // Random data generation functions
-`include "part09_axi4_testbench_refactoring/axi_random_generation.svh"
+`include "../part09_axi4_testbench_refactoring/axi_random_generation.svh"
 // Monitoring and logging functions
-`include "part09_axi4_testbench_refactoring/axi_monitoring_functions.svh"
+`include "../part09_axi4_testbench_refactoring/axi_monitoring_functions.svh"
 
 // =============================================================================
 // Clock and Reset Generation

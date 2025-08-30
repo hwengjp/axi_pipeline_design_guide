@@ -126,15 +126,15 @@ module axi_simple_dual_port_ram #(
     always @(posedge axi_clk or negedge axi_resetn) begin
         if (!axi_resetn) begin
             // Reset all registers
-            r_t0_addr <= 0;
-            r_t0_burst <= 0;
-            r_t0_size <= 0;
-            r_t0_id <= 0;
-            r_t0_valid <= 0;
-            r_t0_count <= 0;
+            r_t0_addr <= '0;
+            r_t0_burst <= '0;
+            r_t0_size <= '0;
+            r_t0_id <= '0;
+            r_t0_valid <= 1'b0;
+            r_t0_count <= '0;
             r_t0_idle <= 1'b1;
-            r_t0_start_addr <= 0;
-            r_t0_len <= 0;
+            r_t0_start_addr <= '0;
+            r_t0_len <= '0;
         end else if (axi_r_ready) begin
             case (r_t0_state_ready)
                 1'b1: begin // Ready state (Idle or last cycle)
@@ -152,12 +152,12 @@ module axi_simple_dual_port_ram #(
                     end else begin
                         // Clear valid signal and set idle
                         r_t0_valid <= 1'b0;
-                        r_t0_count <= 0;
+                        r_t0_count <= '0;
                         r_t0_idle <= 1'b1;
                     end
                 end
                 1'b0: begin // Not ready state (Bursting)
-                    r_t0_count <= r_t0_count - 1;
+                    r_t0_count <= r_t0_count - 1'b1;
                     case (r_t0_burst)
                         2'b00: begin // FIXED burst
                             r_t0_addr <= r_t0_addr;  // Address remains fixed
@@ -189,9 +189,9 @@ module axi_simple_dual_port_ram #(
     // Read pipeline T1 stage - Memory access
     always @(posedge axi_clk or negedge axi_resetn) begin
         if (!axi_resetn) begin
-            r_t1_id <= 0;
-            r_t1_valid <= 0;
-            r_t1_last <= 0;
+            r_t1_id <= '0;
+            r_t1_valid <= 1'b0;
+            r_t1_last <= 1'b0;
         end else if (axi_r_ready) begin
             r_t1_id <= r_t0_id;
             r_t1_valid <= r_t0_valid;
@@ -215,15 +215,15 @@ module axi_simple_dual_port_ram #(
     always @(posedge axi_clk or negedge axi_resetn) begin
         if (!axi_resetn) begin
             // Reset all registers
-            w_t0a_addr <= 0;
-            w_t0a_burst <= 0;
-            w_t0a_size <= 0;
-            w_t0a_id <= 0;
-            w_t0a_valid <= 0;
-            w_t0a_count <= 0;
+            w_t0a_addr <= '0;
+            w_t0a_burst <= '0;
+            w_t0a_size <= '0;
+            w_t0a_id <= '0;
+            w_t0a_valid <= 1'b0;
+            w_t0a_count <= '0;
             w_t0a_idle <= 1'b1;
-            w_t0a_start_addr <= 0;
-            w_t0a_len <= 0;
+            w_t0a_start_addr <= '0;
+            w_t0a_len <= '0;
         end else if (axi_b_ready) begin
             if (w_t0a_m_ready) begin
                 case (w_t0a_state_ready)
@@ -242,7 +242,7 @@ module axi_simple_dual_port_ram #(
                         end else begin
                             // Clear valid signal and set idle
                             w_t0a_valid <= 1'b0;
-                            w_t0a_count <= 0;
+                            w_t0a_count <= '0;
                             w_t0a_idle <= 1'b1;
                         end
                     end
@@ -280,10 +280,10 @@ module axi_simple_dual_port_ram #(
     // Write pipeline T0D stage - Data pipeline
     always @(posedge axi_clk or negedge axi_resetn) begin
         if (!axi_resetn) begin
-            w_t0d_data <= 0;
-            w_t0d_strb <= 0;
-            w_t0d_valid <= 0;
-            w_t0d_last <= 0;
+            w_t0d_data <= '0;
+            w_t0d_strb <= '0;
+            w_t0d_valid <= 1'b0;
+            w_t0d_last <= 1'b0;
         end else if (axi_b_ready) begin
             if (w_t0d_m_ready) begin
                 w_t0d_data <= axi_w_data;
@@ -297,9 +297,9 @@ module axi_simple_dual_port_ram #(
     // Write pipeline T1 stage - Merge control
     always @(posedge axi_clk or negedge axi_resetn) begin
         if (!axi_resetn) begin
-            w_t1_id <= 0;
-            w_t1_valid <= 0;
-            w_t1_last <= 0;
+            w_t1_id <= '0;
+            w_t1_valid <= 1'b0;
+            w_t1_last <= 1'b0;
         end else if (axi_b_ready) begin
             w_t1_id <= w_t0a_id;
             w_t1_valid <= (w_t0a_valid && w_t0d_valid);
@@ -310,8 +310,8 @@ module axi_simple_dual_port_ram #(
     // Write pipeline T2 stage - Response generation
     always @(posedge axi_clk or negedge axi_resetn) begin
         if (!axi_resetn) begin
-            w_t2_id <= 0;
-            w_t2_valid <= 0;
+            w_t2_id <= '0;
+            w_t2_valid <= 1'b0;
         end else if (axi_b_ready) begin
             if (w_t1_last) begin
                 w_t2_id <= w_t1_id;
