@@ -2185,7 +2185,9 @@ endtask
 
 ## 3. テストベンチのコード
 
-**テストベンチのコード**: [axi_simple_dual_port_ram_tb.v](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/axi_simple_dual_port_ram_tb.v)
+`注：このコードは第9回、第11回の元になったコードです。現在はエラーで終了します。動作するコードは第11回のコードとなります。`
+
+**テストベンチのコード**: [axi_simple_dual_port_ram_tb.v](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/part07_axi_simple_dual_port_ram/axi_simple_dual_port_ram_tb.v)
 
 ## ライセンス
 

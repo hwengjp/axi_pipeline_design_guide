@@ -132,7 +132,7 @@ d_Ready      : HHHHHHHHHHHHHHHHHHHHH
 
 ### 3.1 バーストライトパイプラインモジュール
 
-**コード**: [burst_write_pipeline.v](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/burst_write_pipeline.v)
+**コード**: [burst_write_pipeline.v](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/part05_burst_write_pipeline/burst_write_pipeline.v)
 
 **コードの特徴**:
 1. **3つのパイプライン**: T0A（アドレス）、T0D（データ）、T1（合流制御）、T2（レスポンス生成）の4段階構成
@@ -143,7 +143,7 @@ d_Ready      : HHHHHHHHHHHHHHHHHHHHH
 
 ### 3.2 バーストライトパイプラインテストベンチ
 
-**コード**: [burst_write_pipeline_tb.v](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/burst_write_pipeline_tb.v)
+**コード**: [burst_write_pipeline_tb.v](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/part05_burst_write_pipeline/burst_write_pipeline_tb.sv)
 
 **コードの特徴**:
 1. **2つのインターフェース**: アドレスインターフェースとデータインターフェースを独立して制御

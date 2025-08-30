@@ -79,7 +79,7 @@ State=[u_Ready,d_Ready]の値に対して、次のクロックでどのデータ
 
 ここまでの説明を読み込ませてAIに自動生成させたコードです。この回路を使用するとAXIバスのどのチャネル(リードアドレスチャネル、ライトアドレスチャネル、リードデータチャネル、ライトデータチャネル、ライトレスポンスチャネル)にも簡単に１段のフリップフロップが挿入できます。
 
-**コード**: [pipeline_insert.v](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/pipeline_insert.v)
+**コード**: [pipeline_insert.v](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/part02_pipeline_insert/pipeline_insert.v)
 
 このファイルには、パイプライン挿入回路の基本的な実装が含まれています。AXIバスの各チャネルに1段のフリップフロップを挿入するための設計例です。
 

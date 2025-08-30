@@ -292,11 +292,11 @@ AIに以下のように指示してコードを作成してください：
 ```
 ### 5.1 リードライトパイプラインモジュール
 
-**コード**: [burst_rw_pipeline.v](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/burst_rw_pipeline.v)
+**コード**: [burst_rw_pipeline.v](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/part06_burst_rw_pipeline/burst_rw_pipeline.v)
 
 ### 5.2 リードライトパイプラインテストベンチ
 
-**コード**: [burst_rw_pipeline_tb.v](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/burst_rw_pipeline_tb.v)
+**コード**: [burst_rw_pipeline_tb.v](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/part06_burst_rw_pipeline/burst_rw_pipeline_tb.sv)
 
 ## 6. 条件網羅法と条件刈込法
 

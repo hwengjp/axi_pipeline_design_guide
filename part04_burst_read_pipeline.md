@@ -181,7 +181,7 @@ d_Ready       : HHHHHHH_H_H_H_H__H_H_H_H_H_H_H_H_HHH
 
 ### 3.1 バーストリードパイプラインモジュール
 
-**コード**: [burst_read_pipeline.v](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/burst_read_pipeline.v)
+**コード**: [burst_read_pipeline.v](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/part04_burst_read_pipeline/burst_read_pipeline.v)
 
 **コードの特徴**:
 1. **Ready制御**: パイプライン全体が`d_ready`信号で制御されており、各ステージの動作はReadyがHの時のみ実行されます
@@ -191,7 +191,7 @@ d_Ready       : HHHHHHH_H_H_H_H__H_H_H_H_H_H_H_H_HHH
 
 ### 3.2 バーストリードパイプラインテストベンチ
 
-**コード**: [burst_read_pipeline_tb.v](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/burst_read_pipeline_tb.v)
+**コード**: [burst_read_pipeline_tb.v](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/part04_burst_read_pipeline/burst_read_pipeline_tb.sv)
 
 生成されたコードは無修正で使用可能でした。テストベンチは期待通りの動作をさせるために約5時間かかりました。詳細な指示を与えないで、XXと同様にというあいまいな指示ではリクエストされた側もうまく生成はできないということです。
 

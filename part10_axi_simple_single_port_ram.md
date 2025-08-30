@@ -252,7 +252,7 @@ FPGAの論理合成ツールで推定可能なシンプルシングルポートR
 
 **Verilog記述例**:
 
-**シングルポートRAMのコード**: [single_port_ram.v](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/single_port_ram.v)
+**シングルポートRAMのコード**: [single_port_ram.v](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/part10_axi_simple_single_port_ram/single_port_ram.v)
 
 ## 3. コード
 
@@ -268,13 +268,17 @@ burst_rw_pipeline.vをAXI4対応にする。ステートの制御は変更なく
 T2ステージでシングルポートメモリをアクセスするように修正する。
 T0ステージのバースト制御は、axi_simple_dual_port_ram.vのT1ステージを流用する。
 ```
-**DUTのコード**: [axi_simple_single_port_ram.v](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/axi_simple_single_port_ram.v)
+**DUTのコード**: [axi_simple_single_port_ram.v](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/part10_axi_simple_single_port_ram/axi_simple_single_port_ram.sv)
 
 ### 3.2 テストベンチのコード
 
 テストベンチは第９回で実装したコードを流用します。
 
-- **テストベンチのコード**: [axi_simple_single_port_ram_tb.sv](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/axi_simple_single_port_ram_tb.sv)
+- **テストベンチのコード**: 
+
+`注：このコードは第11回の元になったコードです。現在はエラーで終了します。動作するコードは第11回のコードとなります。`
+
+[axi_simple_single_port_ram_tb.sv](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/part10_axi_simple_single_port_ram/axi_simple_single_port_ram_tb.sv)
 
 ## 4. まとめ
 

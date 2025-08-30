@@ -251,7 +251,7 @@ FPGAの論理合成ツールで推定可能なデュアルポートRAMのサン�
 
 **Verilog記述例**:
 
-**デュアルポートRAMのコード**: [dual_port_ram.v](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/dual_port_ram.v)
+**デュアルポートRAMのコード**: [dual_port_ram.v](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/part07_axi_simple_dual_port_ram/dual_port_ram.v)
 
 ## 3. コード
 
@@ -271,7 +271,7 @@ dual_port_ramはT1、T2ステージなのでインスタンスの、入力はT0�
 WriteのReadyとValidの動作はburst_write_pipeline.vを模倣してください。コードのレスポンスはAXI4の仕様に従っていないのでAXI4の仕様で実装してください。アドレスは３つのバーストモードをサポートしてください。
 ```
 
-**DUTのコード**: [axi_simple_dual_port_ram.v](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/axi_simple_dual_port_ram.v)
+**DUTのコード**: [axi_simple_dual_port_ram.v](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/part07_axi_simple_dual_port_ram/axi_simple_dual_port_ram.sv)
 
 ### 3.2 テストベンチのコード
 

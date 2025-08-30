@@ -93,7 +93,7 @@
 
 ## 3. コード
 
-**コード**: [pipeline_tb.sv](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/pipeline_tb.sv)
+**コード**: [pipeline_tb.sv](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/part03_pipeline_testbench/pipeline_tb.sv)
 
 ## 4. 実行用スクリプトの生成
 

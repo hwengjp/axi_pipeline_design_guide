@@ -50,6 +50,9 @@
 ### 2.2 分割ファイルの名称と役割
 
 #### **メインテストベンチ**
+
+`注：このコードは第11回の元になったコードです。現在はエラーで終了します。動作するコードは第11回のコードとなります。`
+
 - **[axi_simple_dual_port_ram_tb_refactored.sv](https://github.com/hwengjp/axi_pipeline_design_guide/blob/main/part09_axi4_testbench_refactoring/axi_simple_dual_port_ram_tb_refactored.sv)** ← リファクタリングされたメインテストベンチ
 
 #### **共通定義・パラメータ**
