@@ -15,6 +15,9 @@ CONFIG_FILE="qiita_update_config.yaml"
 LOG_FILE="smart_qiita_update.log"
 BACKUP_DIR="QiitaDocs/backup"
 
+# バックアップファイル検出用の初期ファイル数を記録
+INITIAL_BACKUP_COUNT=$(find "$BACKUP_DIR" -name "*.md" 2>/dev/null | wc -l)
+
 # 色付き出力用の関数
 print_info() {
     echo -e "\033[32m[INFO]\033[0m $1"
@@ -189,8 +192,35 @@ fi
 
 # バックアップファイルの確認
 if [[ -d "$BACKUP_DIR" ]] && [[ "$(ls -A "$BACKUP_DIR" 2>/dev/null)" ]]; then
-    print_info "作成されたバックアップファイル:"
-    ls -la "$BACKUP_DIR" | sed 's/^/  /'
+    print_info "バックアップディレクトリ: $BACKUP_DIR"
+    
+    # より確実な方法：ファイル数比較でスクリプト実行中に作成されたファイルを検出
+    current_backup_count=$(find "$BACKUP_DIR" -name "*.md" 2>/dev/null | wc -l)
+    session_backup_count=$((current_backup_count - INITIAL_BACKUP_COUNT))
+    
+
+    
+    if [[ $session_backup_count -gt 0 ]]; then
+        print_info "今回のセッションで作成されたバックアップファイル数: $session_backup_count個"
+    else
+        # スクリプト実行中に作成されたファイルがない場合
+        # 最新のファイルの作成時刻を確認して、スクリプト実行中かどうかを判定
+        latest_backup=$(find "$BACKUP_DIR" -name "*.md" -printf '%T@ %p\n' 2>/dev/null | sort -n | tail -1 | cut -d' ' -f2)
+        if [[ -n "$latest_backup" ]]; then
+            latest_time=$(stat -c %Y "$latest_backup" 2>/dev/null)
+            current_time=$(date +%s)
+            time_diff=$((current_time - latest_time))
+            
+            # スクリプト実行時間を考慮（通常は数秒〜数分）
+            if [[ $time_diff -le 60 ]]; then  # 1分以内
+                print_info "最新のバックアップファイル: $(basename "$latest_backup") (${time_diff}秒前)"
+            else
+                print_info "今回のセッションで作成されたバックアップファイル: なし"
+            fi
+        else
+            print_info "今回のセッションで作成されたバックアップファイル: なし"
+        fi
+    fi
 fi
 
 print_success "Smart Qiita Update & Publish 完了"

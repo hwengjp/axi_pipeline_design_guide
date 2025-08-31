@@ -83,11 +83,30 @@ publish_file() {
 
 # Main execution
 main() {
-    print_status "Starting Qiita publish process from QiitaDocs/public..."
-    
     # Get the absolute path to QiitaDocs directory
     local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     local qiita_docs_dir="$script_dir/QiitaDocs"
+    
+    # Check if a specific file is provided as argument
+    if [ $# -eq 1 ]; then
+        # Single file mode - publish only the specified file
+        local target_file="$1"
+        local filename=$(basename "$target_file")
+        
+        print_status "Single file publish mode: $filename"
+        
+        if ! publish_file "$target_file"; then
+            print_error "Failed to publish $filename"
+            exit 1
+        fi
+        
+        print_status "Single file publish completed!"
+        print_success "Successfully published $filename"
+        return 0
+    fi
+    
+    # All files mode (legacy behavior)
+    print_status "Starting Qiita publish process for all files from QiitaDocs/public..."
     
     # Find all part*.md files in QiitaDocs/public
     part_files=$(find "$qiita_docs_dir/public" -name "part*.md" -type f)

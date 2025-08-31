@@ -357,6 +357,12 @@ class SmartQiitaUpdater:
                     cwd=str(script_dir)
                 )
                 
+                # 実行結果のログ出力
+                if result.stdout:
+                    logging.info(f"Publish実行出力: {result.stdout.strip()}")
+                if result.stderr:
+                    logging.warning(f"Publish実行警告: {result.stderr.strip()}")
+                
                 if result.returncode == 0:
                     logging.info(f"Publish成功: {qiita_file}")
                     return True
@@ -414,7 +420,7 @@ class SmartQiitaUpdater:
                 
                 # Publish実行
                 if self.config.get('publish', {}).get('auto_publish', True):
-                    delay = self.config.get('publish', {}).get('publish_delay', 5)
+                    delay = self.config.get('publish', {}).get('publish_delay', 0)
                     if delay > 0:
                         logging.info(f"{delay}秒待機中...")
                         import time
