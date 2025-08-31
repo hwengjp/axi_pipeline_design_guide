@@ -301,9 +301,6 @@ initial begin
     if (BYTE_VERIFICATION_ENABLE) begin
         $display("Starting Byte Verification Phase...");
         
-        // Generate byte verification arrays based on written data
-        generate_byte_verification_arrays();
-        
         // Start byte verification phase
         @(posedge clk);
         #1;
@@ -313,16 +310,10 @@ initial begin
         #1;
         byte_verification_phase_start = 1'b0;   // Stop byte verification phase
         
-        // Execute byte verification
-        execute_byte_verification();
+        // Wait for byte verification phase to complete
+        wait(byte_verification_phase_done_latched);
         
-        // Mark byte verification phase as complete
-        @(posedge clk);
-        #1;
-        byte_verification_phase_done = 1'b1;
-        byte_verification_phase_done_latched = 1'b1;
-        
-        $display("Byte Verification Phase Completed Successfully.");
+        $display("Phase %0d: Byte Verification Phase Completed", current_phase);
         
         // Clear byte verification phase latches
         @(posedge clk);
@@ -366,35 +357,14 @@ axi_write_channel_control_module write_controller();
 // Manages all read-related operations: address and data channels
 axi_read_channel_control_module read_controller();
 
+// Byte Verification Control System
+// Manages byte-level verification operations
+axi_byte_verification_control_module byte_verification_controller();
+
 // =============================================================================
 // Byte Verification Functions
 // =============================================================================
-// Function to execute byte verification
-function automatic void execute_byte_verification();
-    int i;
-    int verification_count = 0;
-    int error_count = 0;
-    
-    $display("Executing byte verification...");
-    
-    // Execute byte verification for each entry
-    foreach (byte_verification_read_addr_payloads[i]) begin
-        if (byte_verification_read_addr_payloads[i].valid) begin
-            // Simulate byte read operation
-            logic [AXI_ADDR_WIDTH-1:0] addr = byte_verification_read_addr_payloads[i].addr;
-            logic [7:0] expected_byte = byte_verification_expected[i].expected_byte;
-            
-            // For now, we'll just log the verification attempt
-            // In a real implementation, this would perform actual memory reads
-            $display("Byte verification %0d: addr=0x%x, expected=0x%02x", 
-                    verification_count, addr, expected_byte);
-            
-            verification_count++;
-        end
-    end
-    
-    $display("Byte verification completed: %0d bytes verified, %0d errors", 
-            verification_count, error_count);
-endfunction
+// Byte verification is now handled by the axi_byte_verification_control_module
+// which processes the verification arrays and manages the phase completion signals
 
 endmodule

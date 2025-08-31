@@ -11,20 +11,26 @@
 `define TOP_TB top_tb
 
 // =============================================================================
+// Log control parameters
+// =============================================================================
+parameter LOG_ENABLE = 1'b1;                  // Enable general logging
+parameter DEBUG_LOG_ENABLE = 1'b1;            // Enable debug logging
+parameter BYTE_VERIFICATION_ENABLE = 1'b1;     // Byte verification mode enable
+
+// =============================================================================
 // Testbench parameters
 // =============================================================================
-parameter MEMORY_SIZE_BYTES = 33554432;        // 32MB
-parameter AXI_DATA_WIDTH = 32;                 // 32bit
-parameter AXI_ID_WIDTH = 8;                    // 8bit ID
 parameter TOTAL_TEST_COUNT = 800;              // Total test count
 parameter PHASE_TEST_COUNT = 8;                // Tests per phase
 //parameter TOTAL_TEST_COUNT = 20;             // Total test count (commented)
 //parameter PHASE_TEST_COUNT = 4;              // Tests per phase (commented)
+
+parameter MEMORY_SIZE_BYTES = 33554432;        // 32MB
+parameter AXI_DATA_WIDTH = 32;                 // 32bit
+parameter AXI_ID_WIDTH = 8;                    // 8bit ID
 parameter TEST_COUNT_ADDR_SIZE_BYTES = 4096;   // Address size per test count
 parameter VERIFICATION_TIMEOUT_CYCLES = 1000000; // Verification timeout cycles for entire testbench
-parameter BYTE_VERIFICATION_ENABLE = 1'b1;     // Byte verification mode enable
 parameter CLK_PERIOD = 10;                     // 10ns period
-parameter CLK_HALF_PERIOD = 5;                 // 5ns half period
 parameter RESET_CYCLES = 4;                    // Reset cycles
 
 // =============================================================================
@@ -229,6 +235,11 @@ write_resp_expected_t write_resp_expected[int];                   // Expected wr
 byte_verification_read_addr_payload_t byte_verification_read_addr_payloads[int]; // Byte verification read address payloads
 byte_verification_expected_t byte_verification_expected[int];                    // Byte verification expected values
 
+// Test start indices for byte verification
+int test_start_indices[int];                                                     // Starting indices for each test_count in write_data_payloads
+
+
+
 // =============================================================================
 // Ready negate pulse arrays for TB controlled channels
 // =============================================================================
@@ -290,12 +301,6 @@ logic write_data_phase_done_latched = 1'b0;   // Latched write data phase comple
 logic write_resp_phase_done_latched = 1'b0;   // Latched write response phase completion
 logic read_data_phase_done_latched = 1'b0;    // Latched read data phase completion
 logic byte_verification_phase_done_latched = 1'b0; // Latched byte verification phase completion
-
-// =============================================================================
-// Log control parameters
-// =============================================================================
-parameter LOG_ENABLE = 1'b1;                  // Enable general logging
-parameter DEBUG_LOG_ENABLE = 1'b1;            // Enable debug logging
 
 // =============================================================================
 // Byte verification mode control signals

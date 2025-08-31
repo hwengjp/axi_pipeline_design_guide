@@ -62,6 +62,10 @@ vlog -sv axi_write_channel_control_module.sv
 echo "Compiling axi_read_channel_control_module.sv..."
 vlog -sv axi_read_channel_control_module.sv
 
+# Compile byte verification control module
+echo "Compiling axi_byte_verification_control_module.sv..."
+vlog -sv axi_byte_verification_control_module.sv
+
 # Compile single port RAM module
 echo "Compiling single_port_ram.v..."
 vlog -sv ../part10_axi_simple_single_port_ram/single_port_ram.v
