@@ -16,6 +16,7 @@
 module axi_narrow_to_wide #(
     parameter int unsigned SOURCE_WIDTH = 64,    // Source bus width in bits
     parameter int unsigned TARGET_WIDTH = 128,   // Target bus width in bits
+    parameter int unsigned ADDR_WIDTH = 32,      // Address width in bits
     
     // Derived parameters
     parameter int unsigned SOURCE_BYTES = SOURCE_WIDTH / 8,
@@ -28,10 +29,11 @@ module axi_narrow_to_wide #(
     
     // Upstream AXI interface (narrower bus)
     // Write Address Channel
-    input  logic [31:0]             u_axi_awaddr,
+    input  logic [ADDR_WIDTH-1:0]   u_axi_awaddr,
     input  logic [2:0]              u_axi_awsize,
     input  logic [7:0]              u_axi_awlen,
     input  logic [1:0]              u_axi_awburst,
+    input  logic [7:0]              u_axi_awid,
     input  logic                    u_axi_awvalid,
     output logic                    u_axi_awready,
     
@@ -43,20 +45,23 @@ module axi_narrow_to_wide #(
     input  logic                    u_axi_wlast,
     
     // Write Response Channel
+    output logic [7:0]              u_axi_bid,
     output logic [1:0]              u_axi_bresp,
     output logic                    u_axi_bvalid,
     input  logic                    u_axi_bready,
     
     // Read Address Channel
-    input  logic [31:0]             u_axi_araddr,
+    input  logic [ADDR_WIDTH-1:0]   u_axi_araddr,
     input  logic [2:0]              u_axi_arsize,
     input  logic [7:0]              u_axi_arlen,
     input  logic [1:0]              u_axi_arburst,
+    input  logic [7:0]              u_axi_arid,
     input  logic                    u_axi_arvalid,
     output logic                    u_axi_arready,
     
     // Read Data Channel
     output logic [SOURCE_WIDTH-1:0] u_axi_rdata,
+    output logic [7:0]              u_axi_rid,
     output logic [1:0]              u_axi_rresp,
     output logic                    u_axi_rvalid,
     input  logic                    u_axi_rready,
@@ -64,10 +69,11 @@ module axi_narrow_to_wide #(
     
     // Downstream AXI interface (wider bus)
     // Write Address Channel
-    output logic [31:0]             d_axi_awaddr,
+    output logic [ADDR_WIDTH-1:0]   d_axi_awaddr,
     output logic [2:0]              d_axi_awsize,
     output logic [7:0]              d_axi_awlen,
     output logic [1:0]              d_axi_awburst,
+    output logic [7:0]              d_axi_awid,
     output logic                    d_axi_awvalid,
     input  logic                    d_axi_awready,
     
@@ -79,20 +85,23 @@ module axi_narrow_to_wide #(
     output logic                    d_axi_wlast,
     
     // Write Response Channel
+    input  logic [7:0]              d_axi_bid,
     input  logic [1:0]              d_axi_bresp,
     input  logic                    d_axi_bvalid,
     output logic                    d_axi_bready,
     
     // Read Address Channel
-    output logic [31:0]             d_axi_araddr,
+    output logic [ADDR_WIDTH-1:0]   d_axi_araddr,
     output logic [2:0]              d_axi_arsize,
     output logic [7:0]              d_axi_arlen,
     output logic [1:0]              d_axi_arburst,
+    output logic [7:0]              d_axi_arid,
     output logic                    d_axi_arvalid,
     input  logic                    d_axi_arready,
     
     // Read Data Channel
     input  logic [TARGET_WIDTH-1:0] d_axi_rdata,
+    input  logic [7:0]              d_axi_rid,
     input  logic [1:0]              d_axi_rresp,
     input  logic                    d_axi_rvalid,
     output logic                    d_axi_rready,
@@ -168,93 +177,29 @@ module axi_narrow_to_wide #(
     
     logic [TARGET_BYTES-1:0] calculated_strobe;
     
+    // Local variables for calculations
+    logic [TARGET_ADDR_BITS-1:0] target_offset;
+    logic [TARGET_ADDR_BITS-1:0] strobe_offset;
+    logic [TARGET_WIDTH-1:0] strobe_pattern;
+    logic [TARGET_ADDR_BITS-1:0] addr_offset;
+    
     always_comb begin
         // Default values
         d_axi_wdata = '0;
         calculated_strobe = '0;
         
-        // Calculate target data position based on address alignment
-        int unsigned target_offset;
-        target_offset = u_axi_awaddr[TARGET_ADDR_BITS-1:0];
-        
-        // STROBE and data positioning based on SIZE
-        case (u_axi_awsize)
-            3'b000: begin  // 1 byte transfer
-                // STROBE position: log2(TARGET_BYTES) - 0 = log2(TARGET_BYTES) bits
-                int unsigned strobe_bits = TARGET_ADDR_BITS;
-                int unsigned strobe_offset = u_axi_awaddr[strobe_bits-1:0];
-                calculated_strobe[strobe_offset] = 1'b1;
-                
-                // Data positioning
-                d_axi_wdata[target_offset*8 +: 8] = u_axi_wdata[7:0];
-            end
+        // Check if SIZE is supported for target width
+        if (TARGET_WIDTH >= (8 << u_axi_awsize)) begin
+            // Generate STROBE pattern based on SIZE
+            strobe_pattern = (1 << (1 << u_axi_awsize)) - 1;
             
-            3'b001: begin  // 2 byte transfer
-                // STROBE position: log2(TARGET_BYTES) - 1 bits
-                int unsigned strobe_bits = TARGET_ADDR_BITS - 1;
-                int unsigned strobe_offset = u_axi_awaddr[strobe_bits-1:0] * 2;
-                calculated_strobe[strobe_offset +: 2] = 2'b11;
-                
-                // Data positioning
-                d_axi_wdata[target_offset*8 +: 16] = u_axi_wdata[15:0];
-            end
+            // Calculate address offset (lower bits based on SIZE)
+            addr_offset = u_axi_awaddr & ((1 << u_axi_awsize) - 1);
             
-            3'b010: begin  // 4 byte transfer
-                // STROBE position: log2(TARGET_BYTES) - 2 bits
-                int unsigned strobe_bits = TARGET_ADDR_BITS - 2;
-                int unsigned strobe_offset = u_axi_awaddr[strobe_bits-1:0] * 4;
-                calculated_strobe[strobe_offset +: 4] = 4'b1111;
-                
-                // Data positioning
-                d_axi_wdata[target_offset*8 +: 32] = u_axi_wdata[31:0];
-            end
-            
-            3'b011: begin  // 8 byte transfer
-                // STROBE position: log2(TARGET_BYTES) - 3 bits
-                int unsigned strobe_bits = TARGET_ADDR_BITS - 3;
-                int unsigned strobe_offset = u_axi_awaddr[strobe_bits-1:0] * 8;
-                calculated_strobe[strobe_offset +: 8] = 8'hFF;
-                
-                // Data positioning
-                d_axi_wdata[target_offset*8 +: 64] = u_axi_wdata[63:0];
-            end
-            
-            3'b100: begin  // 16 byte transfer
-                // STROBE position: log2(TARGET_BYTES) - 4 bits
-                int unsigned strobe_bits = TARGET_ADDR_BITS - 4;
-                int unsigned strobe_offset = u_axi_awaddr[strobe_bits-1:0] * 16;
-                calculated_strobe[strobe_offset +: 16] = 16'hFFFF;
-                
-                // Data positioning
-                d_axi_wdata[target_offset*8 +: 128] = u_axi_wdata[127:0];
-            end
-            
-            3'b101: begin  // 32 byte transfer
-                // STROBE position: log2(TARGET_BYTES) - 5 bits
-                int unsigned strobe_bits = TARGET_ADDR_BITS - 5;
-                int unsigned strobe_offset = u_axi_awaddr[strobe_bits-1:0] * 32;
-                calculated_strobe[strobe_offset +: 32] = 32'hFFFF_FFFF;
-                
-                // Data positioning
-                d_axi_wdata[target_offset*8 +: 256] = u_axi_wdata[255:0];
-            end
-            
-            3'b110: begin  // 64 byte transfer
-                // STROBE position: log2(TARGET_BYTES) - 6 bits
-                int unsigned strobe_bits = TARGET_ADDR_BITS - 6;
-                int unsigned strobe_offset = u_axi_awaddr[strobe_bits-1:0] * 64;
-                calculated_strobe[strobe_offset +: 64] = 64'hFFFF_FFFF_FFFF_FFFF;
-                
-                // Data positioning
-                d_axi_wdata[target_offset*8 +: 512] = u_axi_wdata[511:0];
-            end
-            
-            default: begin
-                // For unsupported sizes, zero the data and STROBE
-                calculated_strobe = '0;
-                d_axi_wdata = '0;
-            end
-        endcase
+            // Apply STROBE and data with shift
+            calculated_strobe = strobe_pattern << (addr_offset * 8);
+            d_axi_wdata = u_axi_wdata << (addr_offset * 8);
+        end
         
         // Apply calculated STROBE
         d_axi_wstrb = calculated_strobe;
@@ -264,12 +209,15 @@ module axi_narrow_to_wide #(
     // Read data width conversion logic
     //=============================================================================
     // Read data from wider downstream bus to narrower upstream bus
+    
+    // Local variable for read calculations
+    logic [TARGET_ADDR_BITS-1:0] source_offset;
+    
     always_comb begin
         // Default values
         u_axi_rdata = '0;
         
         // Calculate source data position based on address alignment
-        int unsigned source_offset;
         source_offset = u_axi_araddr[TARGET_ADDR_BITS-1:0];
         
         // Extract data from downstream bus based on upstream width
@@ -282,6 +230,43 @@ module axi_narrow_to_wide #(
     // Write data handshake
     assign d_axi_wvalid = u_axi_wvalid;
     assign u_axi_wready = d_axi_wready;
+    
+    // ID signal connections
+    assign d_axi_awid = u_axi_awid;
+    assign d_axi_arid = u_axi_arid;
+    assign u_axi_bid = d_axi_bid;
+    assign u_axi_rid = d_axi_rid;
+    
+    //=============================================================================
+    // Debug logging for strobe and data
+    //=============================================================================
+    // synthesis translate_off
+    always @(posedge aclk) begin
+        if (u_axi_wvalid && u_axi_wready) begin
+            $display("[DEBUG] Write Data Transfer - Time: %0t", $time);
+            $display("[DEBUG]   Address: 0x%x, SIZE: %0d", u_axi_awaddr, u_axi_awsize);
+            $display("[DEBUG]   Upstream Data: 0x%x, Strobe: 0x%x", u_axi_wdata, u_axi_wstrb);
+            $display("[DEBUG]   Downstream Data: 0x%x, Strobe: 0x%x", d_axi_wdata, d_axi_wstrb);
+            $display("[DEBUG]   Strobe Analysis:");
+            $display("[DEBUG]     Upstream Strobe[3:0]: 4'b%04b", u_axi_wstrb);
+            $display("[DEBUG]     Downstream Strobe[7:0]: 8'b%08b", d_axi_wstrb);
+            $display("[DEBUG]     Address[2:0]: 3'b%03b", u_axi_awaddr[2:0]);
+            $display("[DEBUG]     Expected Strobe Pattern: 0x%x", (1 << (1 << u_axi_awsize)) - 1);
+            $display("[DEBUG]     Last: %b", u_axi_wlast);
+        end
+        
+        if (u_axi_arvalid && u_axi_arready) begin
+            $display("[DEBUG] Read Address Transfer - Time: %0t", $time);
+            $display("[DEBUG]   Address: 0x%x, SIZE: %0d", u_axi_araddr, u_axi_arsize);
+        end
+        
+        if (d_axi_rvalid && u_axi_rready) begin
+            $display("[DEBUG] Read Data Transfer - Time: %0t", $time);
+            $display("[DEBUG]   Upstream Data: 0x%x", u_axi_rdata);
+            $display("[DEBUG]   Downstream Data: 0x%x", d_axi_rdata);
+        end
+    end
+    // synthesis translate_on
 
     //=============================================================================
     // Assertions for verification
@@ -290,13 +275,31 @@ module axi_narrow_to_wide #(
     always @(posedge aclk) begin
         // Write transaction validation
         if (u_axi_wvalid && u_axi_wready) begin
+            // Debug: Address alignment check details
+            $display("[DEBUG] Address Alignment Check - Time: %0t", $time);
+            $display("[DEBUG]   Address: 0x%x, SIZE: %0d", u_axi_awaddr, u_axi_awsize);
+            $display("[DEBUG]   Address[2:0]: 3'b%03b", u_axi_awaddr[2:0]);
+            $display("[DEBUG]   Expected alignment: 3'b%03b", (3'b111 >> u_axi_awsize));
+            
             // Check that SIZE value is valid for source width
             if (u_axi_awsize > $clog2(SOURCE_BYTES)) begin
                 $error("Invalid SIZE value %0d for source width %0d", u_axi_awsize, SOURCE_WIDTH);
             end
             
             // Check address alignment
-            if (u_axi_awaddr[u_axi_awsize-1:0] != '0) begin
+            if (u_axi_awsize == 3'b000 && u_axi_awaddr[0] != 1'b0) begin
+                $error("Address 0x%x not aligned for SIZE %0d", u_axi_awaddr, u_axi_awsize);
+            end else if (u_axi_awsize == 3'b001 && u_axi_awaddr[1:0] != 2'b00) begin
+                $error("Address 0x%x not aligned for SIZE %0d", u_axi_awaddr, u_axi_awsize);
+            end else if (u_axi_awsize == 3'b010 && u_axi_awaddr[2:0] != 3'b000) begin
+                $error("Address 0x%x not aligned for SIZE %0d", u_axi_awaddr, u_axi_awsize);
+            end else if (u_axi_awsize == 3'b011 && u_axi_awaddr[3:0] != 4'b0000) begin
+                $error("Address 0x%x not aligned for SIZE %0d", u_axi_awaddr, u_axi_awsize);
+            end else if (u_axi_awsize == 3'b100 && u_axi_awaddr[4:0] != 5'b00000) begin
+                $error("Address 0x%x not aligned for SIZE %0d", u_axi_awaddr, u_axi_awsize);
+            end else if (u_axi_awsize == 3'b101 && u_axi_awaddr[5:0] != 6'b000000) begin
+                $error("Address 0x%x not aligned for SIZE %0d", u_axi_awaddr, u_axi_awsize);
+            end else if (u_axi_awsize == 3'b110 && u_axi_awaddr[6:0] != 7'b0000000) begin
                 $error("Address 0x%x not aligned for SIZE %0d", u_axi_awaddr, u_axi_awsize);
             end
             
@@ -318,7 +321,19 @@ module axi_narrow_to_wide #(
             end
             
             // Check address alignment
-            if (u_axi_araddr[u_axi_arsize-1:0] != '0) begin
+            if (u_axi_arsize == 3'b000 && u_axi_araddr[0] != 1'b0) begin
+                $error("Address 0x%x not aligned for SIZE %0d", u_axi_araddr, u_axi_arsize);
+            end else if (u_axi_arsize == 3'b001 && u_axi_araddr[1:0] != 2'b00) begin
+                $error("Address 0x%x not aligned for SIZE %0d", u_axi_araddr, u_axi_arsize);
+            end else if (u_axi_arsize == 3'b010 && u_axi_araddr[2:0] != 3'b000) begin
+                $error("Address 0x%x not aligned for SIZE %0d", u_axi_araddr, u_axi_arsize);
+            end else if (u_axi_arsize == 3'b011 && u_axi_araddr[3:0] != 4'b0000) begin
+                $error("Address 0x%x not aligned for SIZE %0d", u_axi_araddr, u_axi_arsize);
+            end else if (u_axi_arsize == 3'b100 && u_axi_araddr[4:0] != 5'b00000) begin
+                $error("Address 0x%x not aligned for SIZE %0d", u_axi_araddr, u_axi_arsize);
+            end else if (u_axi_arsize == 3'b101 && u_axi_araddr[5:0] != 6'b000000) begin
+                $error("Address 0x%x not aligned for SIZE %0d", u_axi_araddr, u_axi_arsize);
+            end else if (u_axi_arsize == 3'b110 && u_axi_araddr[6:0] != 7'b0000000) begin
                 $error("Address 0x%x not aligned for SIZE %0d", u_axi_araddr, u_axi_arsize);
             end
             

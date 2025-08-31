@@ -1,11 +1,11 @@
 // Licensed under the Apache License, Version 2.0 - see https://www.apache.org/licenses/LICENSE-2.0 for details.
-// AXI4 Simple Dual Port RAM Testbench - Part13 Version with Enhanced Strobe Control
+// AXI4 Simple Single Port RAM Testbench - Part13 Version with Enhanced Strobe Control
 // This testbench has been refactored to use modular architecture with separate modules for:
 // - Protocol verification
 // - Monitoring and logging
 // - Write channel control
 // - Read channel control
-// Enhanced with strobe control parameters for comprehensive testing
+// Enhanced strobe control parameters for comprehensive testing
 // Original functionality has been preserved while improving maintainability and readability
 
 `timescale 1ns/1ps
@@ -93,54 +93,48 @@ logic                      axi_r_ready;   // Read data ready
 // =============================================================================
 // Device Under Test (DUT) Instantiation
 // =============================================================================
-// Instantiate the AXI4 Simple Dual Port RAM module with parameterized configuration
-axi_simple_dual_port_ram #(
-    .MEMORY_SIZE_BYTES(MEMORY_SIZE_BYTES),  // Total memory size in bytes
-    .AXI_DATA_WIDTH(AXI_DATA_WIDTH),        // AXI4 data bus width
-    .AXI_ID_WIDTH(AXI_ID_WIDTH)            // AXI4 transaction ID width
+// Instantiate the AXI4 Bus Width Converter DUT (converter + RAM)
+axi_narrow_to_wide_dut #(
+    .SOURCE_WIDTH(AXI_DATA_WIDTH),           // Source bus width (32bit)
+    .TARGET_WIDTH(AXI_TARGET_WIDTH),         // Target bus width (64bit)
+    .ADDR_WIDTH($clog2(MEMORY_SIZE_BYTES)), // RAM address width auto-calculated
+    .MEMORY_SIZE_BYTES(MEMORY_SIZE_BYTES),  // Memory size from axi_common_defs.svh
+    .RAM_DEPTH(MEMORY_SIZE_BYTES / (AXI_TARGET_WIDTH / 8))  // RAM depth calculated
 ) dut (
     // Clock and Reset
-    .axi_clk(clk),                          // AXI4 clock input
-    .axi_resetn(rst_n),                     // AXI4 active-low reset input
+    .aclk(clk),                              // AXI4 clock input
+    .aresetn(rst_n),                         // AXI4 active-low reset input
     
-    // Write Address Channel (AW)
-    .axi_aw_addr(axi_aw_addr),              // Write address
-    .axi_aw_burst(axi_aw_burst),            // Burst type
-    .axi_aw_size(axi_aw_size),              // Transfer size
-    .axi_aw_id(axi_aw_id),                  // Write transaction ID
-    .axi_aw_len(axi_aw_len),                // Burst length
-    .axi_aw_valid(axi_aw_valid),            // Write address valid
-    .axi_aw_ready(axi_aw_ready),            // Write address ready
-    
-    // Write Data Channel (W)
-    .axi_w_data(axi_w_data),                // Write data
-    .axi_w_last(axi_w_last),                // Last transfer flag
-    .axi_w_strb(axi_w_strb),                // Write strobes
-    .axi_w_valid(axi_w_valid),              // Write data valid
-    .axi_w_ready(axi_w_ready),              // Write data ready
-    
-    // Write Response Channel (B)
-    .axi_b_resp(axi_b_resp),                // Write response
-    .axi_b_id(axi_b_id),                    // Write response ID
-    .axi_b_valid(axi_b_valid),              // Write response valid
-    .axi_b_ready(axi_b_ready),              // Write response ready
-    
-    // Read Address Channel (AR)
-    .axi_ar_addr(axi_ar_addr),              // Read address
-    .axi_ar_burst(axi_ar_burst),            // Burst type
-    .axi_ar_size(axi_ar_size),              // Transfer size
-    .axi_ar_id(axi_ar_id),                  // Read transaction ID
-    .axi_ar_len(axi_ar_len),                // Burst length
-    .axi_ar_valid(axi_ar_valid),            // Read address valid
-    .axi_ar_ready(axi_ar_ready),            // Read address ready
-    
-    // Read Data Channel (R)
-    .axi_r_data(axi_r_data),                // Read data
-    .axi_r_id(axi_r_id),                    // Read data ID
-    .axi_r_resp(axi_r_resp),                // Read response
-    .axi_r_last(axi_r_last),                // Last transfer flag
-    .axi_r_valid(axi_r_valid),              // Read data valid
-    .axi_r_ready(axi_r_ready)               // Read data ready
+    // 32bit AXI4 interface (test stimulus)
+    .s_axi_awaddr(axi_aw_addr),              // Write address
+    .s_axi_awsize(axi_aw_size),              // Transfer size
+    .s_axi_awlen(axi_aw_len),                // Burst length
+    .s_axi_awburst(axi_aw_burst),            // Burst type
+    .s_axi_awid(axi_aw_id),                  // Write transaction ID
+    .s_axi_awvalid(axi_aw_valid),            // Write address valid
+    .s_axi_awready(axi_aw_ready),            // Write address ready
+    .s_axi_wdata(axi_w_data),                // Write data
+    .s_axi_wstrb(axi_w_strb),                // Write strobes
+    .s_axi_wvalid(axi_w_valid),              // Write data valid
+    .s_axi_wready(axi_w_ready),              // Write data ready
+    .s_axi_wlast(axi_w_last),                // Last transfer flag
+    .s_axi_bid(axi_b_id),                    // Write response ID
+    .s_axi_bresp(axi_b_resp),                // Write response
+    .s_axi_bvalid(axi_b_valid),              // Write response valid
+    .s_axi_bready(axi_b_ready),              // Write response ready
+    .s_axi_araddr(axi_ar_addr),              // Read address
+    .s_axi_arsize(axi_ar_size),              // Transfer size
+    .s_axi_arlen(axi_ar_len),                // Burst length
+    .s_axi_arburst(axi_ar_burst),            // Burst type
+    .s_axi_arid(axi_ar_id),                  // Read transaction ID
+    .s_axi_arvalid(axi_ar_valid),            // Read address valid
+    .s_axi_arready(axi_ar_ready),            // Read address ready
+    .s_axi_rdata(axi_r_data),                // Read data
+    .s_axi_rid(axi_r_id),                    // Read data ID
+    .s_axi_rresp(axi_r_resp),                // Read response
+    .s_axi_rvalid(axi_r_valid),              // Read data valid
+    .s_axi_rready(axi_r_ready),              // Read data ready
+    .s_axi_rlast(axi_r_last)                 // Last transfer flag
 );
 
 
@@ -165,13 +159,17 @@ initial begin
     generate_read_data_expected();                     // Expected read data values
     generate_write_resp_expected();                    // Expected write response values
     
-    // Generate byte verification arrays (if enabled)
+    // Generate byte verification arrays if enabled
     if (BYTE_VERIFICATION_ENABLE) begin
-        generate_byte_verification_arrays();
+        generate_byte_verification_arrays();           // Byte verification arrays
     end
     
     // Initialize ready signal negation patterns for stall testing
     initialize_ready_negate_pulses();
+    
+    // Debug output to verify payload generation
+    write_debug_log($sformatf("Generated %0d write address payloads", write_addr_payloads.size()));
+    write_debug_log($sformatf("Generated %0d write response expected values", write_resp_expected.size()));
     
     // Small delay for signal stability
     #1;
@@ -194,11 +192,9 @@ initial begin
     
     // Wait for stimulus generation to complete before starting tests
     wait(generate_stimulus_expected_done);
-    write_log($sformatf("Phase %0d: Stimulus and Expected Values Generation Confirmed", current_phase));
     
     // Wait for reset to be deasserted before proceeding
     wait(rst_n);
-    write_log($sformatf("Phase %0d: Reset Deassertion Confirmed", current_phase));
     
     // =============================================================================
     // Phase 0: Initial Write-Only Phase
@@ -295,7 +291,7 @@ initial begin
     @(posedge clk);
     #1;
     clear_phase_latches = 1'b0;             // Deassert clear signal
-    
+        
     // =============================================================================
     // Byte Verification Phase
     // =============================================================================
@@ -304,10 +300,13 @@ initial begin
         write_log("Starting Byte Verification Phase...");
         
         // Start byte verification phase
-        @(posedge clk); #1;
-        byte_verification_phase_start = 1'b1;
-        @(posedge clk); #1;
-        byte_verification_phase_start = 1'b0;
+        @(posedge clk);
+        #1;
+        byte_verification_phase_start = 1'b1;  // Start byte verification phase
+        
+        @(posedge clk);                         // Wait one clock cycle
+        #1;
+        byte_verification_phase_start = 1'b0;   // Stop byte verification phase
         
         // Wait for byte verification phase to complete
         wait(byte_verification_phase_done_latched);
@@ -315,12 +314,14 @@ initial begin
         write_log($sformatf("Phase %0d: Byte Verification Phase Completed", current_phase));
         
         // Clear byte verification phase latches
-        @(posedge clk); #1;
-        clear_phase_latches = 1'b1;
-        @(posedge clk); #1;
-        clear_phase_latches = 1'b0;
+        @(posedge clk);
+        #1;
+        clear_phase_latches = 1'b1;             // Assert clear signal
+        @(posedge clk);
+        #1;
+        clear_phase_latches = 1'b0;             // Deassert clear signal
     end
-        
+    
     // =============================================================================
     // Test Completion
     // =============================================================================
@@ -336,6 +337,7 @@ end
 // =============================================================================
 // The testbench has been refactored into modular components for better maintainability
 // Each module handles specific functionality while accessing TOP-level signals directly
+// Enhanced with strobe control parameters for comprehensive testing
 
 // Protocol Verification System
 // Monitors AXI4 protocol compliance and performs payload hold checks
@@ -356,5 +358,11 @@ axi_read_channel_control_module read_controller();
 // Byte Verification Control System
 // Manages byte-level verification operations
 axi_byte_verification_control_module byte_verification_controller();
+
+// =============================================================================
+// Byte Verification Functions
+// =============================================================================
+// Byte verification is now handled by the axi_byte_verification_control_module
+// which processes the verification arrays and manages the phase completion signals
 
 endmodule

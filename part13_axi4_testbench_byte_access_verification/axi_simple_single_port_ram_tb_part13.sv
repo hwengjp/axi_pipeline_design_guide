@@ -18,15 +18,15 @@ module top_tb;
 // Common definitions and parameters
 `include "axi_common_defs.svh"
 // Test stimulus generation functions
-`include "axi_stimulus_functions.svh"
+`include "../part13_axi4_testbench_byte_access_verification/axi_stimulus_functions.svh"
 // Verification and checking functions
-`include "axi_verification_functions.svh"
+`include "../part13_axi4_testbench_byte_access_verification/axi_verification_functions.svh"
 // Utility and helper functions
-`include "axi_utility_functions.svh"
+`include "../part13_axi4_testbench_byte_access_verification/axi_utility_functions.svh"
 // Random data generation functions
-`include "axi_random_generation.svh"
+`include "../part13_axi4_testbench_byte_access_verification/axi_random_generation.svh"
 // Monitoring and logging functions
-`include "axi_monitoring_functions.svh"
+`include "../part13_axi4_testbench_byte_access_verification/axi_monitoring_functions.svh"
 
 // =============================================================================
 // Clock and Reset Generation
