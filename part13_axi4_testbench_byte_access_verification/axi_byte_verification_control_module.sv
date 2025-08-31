@@ -58,9 +58,10 @@ always_ff @(posedge `TOP_TB.clk or negedge `TOP_TB.rst_n) begin
                         automatic logic [AXI_ADDR_WIDTH-1:0] addr = `TOP_TB.byte_verification_read_addr_payloads[byte_verification_array_index].addr;
                         automatic logic [7:0] expected_byte = `TOP_TB.byte_verification_expected[byte_verification_array_index].expected_byte;
                         
-                        // Log verification attempt
-                        $display("Byte verification %0d: addr=0x%x, expected=0x%02x", 
-                                byte_verification_array_index, addr, expected_byte);
+                        // Log verification attempt with test count
+                        automatic int test_count = `TOP_TB.byte_verification_read_addr_payloads[byte_verification_array_index].test_count;
+                        write_debug_log($sformatf("Byte verification %0d (Test %0d): addr=0x%x, expected=0x%02x", 
+                                byte_verification_array_index, test_count, addr, expected_byte));
                         
                         // Move to next entry
                         byte_verification_array_index <= byte_verification_array_index + 1;

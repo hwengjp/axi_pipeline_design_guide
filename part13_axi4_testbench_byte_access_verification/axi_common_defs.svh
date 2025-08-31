@@ -14,7 +14,8 @@
 // Log control parameters
 // =============================================================================
 parameter LOG_ENABLE = 1'b1;                  // Enable general logging
-parameter DEBUG_LOG_ENABLE = 1'b1;            // Enable debug logging
+//parameter DEBUG_LOG_ENABLE = 1'b1;            // Enable debug logging
+parameter DEBUG_LOG_ENABLE = 1'b0;            // Enable debug logging
 parameter BYTE_VERIFICATION_ENABLE = 1'b1;     // Byte verification mode enable
 
 // =============================================================================
@@ -237,8 +238,6 @@ byte_verification_expected_t byte_verification_expected[int];                   
 
 // Test start indices for byte verification
 int test_start_indices[int];                                                     // Starting indices for each test_count in write_data_payloads
-
-
 
 // =============================================================================
 // Ready negate pulse arrays for TB controlled channels

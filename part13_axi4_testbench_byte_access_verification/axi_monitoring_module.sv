@@ -14,16 +14,16 @@ module axi_monitoring_module (
 // Phase execution logging
 always @(posedge `TOP_TB.clk) begin
     if (`TOP_TB.write_addr_phase_start) begin
-        write_log($sformatf("Phase %0d: Write Address Channel started", `TOP_TB.current_phase));
+        write_debug_log($sformatf("Phase %0d: Write Address Channel started", `TOP_TB.current_phase));
     end
     if (`TOP_TB.read_addr_phase_start) begin
-        write_log($sformatf("Phase %0d: Read Address Channel started", `TOP_TB.current_phase));
+        write_debug_log($sformatf("Phase %0d: Read Address Channel started", `TOP_TB.current_phase));
     end
     if (`TOP_TB.write_data_phase_start) begin
-        write_log($sformatf("Phase %0d: Write Data Channel started", `TOP_TB.current_phase));
+        write_debug_log($sformatf("Phase %0d: Write Data Channel started", `TOP_TB.current_phase));
     end
     if (`TOP_TB.read_data_phase_start) begin
-        write_log($sformatf("Phase %0d: Read Data Channel started", `TOP_TB.current_phase));
+        write_debug_log($sformatf("Phase %0d: Read Data Channel started", `TOP_TB.current_phase));
     end
     
     // Byte verification phase logging

@@ -8,11 +8,9 @@
 `include "axi_common_defs.svh"
 
 // Function: write_log
-// Extracted from original testbench
-
 function automatic void write_log(input string message);
     if (LOG_ENABLE) begin
-        $display("[%0t] %s", $time, message);
+        $display("[%0t] [LOG] %s", $time, message);
     end
 endfunction
 

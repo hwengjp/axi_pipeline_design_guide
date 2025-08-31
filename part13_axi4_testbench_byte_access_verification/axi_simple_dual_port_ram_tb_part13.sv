@@ -165,6 +165,11 @@ initial begin
     generate_read_data_expected();                     // Expected read data values
     generate_write_resp_expected();                    // Expected write response values
     
+    // Generate byte verification arrays (if enabled)
+    if (BYTE_VERIFICATION_ENABLE) begin
+        generate_byte_verification_arrays();
+    end
+    
     // Initialize ready signal negation patterns for stall testing
     initialize_ready_negate_pulses();
     
@@ -189,11 +194,11 @@ initial begin
     
     // Wait for stimulus generation to complete before starting tests
     wait(generate_stimulus_expected_done);
-    $display("Phase %0d: Stimulus and Expected Values Generation Confirmed", current_phase);
+    write_log($sformatf("Phase %0d: Stimulus and Expected Values Generation Confirmed", current_phase));
     
     // Wait for reset to be deasserted before proceeding
     wait(rst_n);
-    $display("Phase %0d: Reset Deassertion Confirmed", current_phase);
+    write_log($sformatf("Phase %0d: Reset Deassertion Confirmed", current_phase));
     
     // =============================================================================
     // Phase 0: Initial Write-Only Phase
@@ -214,7 +219,7 @@ initial begin
     // Wait for all write channels to complete their operations
     wait(write_addr_phase_done_latched && write_data_phase_done_latched && write_resp_phase_done_latched);
     
-    $display("Phase %0d: All Write Channels Completed", current_phase);
+    write_log($sformatf("Phase %0d: All Write Channels Completed", current_phase));
     
     // Clear phase completion latches and prepare for next phase
     @(posedge clk);
@@ -252,7 +257,7 @@ initial begin
         wait(write_addr_phase_done_latched && read_addr_phase_done_latched && 
              write_data_phase_done_latched && write_resp_phase_done_latched && read_data_phase_done_latched);
         
-        $display("Phase %0d: All Channels Completed", current_phase);
+        write_log($sformatf("Phase %0d: All Channels Completed", current_phase));
         
         // Clear phase completion latches and prepare for next phase
         @(posedge clk);
@@ -281,7 +286,7 @@ initial begin
     // Wait for read operations to complete
     wait(read_addr_phase_done_latched && read_data_phase_done_latched);
     
-    $display("Phase %0d: Final Read Operations Completed", current_phase);
+    write_log($sformatf("Phase %0d: Final Read Operations Completed", current_phase));
     
     // Clear final phase latches
     @(posedge clk);
@@ -290,12 +295,37 @@ initial begin
     @(posedge clk);
     #1;
     clear_phase_latches = 1'b0;             // Deassert clear signal
+    
+    // =============================================================================
+    // Byte Verification Phase
+    // =============================================================================
+    // After all normal test phases are completed, perform byte-level verification
+    if (BYTE_VERIFICATION_ENABLE) begin
+        write_log("Starting Byte Verification Phase...");
+        
+        // Start byte verification phase
+        @(posedge clk); #1;
+        byte_verification_phase_start = 1'b1;
+        @(posedge clk); #1;
+        byte_verification_phase_start = 1'b0;
+        
+        // Wait for byte verification phase to complete
+        wait(byte_verification_phase_done_latched);
+        
+        write_log($sformatf("Phase %0d: Byte Verification Phase Completed", current_phase));
+        
+        // Clear byte verification phase latches
+        @(posedge clk); #1;
+        clear_phase_latches = 1'b1;
+        @(posedge clk); #1;
+        clear_phase_latches = 1'b0;
+    end
         
     // =============================================================================
     // Test Completion
     // =============================================================================
     // All test phases have been completed successfully
-    $display("All Phases Completed. Test Scenario Finished Successfully.");
+    write_log("All Phases Completed. Test Scenario Finished Successfully.");
     test_execution_completed = 1'b1;        // Set test completion flag for monitoring
     #1;                                     // Wait for test completion log to be written
     $finish;                                // End simulation
@@ -322,5 +352,9 @@ axi_write_channel_control_module write_controller();
 // Read Channel Control System
 // Manages all read-related operations: address and data channels
 axi_read_channel_control_module read_controller();
+
+// Byte Verification Control System
+// Manages byte-level verification operations
+axi_byte_verification_control_module byte_verification_controller();
 
 endmodule

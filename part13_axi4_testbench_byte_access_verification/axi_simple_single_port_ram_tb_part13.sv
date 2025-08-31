@@ -217,7 +217,7 @@ initial begin
     // Wait for all write channels to complete their operations
     wait(write_addr_phase_done_latched && write_data_phase_done_latched && write_resp_phase_done_latched);
     
-    $display("Phase %0d: All Write Channels Completed", current_phase);
+    write_log($sformatf("Phase %0d: All Write Channels Completed", current_phase));
     
     // Clear phase completion latches and prepare for next phase
     @(posedge clk);
@@ -255,7 +255,7 @@ initial begin
         wait(write_addr_phase_done_latched && read_addr_phase_done_latched && 
              write_data_phase_done_latched && write_resp_phase_done_latched && read_data_phase_done_latched);
         
-        $display("Phase %0d: All Channels Completed", current_phase);
+        write_log($sformatf("Phase %0d: All Channels Completed", current_phase));
         
         // Clear phase completion latches and prepare for next phase
         @(posedge clk);
@@ -284,7 +284,7 @@ initial begin
     // Wait for read operations to complete
     wait(read_addr_phase_done_latched && read_data_phase_done_latched);
     
-    $display("Phase %0d: Final Read Operations Completed", current_phase);
+    write_log($sformatf("Phase %0d: Final Read Operations Completed", current_phase));
     
     // Clear final phase latches
     @(posedge clk);
@@ -299,7 +299,7 @@ initial begin
     // =============================================================================
     // After all normal test phases are completed, perform byte-level verification
     if (BYTE_VERIFICATION_ENABLE) begin
-        $display("Starting Byte Verification Phase...");
+        write_log("Starting Byte Verification Phase...");
         
         // Start byte verification phase
         @(posedge clk);
@@ -313,7 +313,7 @@ initial begin
         // Wait for byte verification phase to complete
         wait(byte_verification_phase_done_latched);
         
-        $display("Phase %0d: Byte Verification Phase Completed", current_phase);
+        write_log($sformatf("Phase %0d: Byte Verification Phase Completed", current_phase));
         
         // Clear byte verification phase latches
         @(posedge clk);
@@ -328,7 +328,7 @@ initial begin
     // Test Completion
     // =============================================================================
     // All test phases have been completed successfully
-    $display("All Phases Completed. Test Scenario Finished Successfully.");
+    write_log("All Phases Completed. Test Scenario Finished Successfully.");
     test_execution_completed = 1'b1;        // Set test completion flag for monitoring
     #1;                                     // Wait for test completion log to be written
     $finish;                                // End simulation

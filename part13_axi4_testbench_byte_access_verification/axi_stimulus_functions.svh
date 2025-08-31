@@ -181,7 +181,6 @@ function automatic void generate_write_data_payloads();
                 );
             end else begin
                 // INCR/WRAP or FIXED burst: Use configured strobe strategy
-                // 新しいsize_strategyベースのSTROBE生成（バースト内ビート位置考慮）
                 strobe_pattern = generate_strobe_by_size_strategy(addr_payload.addr, addr_payload.size, addr_payload.size_strategy, AXI_DATA_WIDTH, transfer);
             end
             
@@ -303,12 +302,7 @@ function automatic void generate_read_addr_payloads_with_stall();
     end
 endfunction
 
-// =============================================================================
-// Byte Verification Stimulus Generation Functions
-// =============================================================================
-
 // Function: generate_byte_verification_arrays
-// Generates byte-level verification arrays based on written data
 function automatic void generate_byte_verification_arrays();
     int byte_index = 0;
     int test_count;
@@ -326,71 +320,29 @@ function automatic void generate_byte_verification_arrays();
     logic [7:0] expected_byte;
     int write_data_index;
     
-    $display("Starting byte verification array generation...");
-    $display("Function entered successfully");
-    
-    // Add error checking
-    if (write_data_payloads.size() == 0) begin
-        $display("ERROR: write_data_payloads is empty!");
-        return;
-    end
-    
-    if (write_addr_payloads.size() == 0) begin
-        $display("ERROR: write_addr_payloads is empty!");
-        return;
-    end
-    
-    // Debug: Show write_data_payloads contents
-    $display("DEBUG: write_data_payloads.size() = %0d", write_data_payloads.size());
-    foreach (write_data_payloads[i]) begin
-        $display("DEBUG: write_data_payloads[%0d]: data=0x%x, strb=0x%x, test_count=%0d", 
-                i, write_data_payloads[i].data, write_data_payloads[i].strb, write_data_payloads[i].test_count);
-    end
-    
-    // Debug: Show test_start_indices contents
-    $display("DEBUG: test_start_indices contents:");
-    foreach (test_start_indices[i]) begin
-        $display("  test_start_indices[%0d] = %0d", i, test_start_indices[i]);
-    end
-    
-    // Debug: Show write_addr_payloads contents
-    $display("DEBUG: write_addr_payloads.size() = %0d", write_addr_payloads.size());
-    foreach (write_addr_payloads[i]) begin
-        $display("DEBUG: write_addr_payloads[%0d]: test_count=%0d, burst_len=%0d, size=%0d", 
-                i, write_addr_payloads[i].test_count, write_addr_payloads[i].len, write_addr_payloads[i].size);
-    end
-    
     // Clear existing arrays
     byte_verification_read_addr_payloads.delete();
     byte_verification_expected.delete();
     
     // Generate byte verification arrays for each test case
-    write_debug_log($sformatf("DEBUG: Processing test_count=%0d", test_count));
     foreach (write_addr_payloads[test_count]) begin
-        write_debug_log($sformatf("DEBUG: Found write_addr_payloads[%0d]", test_count));
         if (write_data_payloads.exists(test_count)) begin
             // Get the write address and data for this test
             base_addr = write_addr_payloads[test_count].addr;
             burst_len = write_addr_payloads[test_count].len;
             transfer_size = write_addr_payloads[test_count].size;
             
-            // Calculate number of bytes to verify based on actual data width
-            bytes_per_transfer = AXI_DATA_WIDTH / 8;  // 32/8 = 4 bytes per transfer
+            // Calculate bytes per transfer and total bytes
+            bytes_per_transfer = AXI_DATA_WIDTH / 8;
             total_bytes = (burst_len + 1) * bytes_per_transfer;
             
             write_debug_log($sformatf("Test %0d: base_addr=0x%x, burst_len=%0d, transfer_size=%0d, total_bytes=%0d, bytes_per_transfer=%0d", 
                                     test_count, base_addr, burst_len, transfer_size, total_bytes, bytes_per_transfer));
             
-            // Generate byte verification for each transfer (not for each byte)
-            // Process all transfers for this test case
+            // Generate byte verification for each transfer
             for (transfer_index = 0; transfer_index <= burst_len; transfer_index++) begin
-                // Calculate the correct index for this transfer
-                // Use the pre-calculated starting index for this test_count
+                // Calculate transfer data index using pre-calculated starting index
                 int transfer_data_index = test_start_indices[test_count] + transfer_index;
-                
-                write_debug_log($sformatf("DEBUG: test_count=%0d, transfer_index=%0d, transfer_data_index=%0d", 
-                                        test_count, transfer_index, transfer_data_index));
-                write_debug_log($sformatf("DEBUG: test_start_indices[%0d] = %0d", test_count, test_start_indices[test_count]));
                 
                 if (write_data_payloads.exists(transfer_data_index)) begin
                     write_data = write_data_payloads[transfer_data_index].data;
@@ -399,27 +351,16 @@ function automatic void generate_byte_verification_arrays();
                     write_debug_log($sformatf("  Test %0d Transfer %0d: data=0x%x, strb=0x%x (from index %0d)", 
                                             test_count, transfer_index, write_data, strb, transfer_data_index));
                     
-                    // Debug: Show the actual payload data
-                    write_debug_log($sformatf("    DEBUG: write_data_payloads[%0d].data = 0x%x", transfer_data_index, write_data_payloads[transfer_data_index].data));
-                    write_debug_log($sformatf("    DEBUG: write_data_payloads[%0d].strb = 0x%x", transfer_data_index, write_data_payloads[transfer_data_index].strb));
-                    
                     // Check each byte in this transfer
                     for (byte_in_transfer = 0; byte_in_transfer < bytes_per_transfer; byte_in_transfer++) begin
-                        // Calculate correct byte address for this specific byte
+                        // Calculate byte address
                         byte_addr = base_addr + transfer_index * bytes_per_transfer + byte_in_transfer;
-                        
-                        // Debug: Show STROBE bit check details
-                        write_debug_log($sformatf("    Checking byte_in_transfer=%0d, strb[%0d]=%b, strb=0x%x", 
-                                                byte_in_transfer, byte_in_transfer, strb[byte_in_transfer], strb));
                         
                         // Check if this byte is enabled by strobe
                         if (strb[byte_in_transfer]) begin
                             // Extract expected byte value from write data
                             if (byte_in_transfer * 8 + 8 <= AXI_DATA_WIDTH) begin
                                 expected_byte = write_data[(byte_in_transfer * 8) +: 8];
-                                
-                                write_debug_log($sformatf("    Byte %0d: addr=0x%x, byte_in_transfer=%0d, expected_byte=0x%02x (STROBE_ENABLED) - ADDING TO ARRAY", 
-                                                        transfer_index * bytes_per_transfer + byte_in_transfer, byte_addr, byte_in_transfer, expected_byte));
                                 
                                 // Create byte verification read address payload
                                 byte_verification_read_addr_payloads[byte_index] = '{
@@ -440,33 +381,22 @@ function automatic void generate_byte_verification_arrays();
                                     phase: 0                         // Byte verification phase
                                 };
                                 
-                                write_debug_log($sformatf("      Added to array at index %0d", byte_index));
                                 byte_index++;
                             end else begin
                                 write_debug_log($sformatf("    Warning: byte_in_transfer=%0d exceeds bus width", byte_in_transfer));
                             end
-                        end else begin
-                            // This byte is not enabled by strobe - skip verification
-                            write_debug_log($sformatf("    Byte %0d: addr=0x%x, byte_in_transfer=%0d, STROBE_DISABLED (not adding to array)", 
-                                                    transfer_index * bytes_per_transfer + byte_in_transfer, byte_addr, byte_in_transfer));
                         end
                     end
                 end else begin
                     // Transfer data not found
                     write_debug_log($sformatf("Warning: transfer data not found for test_count=%0d, transfer_index=%0d, transfer_data_index=%0d", 
                                             test_count, transfer_index, transfer_data_index));
-                    write_debug_log($sformatf("DEBUG: write_data_payloads.exists(%0d) = %b", transfer_data_index, write_data_payloads.exists(transfer_data_index)));
                 end
             end
-        end else begin
-            write_debug_log($sformatf("DEBUG: write_data_payloads.exists(%0d) = %b for test_count=%0d", test_count, write_data_payloads.exists(test_count), test_count));
         end
     end
     
-    $display("Generated %0d byte verification entries", byte_index);
-    $display("Function completed successfully");
+    write_debug_log($sformatf("Generated %0d byte verification entries", byte_index));
 endfunction
-
-
 
 `endif // AXI_STIMULUS_FUNCTIONS_SVH
