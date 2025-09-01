@@ -1,0 +1,49 @@
+# AXI Pipeline Design Guide - Coding Rules
+
+## コメント規約
+- ソースコードの最初の行にライセンス記述を追加：
+  ```
+  // Licensed under the Apache License, Version 2.0 - see https://www.apache.org/licenses/LICENSE-2.0 for details.
+  ```
+- デバッグ時は日本語コメントを使用する
+- クリーンアップの指示があるときは日本語コメントを英語に変換する
+- 関数の前に必ず説明コメントを記述する
+- 複雑なロジックには行内コメントを追加する
+- コメントは `//` を使用（Verilog/SystemVerilogの場合）
+
+## コードスタイル
+- インデントは4スペースを使用
+- 変数名は小文字とアンダースコアを使用（例：burst_length）
+- 定数は大文字とアンダースコアを使用（例：MAX_BURST_SIZE）
+- モジュール名は小文字とアンダースコアを使用（例：axi_master）
+
+## ドキュメント規約
+- Markdownファイルは日本語で記述
+- 表には重みと確率の計算式を含める
+- コード例には詳細なコメントを付ける
+- 技術的な説明は具体例とともに記述する
+
+## ドキュメント構造規約
+- タイトル
+- 目次
+- 1. はじめに
+- その後に複数の章が続く
+- 章番号無しで「ライセンス」
+- ライセンスの記述：
+  ```
+  Licensed under the Apache License, Version 2.0 - see [LICENSE](https://www.apache.org/licenses/LICENSE-2.0) file for details.
+  ```
+
+## Git規約
+- コミットメッセージは英語で記述
+- 変更内容を明確に表現する
+- 例：`Add weight and probability calculation formulas to tables`
+
+## ファイル命名規約
+- ドキュメントファイル：`part##_description.md`
+- Verilogファイル：`module_name.v` または `module_name.sv`
+- テストベンチ：`module_name_tb.v`
+
+## コマンド実行規約
+- AIがLinuxコマンドを実行する場合は絶対パスで正しいディレクトリにcdを行ってからコマンドを実行する
+- 例：`cd /mnt/c/D/HDL/axi_pipeline_design_guide && git status`
