@@ -21,23 +21,19 @@ module top_tb;
 // =============================================================================
 // Test Parameters
 // =============================================================================
-// Data width parameters for width converter
-localparam int unsigned WRITE_SOURCE_WIDTH = 64;    // Write source data width (narrow)
-localparam int unsigned WRITE_TARGET_WIDTH = 128;   // Write target data width (wide)
-localparam int unsigned READ_SOURCE_WIDTH = 64;     // Read source data width (narrow)
-localparam int unsigned READ_TARGET_WIDTH = 64;     // Read target data width (same as source)
+// Data width parameters are now defined in axi_common_defs.svh
 
 
 // Test stimulus generation functions
-`include "../part13_axi4_testbench_byte_access_verification/axi_stimulus_functions.svh"
+`include "axi_stimulus_functions.svh"
 // Verification and checking functions
-`include "../part13_axi4_testbench_byte_access_verification/axi_verification_functions.svh"
+`include "axi_verification_functions.svh"
 // Utility and helper functions
-`include "../part13_axi4_testbench_byte_access_verification/axi_utility_functions.svh"
+`include "axi_utility_functions.svh"
 // Random data generation functions
-`include "../part13_axi4_testbench_byte_access_verification/axi_random_generation.svh"
+`include "axi_random_generation.svh"
 // Monitoring and logging functions
-`include "../part13_axi4_testbench_byte_access_verification/axi_monitoring_functions.svh"
+`include "axi_monitoring_functions.svh"
 
 // =============================================================================
 // Clock and Reset Generation

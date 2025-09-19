@@ -82,7 +82,8 @@ module axi_dual_width_dual_port_ram #(
     reg [1:0]                 w_t0a_burst;       // T0A stage burst type
     reg [2:0]                 w_t0a_size;        // T0A stage SIZE signal
     reg [AXI_ID_WIDTH-1:0]   w_t0a_id;          // T0A stage ID
-    reg                       w_t0a_valid;       // T0A stage valid
+    reg                       w_t0a_burst_valid;       // T0A stage burst valid
+    reg                       w_t0a_valid;       // T0A stage valid (ready state)
     reg [7:0]                 w_t0a_count;       // T0A stage burst counter
     reg                       w_t0a_idle;        // T0A stage idle flag
     wire                      w_t0a_last;        // T0A stage last signal
@@ -124,7 +125,7 @@ module axi_dual_width_dual_port_ram #(
         .read_data(r_t1_data),
         .write_addr(w_t0a_mem_addr),
         .write_data(w_t0d_data),
-        .write_enable(axi_b_ready && (w_t0a_valid && w_t0d_valid) ? w_t0d_strb : {(WRITE_STRB_WIDTH){1'b0}})
+        .write_enable(axi_b_ready && (w_t0a_burst_valid && w_t0d_valid) ? w_t0d_strb : {(WRITE_STRB_WIDTH){1'b0}})
     );
     
     // Read pipeline T0 stage - Address counter and burst control
@@ -224,6 +225,7 @@ module axi_dual_width_dual_port_ram #(
             w_t0a_burst <= '0;
             w_t0a_size <= '0;
             w_t0a_id <= '0;
+            w_t0a_burst_valid <= 1'b0;
             w_t0a_valid <= 1'b0;
             w_t0a_count <= '0;
             w_t0a_idle <= 1'b1;
@@ -240,18 +242,21 @@ module axi_dual_width_dual_port_ram #(
                             w_t0a_burst <= axi_aw_burst;
                             w_t0a_size <= axi_aw_size;
                             w_t0a_id <= axi_aw_id;
-                            w_t0a_valid <= 1'b1;
+                            w_t0a_burst_valid <= 1'b1;
+                            w_t0a_valid <= 1'b1;  // Latch new address transaction
                             w_t0a_count <= axi_aw_len;
                             w_t0a_idle <= 1'b0;
                             w_t0a_len <= axi_aw_len;
                         end else begin
                             // Clear valid signal and set idle
-                            w_t0a_valid <= 1'b0;
+                            w_t0a_burst_valid <= 1'b0;
+                            w_t0a_valid <= 1'b0;  // Address invalid
                             w_t0a_count <= '0;
                             w_t0a_idle <= 1'b1;
                         end
                     end
                     1'b0: begin // Not ready state (Bursting)
+                        w_t0a_valid <= 1'b0;  // Address invalid during bursting
                         w_t0a_count <= w_t0a_count - 1;
                         case (w_t0a_burst)
                             2'b00: begin // FIXED burst
@@ -307,7 +312,7 @@ module axi_dual_width_dual_port_ram #(
             w_t1_last <= 1'b0;
         end else if (axi_b_ready) begin
             w_t1_id <= w_t0a_id;
-            w_t1_valid <= (w_t0a_valid && w_t0d_valid);
+            w_t1_valid <= (w_t0a_burst_valid && w_t0d_valid);
             w_t1_last <= w_t0a_last;
         end
     end
@@ -333,8 +338,8 @@ module axi_dual_width_dual_port_ram #(
     assign w_t0a_state_ready = w_t0a_idle || (!w_t0a_idle && (w_t0a_count == 0));
 
     // Write merge ready generation
-    assign w_t0a_m_ready = (w_t0d_valid && !w_t0a_valid) || (!w_t0d_valid && !w_t0a_valid) || (w_t0d_valid && w_t0a_valid);
-    assign w_t0d_m_ready = (!w_t0d_valid && w_t0a_valid) || (!w_t0d_valid && !w_t0a_valid) || (w_t0d_valid && w_t0a_valid);
+    assign w_t0a_m_ready = (w_t0d_valid && !w_t0a_burst_valid) || (!w_t0d_valid && !w_t0a_burst_valid) || (w_t0d_valid && w_t0a_burst_valid);
+    assign w_t0d_m_ready = (!w_t0d_valid && w_t0a_burst_valid) || (!w_t0d_valid && !w_t0a_burst_valid) || (w_t0d_valid && w_t0a_burst_valid);
 
     // Utility function: Convert SIZE to bytes for read operations
     function automatic int read_size_to_bytes(input logic [2:0] size);

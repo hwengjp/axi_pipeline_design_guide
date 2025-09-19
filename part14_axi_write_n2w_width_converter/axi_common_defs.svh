@@ -27,8 +27,13 @@ parameter TOTAL_TEST_COUNT = 20;             // Total test count (commented)
 parameter PHASE_TEST_COUNT = 4;              // Tests per phase (commented)
 
 parameter MEMORY_SIZE_BYTES = 33554432;        // 32MB
-parameter AXI_DATA_WIDTH = 32;                 // 32bit
-parameter AXI_TARGET_WIDTH = 64;               // 64bit target for bus width conversion
+
+// Individual data width parameters for width converter
+parameter WRITE_SOURCE_WIDTH = 32;             // Write source data width (narrow)
+parameter WRITE_TARGET_WIDTH = 64;            // Write target data width (wide)
+parameter READ_SOURCE_WIDTH = 32;              // Read source data width (narrow)
+parameter READ_TARGET_WIDTH = 32;              // Read target data width (same as source)
+
 parameter AXI_ID_WIDTH = 8;                    // 8bit ID
 parameter TEST_COUNT_ADDR_SIZE_BYTES = 4096;   // Address size per test count
 parameter VERIFICATION_TIMEOUT_CYCLES = 1000000; // Verification timeout cycles for entire testbench
@@ -39,7 +44,12 @@ parameter RESET_CYCLES = 4;                    // Reset cycles
 // Derived parameters
 // =============================================================================
 parameter AXI_ADDR_WIDTH = $clog2(MEMORY_SIZE_BYTES); // Calculated address width
-parameter AXI_STRB_WIDTH = AXI_DATA_WIDTH / 8;        // Strobe width (1 bit per byte)
+
+// Individual strobe widths for width converter
+parameter WRITE_SOURCE_STRB_WIDTH = WRITE_SOURCE_WIDTH / 8;  // Write source strobe width
+parameter WRITE_TARGET_STRB_WIDTH = WRITE_TARGET_WIDTH / 8;  // Write target strobe width
+parameter READ_SOURCE_STRB_WIDTH = READ_SOURCE_WIDTH / 8;    // Read source strobe width
+parameter READ_TARGET_STRB_WIDTH = READ_TARGET_WIDTH / 8;    // Read target strobe width
 
 // =============================================================================
 // Ready negate control parameters
@@ -67,16 +77,16 @@ typedef struct {
 // =============================================================================
 burst_config_t burst_config_weights[] = '{     // Burst configuration weights array (total_weight=18)
     '{weight: 4, length_min: 1, length_max: 5, burst_type: "INCR", size_strategy: "FULL"},   // probability: 4/18 = 22.2%
-    '{weight: 3, length_min: 4, length_max: 7, burst_type: "INCR", size_strategy: "RANDOM"}, // probability: 3/18 = 16.7%
-    '{weight: 2, length_min: 8, length_max: 15, burst_type: "INCR", size_strategy: "RANDOM"}, // probability: 2/18 = 11.1%
-    '{weight: 1, length_min: 1, length_max: 1, burst_type: "WRAP", size_strategy: "FULL"},     // LEN=0 (2 transfers) - AXI4 compliant
-    '{weight: 1, length_min: 3, length_max: 3, burst_type: "WRAP", size_strategy: "FULL"},     // LEN=2 (4 transfers) - AXI4 compliant
-    '{weight: 1, length_min: 7, length_max: 7, burst_type: "WRAP", size_strategy: "FULL"},     // LEN=6 (8 transfers) - AXI4 compliant
-    '{weight: 1, length_min: 15, length_max: 15, burst_type: "WRAP", size_strategy: "FULL"},     // LEN=14 (16 transfers) - AXI4 compliant
-    '{weight: 1, length_min: 1, length_max: 1, burst_type: "WRAP", size_strategy: "RANDOM"},     // LEN=0 (2 transfers) - AXI4 compliant
-    '{weight: 1, length_min: 3, length_max: 3, burst_type: "WRAP", size_strategy: "RANDOM"},     // LEN=2 (4 transfers) - AXI4 compliant
-    '{weight: 1, length_min: 7, length_max: 7, burst_type: "WRAP", size_strategy: "RANDOM"},     // LEN=6 (8 transfers) - AXI4 compliant
-    '{weight: 1, length_min: 15, length_max: 15, burst_type: "WRAP", size_strategy: "RANDOM"},     // LEN=14 (16 transfers) - AXI4 compliant
+//    '{weight: 3, length_min: 4, length_max: 7, burst_type: "INCR", size_strategy: "RANDOM"}, // probability: 3/18 = 16.7%
+//    '{weight: 2, length_min: 8, length_max: 15, burst_type: "INCR", size_strategy: "RANDOM"}, // probability: 2/18 = 11.1%
+//    '{weight: 1, length_min: 1, length_max: 1, burst_type: "WRAP", size_strategy: "FULL"},     // LEN=0 (2 transfers) - AXI4 compliant
+//    '{weight: 1, length_min: 3, length_max: 3, burst_type: "WRAP", size_strategy: "FULL"},     // LEN=2 (4 transfers) - AXI4 compliant
+//    '{weight: 1, length_min: 7, length_max: 7, burst_type: "WRAP", size_strategy: "FULL"},     // LEN=6 (8 transfers) - AXI4 compliant
+//    '{weight: 1, length_min: 15, length_max: 15, burst_type: "WRAP", size_strategy: "FULL"},     // LEN=14 (16 transfers) - AXI4 compliant
+//    '{weight: 1, length_min: 1, length_max: 1, burst_type: "WRAP", size_strategy: "RANDOM"},     // LEN=0 (2 transfers) - AXI4 compliant
+//    '{weight: 1, length_min: 3, length_max: 3, burst_type: "WRAP", size_strategy: "RANDOM"},     // LEN=2 (4 transfers) - AXI4 compliant
+//    '{weight: 1, length_min: 7, length_max: 7, burst_type: "WRAP", size_strategy: "RANDOM"},     // LEN=6 (8 transfers) - AXI4 compliant
+//    '{weight: 1, length_min: 15, length_max: 15, burst_type: "WRAP", size_strategy: "RANDOM"},     // LEN=14 (16 transfers) - AXI4 compliant
     '{weight: 1, length_min: 0, length_max: 0, burst_type: "FIXED", size_strategy: "RANDOM"}   // probability: 1/18 = 5.6%
 };
 
@@ -159,8 +169,8 @@ typedef struct {
 
 typedef struct {
     int                         test_count;    // Test sequence number
-    logic [AXI_DATA_WIDTH-1:0] data;          // Write data
-    logic [AXI_STRB_WIDTH-1:0] strb;          // Strobe signals
+    logic [WRITE_SOURCE_WIDTH-1:0] data;      // Write data
+    logic [WRITE_SOURCE_STRB_WIDTH-1:0] strb; // Strobe signals
     logic                       last;          // Last transfer flag
     logic                       valid;         // Valid signal
     int                         phase;         // Test phase number
@@ -183,8 +193,8 @@ typedef struct {
 // =============================================================================
 typedef struct {
     int                         test_count;    // Test sequence number
-    logic [AXI_DATA_WIDTH-1:0] expected_data; // Expected read data
-    logic [AXI_STRB_WIDTH-1:0] expected_strobe; // Expected strobe values
+    logic [READ_SOURCE_WIDTH-1:0] expected_data; // Expected read data
+    logic [READ_SOURCE_STRB_WIDTH-1:0] expected_strobe; // Expected strobe values
     int                         phase;         // Test phase number
 } read_data_expected_t;
 

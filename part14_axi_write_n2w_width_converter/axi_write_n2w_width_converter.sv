@@ -106,17 +106,14 @@ module axi_write_n2w_width_converter #(
     input  logic                    m_axi_rlast
 );
 
-    // バス幅変換比率の計算
-    localparam int unsigned WRITE_RATIO = WRITE_TARGET_WIDTH / WRITE_SOURCE_WIDTH;
-    localparam int unsigned WRITE_BURST_RATIO = WRITE_SOURCE_WIDTH / WRITE_TARGET_WIDTH;
-
     // ライト側パイプライン内部信号
     // T0Aステージ（アドレス）
     reg [ADDR_WIDTH-1:0]   w_t0a_addr;        // T0Aステージアドレスレジスタ
     reg [1:0]              w_t0a_burst;       // T0Aステージバーストタイプ
     reg [2:0]              w_t0a_size;        // T0AステージSIZE信号
     reg [7:0]              w_t0a_id;          // T0AステージID
-    reg                    w_t0a_valid;       // T0Aステージ有効
+    reg                    w_t0a_burst_valid; // T0Aステージバースト有効
+    reg                    w_t0a_valid;       // T0Aステージ有効（レディ状態）
     reg [7:0]              w_t0a_count;       // T0Aステージバーストカウンタ
     reg                    w_t0a_idle;        // T0Aステージアイドルフラグ
     wire                   w_t0a_last;        // T0Aステージ最終信号
@@ -150,8 +147,7 @@ module axi_write_n2w_width_converter #(
     reg                    w_t1d_last;        // T1Dステージ最終
 
     // T2ステージ（応答）
-    reg [7:0]              w_t2_id;           // T2ステージID
-    reg                    w_t2_valid;        // T2ステージ有効
+    // T2ステージ（ライト応答）は削除 - 直結のため不要
 
     // ライトパイプライン制御信号
     wire w_t0a_m_ready;      // T0Aマージレディ信号
@@ -181,6 +177,7 @@ module axi_write_n2w_width_converter #(
             w_t0a_burst <= '0;
             w_t0a_size <= '0;
             w_t0a_id <= '0;
+            w_t0a_burst_valid <= 1'b0;
             w_t0a_valid <= 1'b0;
             w_t0a_count <= '0;
             w_t0a_idle <= 1'b1;
@@ -197,18 +194,21 @@ module axi_write_n2w_width_converter #(
                             w_t0a_burst <= s_axi_awburst;
                             w_t0a_size <= s_axi_awsize;
                             w_t0a_id <= s_axi_awid;
-                            w_t0a_valid <= 1'b1;
+                            w_t0a_burst_valid <= 1'b1;
+                            w_t0a_valid <= 1'b1;  // 新しいアドレストランザクションをラッチ
                             w_t0a_count <= s_axi_awlen;
                             w_t0a_idle <= 1'b0;
                             w_t0a_len <= s_axi_awlen;
                         end else begin
                             // 有効信号をクリアしてアイドルに設定
-                            w_t0a_valid <= 1'b0;
+                            w_t0a_burst_valid <= 1'b0;
+                            w_t0a_valid <= 1'b0;  // アドレス無効
                             w_t0a_count <= '0;
                             w_t0a_idle <= 1'b1;
                         end
                     end
                     1'b0: begin // レディでない状態（バースト中）
+                        w_t0a_valid <= 1'b0;  // バースト中はアドレス無効
                         w_t0a_count <= w_t0a_count - 1;
                         case (w_t0a_burst)
                             2'b00: begin // FIXEDバースト
@@ -280,37 +280,22 @@ module axi_write_n2w_width_converter #(
             w_t1d_valid <= 1'b0;
             w_t1d_last <= 1'b0;
         end else if (m_axi_wready) begin
-            if (w_t0d_valid && w_t0a_valid) begin
-                // データ幅変換：複数のソースデータを1つのターゲットデータに結合
-                w_t1d_data <= {WRITE_RATIO{w_t0d_data}};
-                // ストローブ幅変換：複数のソースストローブを1つのターゲットストローブに結合
-                w_t1d_strb <= {WRITE_RATIO{w_t0d_strb}};
-                w_t1d_valid <= 1'b1;
-                w_t1d_last <= w_t0d_last;
-            end else begin
-                w_t1d_data <= '0;
-                w_t1d_strb <= '0;
-                w_t1d_valid <= 1'b0;
-                w_t1d_last <= 1'b0;
-            end
+            // 2.3章の計算式に基づくシフト量計算
+            logic [7:0] data_shift_amount;
+            logic [7:0] strb_shift_amount;
+            
+            data_shift_amount = calculate_data_shift_amount(w_t1a_addr);
+            strb_shift_amount = calculate_strb_shift_amount(w_t1a_addr);
+            
+            w_t1d_data <= w_t0d_data << data_shift_amount;
+            w_t1d_strb <= w_t0d_strb << strb_shift_amount;
+            w_t1d_valid <= w_t0d_valid;
+            w_t1d_last <= w_t0d_last;
         end
     end
 
     // ライトパイプラインT2ステージ - 応答生成
-    always @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
-            w_t2_id <= '0;
-            w_t2_valid <= 1'b0;
-        end else if (m_axi_bvalid) begin
-            if (w_t1a_last) begin
-                w_t2_id <= w_t1a_id;
-                w_t2_valid <= w_t1a_valid;
-            end else begin
-                w_t2_id <= 0;
-                w_t2_valid <= 0;
-            end
-        end
-    end
+    // T2ステージ処理は削除 - ライト応答信号が直結のため不要
 
     // ライト制御信号生成
     assign w_t0a_last = !w_t0a_idle && (w_t0a_count == 0);
@@ -319,12 +304,66 @@ module axi_write_n2w_width_converter #(
     assign w_t1a_state_ready = w_t1a_idle || (!w_t1a_idle && (w_t1a_count == 0));
 
     // ライトマージレディ生成
-    assign w_t0a_m_ready = (w_t0d_valid && !w_t0a_valid) || (!w_t0d_valid && !w_t0a_valid) || (w_t0d_valid && w_t0a_valid);
-    assign w_t0d_m_ready = (!w_t0d_valid && w_t0a_valid) || (!w_t0d_valid && !w_t0a_valid) || (w_t0d_valid && w_t0a_valid);
+    assign w_t0a_m_ready = (w_t0d_valid && !w_t0a_burst_valid) || (!w_t0d_valid && !w_t0a_burst_valid) || (w_t0d_valid && w_t0a_burst_valid);
+    assign w_t0d_m_ready = (!w_t0d_valid && w_t0a_burst_valid) || (!w_t0d_valid && !w_t0a_burst_valid) || (w_t0d_valid && w_t0a_burst_valid);
 
     // ユーティリティ関数：SIZEをバイト数に変換
     function automatic int size_to_bytes(input logic [2:0] size);
         return (1 << size);
+    endfunction
+
+    // 2.3章の計算式に基づく汎用データシフト量計算
+    function automatic logic [7:0] calculate_data_shift_amount(input logic [ADDR_WIDTH-1:0] addr);
+        // パラメータ化された計算
+        localparam int SOURCE_BYTES = WRITE_SOURCE_WIDTH / 8;
+        localparam int TARGET_BYTES = WRITE_TARGET_WIDTH / 8;
+        localparam int RATIO = TARGET_BYTES / SOURCE_BYTES;
+        localparam int ADDR_BITS_NEEDED = $clog2(RATIO);
+        localparam int SOURCE_ADDR_BITS = $clog2(SOURCE_BYTES);
+        localparam int SHIFT_MULTIPLIER = SOURCE_BYTES;
+        
+        // 汎用的な計算式: (アドレス[下位ビット範囲]) * 8 * ソース幅の倍数
+        // 下位ビット範囲: [ADDR_BITS_NEEDED + SOURCE_ADDR_BITS - 1 : SOURCE_ADDR_BITS]
+        logic [7:0] addr_extract;
+        
+        // アドレスの下位ビットを抽出（最大7ビットまで対応）
+        if (ADDR_BITS_NEEDED + SOURCE_ADDR_BITS <= 7) begin
+            addr_extract = addr[ADDR_BITS_NEEDED + SOURCE_ADDR_BITS - 1 : SOURCE_ADDR_BITS];
+        end else begin
+            // 7ビットを超える場合はエラーを表示して終了
+            $error("Data shift calculation: Address bit range exceeds 7 bits: ADDR_BITS_NEEDED=%0d + SOURCE_ADDR_BITS=%0d = %0d > 7. Maximum supported address bit range is 7 bits.", 
+                   ADDR_BITS_NEEDED, SOURCE_ADDR_BITS, ADDR_BITS_NEEDED + SOURCE_ADDR_BITS);
+            $finish;
+        end
+        
+        return (addr_extract * 8 * SHIFT_MULTIPLIER);
+    endfunction
+
+    // 2.3章の計算式に基づく汎用ストローブシフト量計算
+    function automatic logic [7:0] calculate_strb_shift_amount(input logic [ADDR_WIDTH-1:0] addr);
+        // パラメータ化された計算
+        localparam int SOURCE_BYTES = WRITE_SOURCE_WIDTH / 8;
+        localparam int TARGET_BYTES = WRITE_TARGET_WIDTH / 8;
+        localparam int RATIO = TARGET_BYTES / SOURCE_BYTES;
+        localparam int ADDR_BITS_NEEDED = $clog2(RATIO);
+        localparam int SOURCE_ADDR_BITS = $clog2(SOURCE_BYTES);
+        localparam int SHIFT_MULTIPLIER = SOURCE_BYTES;
+        
+        // 汎用的な計算式: (アドレス[下位ビット範囲]) * ソース幅の倍数
+        // 下位ビット範囲: [ADDR_BITS_NEEDED + SOURCE_ADDR_BITS - 1 : SOURCE_ADDR_BITS]
+        logic [7:0] addr_extract;
+        
+        // アドレスの下位ビットを抽出（最大7ビットまで対応）
+        if (ADDR_BITS_NEEDED + SOURCE_ADDR_BITS <= 7) begin
+            addr_extract = addr[ADDR_BITS_NEEDED + SOURCE_ADDR_BITS - 1 : SOURCE_ADDR_BITS];
+        end else begin
+            // 7ビットを超える場合はエラーを表示して終了
+            $error("Strobe shift calculation: Address bit range exceeds 7 bits: ADDR_BITS_NEEDED=%0d + SOURCE_ADDR_BITS=%0d = %0d > 7. Maximum supported address bit range is 7 bits.", 
+                   ADDR_BITS_NEEDED, SOURCE_ADDR_BITS, ADDR_BITS_NEEDED + SOURCE_ADDR_BITS);
+            $finish;
+        end
+        
+        return (addr_extract * SHIFT_MULTIPLIER);
     endfunction
 
     // 関数：WRAPアドレス計算用ビットマスク作成（合成フレンドリー）
@@ -389,15 +428,15 @@ module axi_write_n2w_width_converter #(
     assign s_axi_awready = w_t0a_state_ready && w_t0a_m_ready && m_axi_awready;
     assign s_axi_wready = w_t0d_m_ready && m_axi_wready;
 
-    // ライト応答信号
-    assign s_axi_bid = w_t2_id;
-    assign s_axi_bresp = 2'b00;  // OKAY応答
-    assign s_axi_bvalid = w_t2_valid;
+    // ライト応答信号（直結）
+    assign s_axi_bid = m_axi_bid;
+    assign s_axi_bresp = m_axi_bresp;
+    assign s_axi_bvalid = m_axi_bvalid;
 
     // マスター側ライト信号
     assign m_axi_awaddr = w_t1a_addr;
     assign m_axi_awsize = w_t1a_size;
-    assign m_axi_awlen = w_t1a_len / WRITE_RATIO;  // バースト長を変換比率で除算
+    assign m_axi_awlen = w_t1a_len;  // バースト長は変更なし
     assign m_axi_awburst = w_t1a_burst;
     assign m_axi_awid = w_t1a_id;
     assign m_axi_awvalid = w_t1a_valid;
