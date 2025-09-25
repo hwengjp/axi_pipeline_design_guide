@@ -1,5 +1,5 @@
 // Licensed under the Apache License, Version 2.0 - see https://www.apache.org/licenses/LICENSE-2.0 for details.
-// AXI4 Write N2W Width Converter Testbench - Part14 Version
+// AXI4 Dual Width Dual Port RAM Testbench - Part14 Version
 // This testbench has been refactored to use modular architecture with separate modules for:
 // - Protocol verification
 // - Monitoring and logging
@@ -100,63 +100,85 @@ logic                      axi_r_ready;   // Read data ready
 // =============================================================================
 // Device Under Test (DUT) Instantiation
 // =============================================================================
-// Instantiate the AXI4 Write N2W Width Converter DUT with parameterized configuration
-axi_write_n2w_width_converter_dut #(
-    .WRITE_SOURCE_WIDTH(WRITE_SOURCE_WIDTH),  // Write source data width (32 bits from axi_common_defs.svh)
-    .WRITE_TARGET_WIDTH(WRITE_TARGET_WIDTH),  // Write target data width (64 bits from axi_common_defs.svh)
-    .READ_SOURCE_WIDTH(READ_SOURCE_WIDTH),    // Read source data width (32 bits from axi_common_defs.svh)
-    .READ_TARGET_WIDTH(READ_TARGET_WIDTH),    // Read target data width (32 bits from axi_common_defs.svh)
-    .ADDR_WIDTH(AXI_ADDR_WIDTH),              // Address width
-    .MEMORY_SIZE_BYTES(MEMORY_SIZE_BYTES)     // Memory size in bytes
+// Instantiate the AXI4 Dual Width Dual Port RAM DUT with parameterized configuration
+axi_dual_width_dual_port_ram #(
+    .MEMORY_SIZE_BYTES(MEMORY_SIZE_BYTES),      // Memory size in bytes
+    .READ_DATA_WIDTH(READ_SOURCE_WIDTH),        // Read data width (32 bits from axi_common_defs.svh)
+    .WRITE_DATA_WIDTH(WRITE_SOURCE_WIDTH),      // Write data width (32 bits from axi_common_defs.svh)
+    .AXI_ID_WIDTH(AXI_ID_WIDTH),               // AXI ID width
+    .AXI_ADDR_WIDTH(AXI_ADDR_WIDTH)            // AXI address width
 ) dut (
     // Clock and Reset
-    .aclk(clk),                               // AXI4 clock input
-    .aresetn(rst_n),                          // AXI4 active-low reset input
+    .axi_clk(clk),                             // AXI4 clock input
+    .axi_resetn(rst_n),                        // AXI4 active-low reset input
     
-    // Write Address Channel (AW)
-    .s_axi_awaddr(axi_aw_addr),               // Write address
-    .s_axi_awburst(axi_aw_burst),             // Burst type
-    .s_axi_awsize(axi_aw_size),               // Transfer size
-    .s_axi_awid(axi_aw_id),                   // Write transaction ID
-    .s_axi_awlen(axi_aw_len),                 // Burst length
-    .s_axi_awvalid(axi_aw_valid),             // Write address valid
-    .s_axi_awready(axi_aw_ready),             // Write address ready
+    // AXI Read Address Channel
+    .axi_ar_addr(axi_ar_addr),                 // Read address
+    .axi_ar_burst(axi_ar_burst),               // Burst type
+    .axi_ar_size(axi_ar_size),                 // Transfer size
+    .axi_ar_id(axi_ar_id),                     // Read transaction ID
+    .axi_ar_len(axi_ar_len),                   // Burst length
+    .axi_ar_ready(axi_ar_ready),               // Read address ready
+    .axi_ar_valid(axi_ar_valid),               // Read address valid
     
-    // Write Data Channel (W)
-    .s_axi_wdata(axi_w_data),                 // Write data
-    .s_axi_wlast(axi_w_last),                 // Last transfer flag
-    .s_axi_wstrb(axi_w_strb),                 // Write strobes
-    .s_axi_wvalid(axi_w_valid),               // Write data valid
-    .s_axi_wready(axi_w_ready),               // Write data ready
+    // AXI Read Data Channel
+    .axi_r_data(axi_r_data),                   // Read data
+    .axi_r_id(axi_r_id),                       // Read data ID
+    .axi_r_resp(axi_r_resp),                   // Read response
+    .axi_r_last(axi_r_last),                   // Last transfer flag
+    .axi_r_ready(axi_r_ready),                 // Read data ready
+    .axi_r_valid(axi_r_valid),                 // Read data valid
     
-    // Write Response Channel (B)
-    .s_axi_bresp(axi_b_resp),                 // Write response
-    .s_axi_bid(axi_b_id),                     // Write response ID
-    .s_axi_bvalid(axi_b_valid),               // Write response valid
-    .s_axi_bready(axi_b_ready),               // Write response ready
+    // AXI Write Address Channel
+    .axi_aw_addr(axi_aw_addr),                 // Write address
+    .axi_aw_burst(axi_aw_burst),               // Burst type
+    .axi_aw_size(axi_aw_size),                 // Transfer size
+    .axi_aw_id(axi_aw_id),                     // Write transaction ID
+    .axi_aw_len(axi_aw_len),                   // Burst length
+    .axi_aw_ready(axi_aw_ready),               // Write address ready
+    .axi_aw_valid(axi_aw_valid),               // Write address valid
     
-    // Read Address Channel (AR)
-    .s_axi_araddr(axi_ar_addr),               // Read address
-    .s_axi_arburst(axi_ar_burst),             // Burst type
-    .s_axi_arsize(axi_ar_size),               // Transfer size
-    .s_axi_arid(axi_ar_id),                   // Read transaction ID
-    .s_axi_arlen(axi_ar_len),                 // Burst length
-    .s_axi_arvalid(axi_ar_valid),             // Read address valid
-    .s_axi_arready(axi_ar_ready),             // Read address ready
+    // AXI Write Data Channel
+    .axi_w_data(axi_w_data),                   // Write data
+    .axi_w_last(axi_w_last),                   // Last transfer flag
+    .axi_w_strb(axi_w_strb),                   // Write strobes
+    .axi_w_ready(axi_w_ready),                 // Write data ready
+    .axi_w_valid(axi_w_valid),                 // Write data valid
     
-    // Read Data Channel (R)
-    .s_axi_rdata(axi_r_data),                 // Read data
-    .s_axi_rid(axi_r_id),                     // Read data ID
-    .s_axi_rresp(axi_r_resp),                 // Read response
-    .s_axi_rlast(axi_r_last),                 // Last transfer flag
-    .s_axi_rvalid(axi_r_valid),               // Read data valid
-    .s_axi_rready(axi_r_ready)                // Read data ready
+    // AXI Write Response Channel
+    .axi_b_resp(axi_b_resp),                   // Write response
+    .axi_b_id(axi_b_id),                       // Write response ID
+    .axi_b_ready(axi_b_ready),                 // Write response ready
+    .axi_b_valid(axi_b_valid)                  // Write response valid
 );
 
 
 // =============================================================================
 // Test Stimulus Generation and Initialization
 // =============================================================================
+// Initialize AXI signals
+initial begin
+    // Initialize all AXI signals to default values
+    axi_aw_addr = 0;
+    axi_aw_burst = 0;
+    axi_aw_size = 0;
+    axi_aw_id = 0;
+    axi_aw_len = 0;
+    axi_aw_valid = 0;
+    axi_w_data = 0;
+    axi_w_strb = 0;
+    axi_w_last = 0;
+    axi_w_valid = 0;
+    axi_b_ready = 1;  // Always ready to accept write responses
+    axi_ar_addr = 0;
+    axi_ar_burst = 0;
+    axi_ar_size = 0;
+    axi_ar_id = 0;
+    axi_ar_len = 0;
+    axi_ar_valid = 0;
+    axi_r_ready = 1;  // Always ready to accept read data
+end
+
 // This initial block runs at simulation time 0 to generate all test data
 initial begin
     // Generate Write Address Channel test payloads

@@ -1,161 +1,161 @@
-# AXIバスのパイプライン回路設計ガイド
+# AXI Bus Pipeline Circuit Design Guide
 
-## はじめに
+## Introduction
 
-このドキュメントはAIに読み込ませてコードを自動生成することを目標としています。
+This document is designed to be read by AI for automatic code generation.
 
-AXIバスの設計に必要なパイプライン動作の基本的な設計手法について複数回に分けてご紹介します。
+We will introduce the basic design techniques for pipeline operations required for AXI bus design in multiple parts.
 
-2025年7月現在ではパイプライン動作する回路の設計ルールを説明した指南書やAIが学習するための適切な教師データが少なく、パイプライン動作するはずのAXIバスの回路をデバッグさせると逐次動作に変換されてしまいます。これはパイプラインの回路の基本原理と解析の仕方を解説した適切な教師データが無いということに起因しています。設計の仕方を解説してAIにAXIバスに接続可能なコンポーネントを設計させる試みを紹介していきます。
+As of July 2025, there are few design guides explaining the design rules for pipeline circuits and appropriate training data for AI learning. When debugging AXI bus circuits that should operate in pipeline mode, they are often converted to sequential operation. This is due to the lack of appropriate training data that explains the basic principles and analysis methods of pipeline circuits. We will introduce attempts to design AXI bus-connectable components by explaining design methods to AI.
 
-## ドキュメント一覧
+## Document List
 
-### [第1回：パイプラインの動作原理](part01_pipeline_principles.md)
- - 基本的なパイプライン動作とReady/Validハンドシェイクの仕組み
- - 帰納法的設計によるパイプライン回路の設計手法
+### [Part 1: Pipeline Operation Principles](part01_pipeline_principles.md)
+ - Basic pipeline operations and Ready/Valid handshake mechanisms
+ - Design methodology for pipeline circuits using inductive design
 
-### [第2回：Ready信号とデータにFFを1段挿入する回路](part02_pipeline_insert.md)
- - パイプラインのデータとReadyの基本ルールを守りながらReady信号とデータにFFを1段挿入する回路
- - 総当たり探索法によるパイプライン挿入の最適化
+### [Part 2: Circuit for Inserting One Stage of FF into Ready Signal and Data](part02_pipeline_insert.md)
+ - Circuit for inserting one stage of FF into Ready signal and data while maintaining basic pipeline rules for data and Ready
+ - Optimization of pipeline insertion using exhaustive search method
 
-### [第3回：パイプライン動作を確認するテストベンチ](part03_pipeline_testbench.md)
- - パイプライン回路の動作を確実に検証するためのテストベンチ
- - デルタ遅延問題の回避とパイプライン動作の検証
+### [Part 3: Testbench for Verifying Pipeline Operations](part03_pipeline_testbench.md)
+ - Testbench for reliable verification of pipeline circuit operations
+ - Avoiding delta delay issues and verifying pipeline operations
 
-### [第4回：ペイロードがN倍に増えるパイプラインAXIリードアドレスチャネルの模擬](part04_burst_read_pipeline.md)
- - ペイロード増幅パイプラインの設計と実装
- - バーストリードパイプラインモジュールとテストベンチの実装
+### [Part 4: Simulation of Pipeline AXI Read Address Channel with N-fold Payload Increase](part04_burst_read_pipeline.md)
+ - Design and implementation of payload amplification pipeline
+ - Implementation of burst read pipeline module and testbench
 
-### [第５回：Payloadが合流するパイプラインAXIライトデータチャネルの模擬](part05_burst_write_pipeline.md)
- - ペイロードが合流するパイプラインの設計と実装
- - バーストライトパイプラインモジュールとテストベンチの実装
- - 本質要素抽象化によるパイプライン設計の簡素化
+### [Part 5: Simulation of Pipeline AXI Write Data Channel with Payload Convergence](part05_burst_write_pipeline.md)
+ - Design and implementation of pipeline with payload convergence
+ - Implementation of burst write pipeline module and testbench
+ - Simplification of pipeline design through essential element abstraction
 
-### [第6回：統合ステート管理によるリードライトパイプラインの実装](part06_burst_rw_pipeline.md)
- - リード・ライト統合制御パイプラインの設計と実装
- - 共通ステートマシンによる優先度制御
- - バーストリードライトパイプラインモジュールとテストベンチの実装
- - 条件網羅法と条件刈込法によるステート遷移の最適化
+### [Part 6: Implementation of Read/Write Pipeline with Integrated State Management](part06_burst_rw_pipeline.md)
+ - Design and implementation of read/write integrated control pipeline
+ - Priority control through common state machine
+ - Implementation of burst read/write pipeline module and testbench
+ - Optimization of state transitions using condition coverage and condition pruning methods
 
-### [第7回：AXI4仕様のシンプルデュアルポートRAM](part07_axi_simple_dual_port_ram.md)
- - AXI4準拠シンプルデュアルポートRAMの設計と実装
- - リード・ライト独立パイプラインによる並列処理
- - 3種類のバーストモード（FIXED、INCR、WRAP）のサポート
- - ハルシネーション・ポチョムキン理解・認知バイアス除去
- - マイクロデバッグ・スパゲティコード化
- - 御破算やりなおし法
+### [Part 7: AXI4 Specification Simple Dual Port RAM](part07_axi_simple_dual_port_ram.md)
+ - Design and implementation of AXI4-compliant simple dual port RAM
+ - Parallel processing through independent read/write pipelines
+ - Support for three burst modes (FIXED, INCR, WRAP)
+ - Hallucination, Potemkin understanding, and cognitive bias elimination
+ - Micro debugging and spaghetti code conversion
+ - Reset and restart method
 
-### [第8回：AXI4バス・テストベンチの本質要素抽象化設計](part08_axi4_bus_testbench_abstraction.md)
- - AXI4バス・テストベンチの本質要素の抽象化と体系化
- - 6つの基本要素（パラメータ設定系、ハードウェア制御系、テストデータ生成・制御系、データ検証系、プロトコル検証系、監視・ログ系）の定義
- - 重み付き乱数発生系によるテストパターンの最適化
- - 包括的なテストベンチ設計手法の確立
+### [Part 8: Essential Element Abstraction Design for AXI4 Bus Testbench](part08_axi4_bus_testbench_abstraction.md)
+ - Abstraction and systematization of essential elements for AXI4 bus testbench
+ - Definition of six basic elements (parameter setting, hardware control, test data generation/control, data verification, protocol verification, monitoring/logging)
+ - Optimization of test patterns through weighted random generation
+ - Establishment of comprehensive testbench design methodology
 
-### [第9回：AXI4バス・テストベンチの機能分類](part09_axi4_testbench_refactoring.md)
- - 第8回で作成したコードの機能毎のファイル分割と汎用化
- - 5つの機能系（共通定義・パラメータ系、テスト刺激生成系、検証・期待値生成系、ログ・監視系、ユーティリティ関数系）への分類
- - 段階的なファイル分割実装によるリスク最小化
- - include文による依存関係管理とシンプルな構造化
+### [Part 9: Functional Classification of AXI4 Bus Testbench](part09_axi4_testbench_refactoring.md)
+ - File splitting and generalization by function for code created in Part 8
+ - Classification into five functional systems (common definition/parameter, test stimulus generation, verification/expected value generation, logging/monitoring, utility function)
+ - Risk minimization through gradual file splitting implementation
+ - Dependency management through include statements and simple structuring
 
-### [第10回：AXI4仕様のシンプルシングルポートRAM](part10_axi_simple_single_port_ram.md)
- - AXI4準拠シンプルシングルポートRAMの設計と実装
- - リード・ライト統合制御パイプラインによる排他アクセス制御
- - 5段階ステートマシン（IDLE、R_NLAST、R_LAST、W_NLAST、W_LAST）による優先度制御
+### [Part 10: AXI4 Specification Simple Single Port RAM](part10_axi_simple_single_port_ram.md)
+ - Design and implementation of AXI4-compliant simple single port RAM
+ - Exclusive access control through read/write integrated control pipeline
+ - Priority control through 5-stage state machine (IDLE, R_NLAST, R_LAST, W_NLAST, W_LAST)
 
-### [第11回：AXI4バス・テストベンチのリファクタリング](part11_axi4_testbench_refactoring.md)
- - **拡張ストローブ制御**: パラメータによるストローブ生成戦略の制御
- - **乱数生成の高度化**: 重み付き選択とストローブ戦略の組み合わせ
- - **テストカバレッジの向上**: 様々なストローブパターンのテスト
- - **実装の保守性向上**: 設定による動作の制御とエラー検出の強化
+### [Part 11: AXI4 Bus Testbench Refactoring](part11_axi4_testbench_refactoring.md)
+ - **Extended Strobe Control**: Control of strobe generation strategy through parameters
+ - **Advanced Random Generation**: Combination of weighted selection and strobe strategy
+ - **Improved Test Coverage**: Testing of various strobe patterns
+ - **Enhanced Implementation Maintainability**: Control of behavior through settings and strengthened error detection
 
-### [第12回：AXI4 SIZEとWRAPの仕様](part12_axi4_size_wrap_specification.md)
- - AXI4プロトコルのSIZE制約とWRAPバーストの詳細仕様
- - IHI0022B_AMBAaxi公式仕様書に基づく正確な解説
- - SIZE制約（転送サイズとバス幅の関係）の実装要件
- - WRAPバーストのアドレス計算と境界制約の詳細
- - 実装上の注意点とテスト戦略（size_strategy）の解説
+### [Part 12: AXI4 SIZE and WRAP Specifications](part12_axi4_size_wrap_specification.md)
+ - Detailed specifications of AXI4 protocol SIZE constraints and WRAP burst
+ - Accurate explanation based on IHI0022B_AMBAaxi official specification
+ - Implementation requirements for SIZE constraints (relationship between transfer size and bus width)
+ - Details of WRAP burst address calculation and boundary constraints
+ - Implementation considerations and explanation of test strategy (size_strategy)
 
-### [第13回：AXI4バス・テストベンチのバイトアクセス検証機能](part13_axi4_testbench_byte_access_verification.md)
- - 従来手法の問題点：READ/WRITE両方でアドレス計算を間違えた場合の検出困難性
- - 新しい検証手法：バイト単位での個別検証による正確性確認
- - アドレス計算の正確性をより厳密に検証する手法の実装
+### [Part 13: AXI4 Bus Testbench Byte Access Verification Function](part13_axi4_testbench_byte_access_verification.md)
+ - Problems with conventional methods: Difficulty in detecting address calculation errors in both READ/WRITE
+ - New verification method: Accurate confirmation through individual verification in byte units
+ - Implementation of methods for more rigorous verification of address calculation accuracy
 
-### 今後の予定
-- 第14回以降：バス幅変換・クロック周波数変換コンポーネント（準備中）
+### Future Plans
+- Part 14 and beyond: Bus width conversion and clock frequency conversion components (in preparation)
 
-### ルール集
-AIによる一貫性のあるドキュメント作成のためのルール集
+### Rule Collection
+Rule collection for consistent document creation by AI
 
-- [ルール１.シーケンスチャート記述](rule01_sequence_chart_rules.md)
-- [ルール２.デルタ遅延問題の回避](rule02_delta_delay_examples.md)
+- [Rule 1. Sequence Chart Description](rule01_sequence_chart_rules.md)
+- [Rule 2. Delta Delay Problem Avoidance](rule02_delta_delay_examples.md)
 
-### 開発手法・デバッグ手法
+### Development and Debugging Methods
 
-  - インクリメント法
-  - ２分探索法
-  - ランダム法
-  - 総当たり探索法
-  - 条件網羅法
-  - 帰納法
-  - 境界条件法
-  - 偏微分調査法
-  - 条件刈込法
-  - 御破算やりなおし法
-  - マイクロデバッグ・スパゲティコード化
-  - ハルシネーション・ポチョムキン理解・認知バイアス除去
-  - 本質要素抽象化
-  - 機能分類によるファイル分割
-  - 段階的リファクタリング
-  - include文による依存関係管理
+  - Incremental method
+  - Binary search method
+  - Random method
+  - Exhaustive search method
+  - Condition coverage method
+  - Inductive method
+  - Boundary condition method
+  - Partial derivative investigation method
+  - Condition pruning method
+  - Reset and restart method
+  - Micro debugging and spaghetti code conversion
+  - Hallucination, Potemkin understanding, and cognitive bias elimination
+  - Essential element abstraction
+  - File splitting by functional classification
+  - Gradual refactoring
+  - Dependency management through include statements
 
-## ドキュメント作成方針
+## Document Creation Policy
 
-このドキュメントはパイプライン動作のハードウェア設計をシンプル・単純化するためのノウハウを記載しています。以下の方針に従って作成しています：
+This document records know-how for simplifying and streamlining hardware design for pipeline operations. It is created following these policies:
 
-- **シンプル性**: 必要最小限の情報のみを記載
-- **短縮性**: 冗長な説明を避け、要点を簡潔に表現
-- **理解しやすさ**: 人間とAIの両方が理解できる明確な記述
-- **実用性**: 実際の設計で使用できる実践的な内容
-- **継承性**: 将来の設計者やAIに技術を伝承
-- **国際化**: 英語コメントと統一された用語による国際的な理解
+- **Simplicity**: Only the minimum necessary information is recorded
+- **Conciseness**: Avoiding redundant explanations and expressing key points concisely
+- **Understandability**: Clear descriptions that both humans and AI can understand
+- **Practicality**: Practical content that can be used in actual design
+- **Inheritance**: Passing on technology to future designers and AI
+- **Internationalization**: International understanding through English comments and unified terminology
 
-## 対象読者
+## Target Audience
 
-- ハードウェア設計者
-- AIによるコード生成の学習データとして
-- AXIバス設計を学ぶ学生・エンジニア
-- パイプライン回路の設計手法を学びたい方
-- バースト転送やペイロード増幅パイプラインの実装を学びたい方
+- Hardware designers
+- As training data for AI code generation
+- Students and engineers learning AXI bus design
+- Those who want to learn pipeline circuit design techniques
+- Those who want to learn implementation of burst transfer and payload amplification pipelines
 
-## 技術スタック
+## Technology Stack
 
 - SystemVerilog HDL
-- AXIバスプロトコル
-- パイプライン設計手法
-- Ready/Validハンドシェイク
-- テストベンチ設計
+- AXI Bus Protocol
+- Pipeline Design Techniques
+- Ready/Valid Handshake
+- Testbench Design
 
-## ライセンス
+## License
 
-このプロジェクトは [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0) の下で公開されています。
+This project is released under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0).
 
-### ライセンスの特徴
-- **出典明記**: 著作権表示とライセンス情報の保持が必須
-- **商用利用**: 可能
-- **改変・再配布**: 可能（ライセンス情報の保持が必要）
-- **特許権**: 明示的許可
+### License Features
+- **Attribution**: Copyright notice and license information retention is mandatory
+- **Commercial Use**: Permitted
+- **Modification and Redistribution**: Permitted (license information retention required)
+- **Patent Rights**: Explicit permission
 
-### 必要なこと
-- ライセンスと著作権表示の保持
-- 変更の明示（改変した場合）
-- NOTICEファイルの保持（存在する場合）
+### Requirements
+- Retention of license and copyright notice
+- Indication of changes (when modified)
+- Retention of NOTICE file (if it exists)
 
-詳細は [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0) を参照してください。
+For details, please refer to [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0).
 
-## 貢献
+## Contributing
 
-改善提案やバグ報告は、GitHubのIssuesまたはPull Requestsでお気軽にお寄せください。
+Improvement suggestions and bug reports are welcome through GitHub Issues or Pull Requests.
 
 ---
 
-*このドキュメントは、AIがハードウェア設計を学習するための教師データとしても活用できるよう設計されています。*
+*This document is designed to be used as training data for AI to learn hardware design.*

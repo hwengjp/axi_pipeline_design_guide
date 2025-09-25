@@ -338,8 +338,11 @@ module axi_dual_width_dual_port_ram #(
     assign w_t0a_state_ready = w_t0a_idle || (!w_t0a_idle && (w_t0a_count == 0));
 
     // Write merge ready generation
-    assign w_t0a_m_ready = (w_t0d_valid && !w_t0a_burst_valid) || (!w_t0d_valid && !w_t0a_burst_valid) || (w_t0d_valid && w_t0a_burst_valid);
-    assign w_t0d_m_ready = (!w_t0d_valid && w_t0a_burst_valid) || (!w_t0d_valid && !w_t0a_burst_valid) || (w_t0d_valid && w_t0a_burst_valid);
+    // 可読性向上のために論理圧縮
+    // assign w_t0a_m_ready = (w_t0d_valid && !w_t0a_burst_valid) || (!w_t0d_valid && !w_t0a_burst_valid) || (w_t0d_valid && w_t0a_burst_valid);
+    // assign w_t0d_m_ready = (!w_t0d_valid && w_t0a_burst_valid) || (!w_t0d_valid && !w_t0a_burst_valid) || (w_t0d_valid && w_t0a_burst_valid);
+    assign w_t0a_m_ready = !w_t0a_burst_valid || (w_t0d_valid && w_t0a_burst_valid);
+    assign w_t0d_m_ready = !w_t0d_valid       || (w_t0d_valid && w_t0a_burst_valid);
 
     // Utility function: Convert SIZE to bytes for read operations
     function automatic int read_size_to_bytes(input logic [2:0] size);
@@ -455,6 +458,57 @@ module axi_dual_width_dual_port_ram #(
     // Write ready signal generation
     assign axi_aw_ready = w_t0a_state_ready && w_t0a_m_ready && axi_b_ready;
     assign axi_w_ready = w_t0d_m_ready && axi_b_ready;
+    
+    // Debug: Monitor axi_b_ready signal using delay circuit
+    reg prev_axi_b_ready;
+    reg prev_w_t0d_m_ready;
+    reg prev_axi_w_ready;
+    reg prev_w_t0a_burst_valid;
+    
+    always @(posedge axi_clk) begin
+        if (!axi_resetn) begin
+            prev_axi_b_ready <= 1'b0;
+            prev_w_t0d_m_ready <= 1'b0;
+            prev_axi_w_ready <= 1'b0;
+            prev_w_t0a_burst_valid <= 1'b0;
+        end else begin
+            // Monitor axi_b_ready changes
+            if (axi_b_ready !== prev_axi_b_ready) begin
+                $display("[%0t] DEBUG: axi_b_ready changed from %0d to %0d", 
+                         $time, prev_axi_b_ready, axi_b_ready);
+            end
+            
+            // Monitor w_t0d_m_ready changes
+            if (w_t0d_m_ready !== prev_w_t0d_m_ready) begin
+                $display("[%0t] DEBUG: w_t0d_m_ready changed from %0d to %0d (w_t0d_valid=%0d, w_t0a_burst_valid=%0d)", 
+                         $time, prev_w_t0d_m_ready, w_t0d_m_ready, w_t0d_valid, w_t0a_burst_valid);
+            end
+            
+            // Monitor axi_w_ready changes
+            if (axi_w_ready !== prev_axi_w_ready) begin
+                $display("[%0t] DEBUG: axi_w_ready changed from %0d to %0d (w_t0d_m_ready=%0d, axi_b_ready=%0d)", 
+                         $time, prev_axi_w_ready, axi_w_ready, w_t0d_m_ready, axi_b_ready);
+            end
+            
+            // Monitor w_t0a_burst_valid changes
+            if (w_t0a_burst_valid !== prev_w_t0a_burst_valid) begin
+                $display("[%0t] DEBUG: w_t0a_burst_valid changed from %0d to %0d", 
+                         $time, prev_w_t0a_burst_valid, w_t0a_burst_valid);
+            end
+            
+            // Monitor when axi_w_valid is high but axi_w_ready is low
+            if (axi_w_valid && !axi_w_ready) begin
+                $display("[%0t] DEBUG: axi_w_ready blocked - w_t0d_m_ready=%0d, axi_b_ready=%0d, axi_w_valid=%0d", 
+                         $time, w_t0d_m_ready, axi_b_ready, axi_w_valid);
+            end
+            
+            // Update delay circuit
+            prev_axi_b_ready <= axi_b_ready;
+            prev_w_t0d_m_ready <= w_t0d_m_ready;
+            prev_axi_w_ready <= axi_w_ready;
+            prev_w_t0a_burst_valid <= w_t0a_burst_valid;
+        end
+    end
 
     // Write response signals
     assign axi_b_id = w_t2_id;

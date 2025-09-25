@@ -94,10 +94,10 @@ module axi_write_n2w_width_converter_dut #(
 
     // バス幅変換器インスタンス
     axi_write_n2w_width_converter #(
-        .WRITE_SOURCE_WIDTH(WRITE_SOURCE_WIDTH),
-        .WRITE_TARGET_WIDTH(WRITE_TARGET_WIDTH),
-        .READ_SOURCE_WIDTH(READ_SOURCE_WIDTH),
-        .READ_TARGET_WIDTH(READ_TARGET_WIDTH),
+        .WRITE_SOURCE_WIDTH(WRITE_SOURCE_WIDTH),  // 32 bits from axi_common_defs.svh
+        .WRITE_TARGET_WIDTH(WRITE_TARGET_WIDTH),  // 64 bits from axi_common_defs.svh
+        .READ_SOURCE_WIDTH(READ_SOURCE_WIDTH),    // 32 bits from axi_common_defs.svh
+        .READ_TARGET_WIDTH(READ_TARGET_WIDTH),    // 32 bits from axi_common_defs.svh
         .ADDR_WIDTH(ADDR_WIDTH)
     ) width_converter_inst (
         .aclk(aclk),
